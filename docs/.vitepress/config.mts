@@ -89,6 +89,7 @@ export default defineConfig({
             { text: '玩法规格', link: '/game/requirements/gameplay' },
             { text: '角色规格', link: '/game/requirements/characters' },
             { text: '角色视觉参考', link: '/game/requirements/character-references' },
+            { text: 'Q 萌图库', link: '/game/requirements/chibi-gallery' },
             { text: '关卡规格', link: '/game/requirements/stages' },
             { text: '游戏策划文档', link: '/game/requirements/gdd' },
             { text: '非功能需求', link: '/game/requirements/nonfunctional' },
