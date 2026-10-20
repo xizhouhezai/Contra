@@ -6,12 +6,11 @@
 
 ```text
 contra/
-├── apps/
-│   └── docs/          @contra/docs —— VitePress 文档系统
+├── docs/               @contra/docs —— VitePress 文档系统
 ├── packages/
-│   ├── core/          @contra/core —— Result、版本工具、事件总线
-│   └── cli/           @contra/cli —— 参数解析与命令调度
-├── package.json       根：脚本聚合
+│   ├── core/           @contra/core —— Result、版本工具、事件总线
+│   └── cli/            @contra/cli —— 参数解析与命令调度
+├── package.json        根：脚本聚合
 ├── pnpm-workspace.yaml
 └── tsconfig.base.json
 ```
@@ -45,7 +44,7 @@ pnpm verify        # lint + typecheck + test + build
 
 ## 文档
 
-完整文档见 `apps/docs/`，构建后本地预览：
+完整文档见 `docs/`，构建后本地预览：
 
 ```bash
 pnpm docs:build && pnpm docs:preview

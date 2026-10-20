@@ -10,7 +10,7 @@ Contra 的首页就用到了两处插槽。
 
 ## 主题入口
 
-`apps/docs/.vitepress/theme/index.ts`：
+`docs/.vitepress/theme/index.ts`：
 
 ```ts
 import { h, type Theme } from 'vue'

@@ -51,11 +51,11 @@ pnpm verify
 
 ```bash
 # 通过工作区过滤器运行
-pnpm --filter @contra/cli exec node dist/index.js version
+pnpm --filter @contra/cli exec node dist/bin.js version
 
 # 或者先构建，再直接执行
 pnpm --filter @contra/cli run build
-node packages/cli/dist/index.js doctor
+node packages/cli/dist/bin.js doctor
 ```
 
 预期输出：
@@ -76,14 +76,13 @@ workspace: pnpm
 
 ```text
 contra/
-├── apps/
-│   └── docs/              # VitePress 文档系统
+├── docs/                 # @contra/docs —— VitePress 文档系统
 ├── packages/
-│   ├── core/              # @contra/core
-│   └── cli/               # @contra/cli
-├── package.json           # 工作区根
-├── pnpm-workspace.yaml    # 包拓扑定义
-└── tsconfig.base.json     # 共享编译选项
+│   ├── core/             # @contra/core
+│   └── cli/              # @contra/cli
+├── package.json          # 工作区根
+├── pnpm-workspace.yaml   # 包拓扑定义
+└── tsconfig.base.json    # 共享编译选项
 ```
 
 ## 下一步

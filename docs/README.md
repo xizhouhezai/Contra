@@ -5,7 +5,7 @@ Contra 文档系统，基于 VitePress。
 ## 结构
 
 ```text
-apps/docs/
+docs/
 ├── .vitepress/
 │   ├── config.mts        站点配置：导航、侧边栏、搜索、页脚
 │   └── theme/

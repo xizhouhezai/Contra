@@ -9,33 +9,32 @@ description: 目录布局、配置文件职责与构建拓扑
 
 ```text
 contra/
-├── apps/
-│   └── docs/                       # @contra/docs —— VitePress 文档站
-│       ├── .vitepress/
-│       │   ├── config.mts          # 站点配置：导航、侧边栏、搜索
-│       │   └── theme/
-│       │       ├── index.ts        # 主题入口，扩展默认主题
-│       │       ├── style.css       # 设计语言：纸面、墨色、字体
-│       │       └── components/      # 自定义组件
-│       ├── public/                 # 静态资源，根路径引用
-│       ├── guide/                  # 指南
-│       ├── api/                    # API 参考
-│       ├── examples/               # 示例
-│       └── index.md                # 首页
+├── docs/                             # @contra/docs —— VitePress 文档站
+│   ├── .vitepress/
+│   │   ├── config.mts                # 站点配置：导航、侧边栏、搜索
+│   │   └── theme/
+│   │       ├── index.ts              # 主题入口，扩展默认主题
+│   │       ├── style.css             # 设计语言：纸面、墨色、字体
+│   │       └── components/           # 自定义组件
+│   ├── public/                       # 静态资源，根路径引用
+│   ├── guide/                        # 指南
+│   ├── api/                          # API 参考
+│   ├── examples/                     # 示例
+│   └── index.md                      # 首页
 ├── packages/
-│   ├── core/                       # @contra/core
-│   │   ├── src/                    # 源码，产出 dist/
-│   │   ├── test/                   # vitest 测试
-│   │   └── tsconfig.typecheck.json # 含测试的全量类型检查
-│   └── cli/                        # @contra/cli
+│   ├── core/                         # @contra/core
+│   │   ├── src/                      # 源码，产出 dist/
+│   │   ├── test/                     # vitest 测试
+│   │   └── tsconfig.typecheck.json   # 含测试的全量类型检查
+│   └── cli/                          # @contra/cli
 │       ├── src/
 │       ├── test/
 │       └── tsconfig.typecheck.json
-├── package.json                    # 根：脚本聚合与共享 devDependencies
-├── pnpm-workspace.yaml             # 包发现范围与构建白名单
-├── tsconfig.base.json              # 共享编译选项
-├── tsconfig.json                   # 根项目引用
-├── biome.json                      # lint / format 配置
+├── package.json                      # 根：脚本聚合与共享 devDependencies
+├── pnpm-workspace.yaml               # 包发现范围与构建白名单
+├── tsconfig.base.json                # 共享编译选项
+├── tsconfig.json                     # 根项目引用
+├── biome.json                        # lint / format 配置
 └── .gitignore
 ```
 
@@ -47,7 +46,7 @@ contra/
 
 ```yaml
 packages:
-  - 'apps/*'
+  - 'docs'
   - 'packages/*'
 
 allowBuilds:

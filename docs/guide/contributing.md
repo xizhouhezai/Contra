@@ -60,7 +60,7 @@ pnpm verify
 
 ## 文档变更
 
-改到 `apps/docs/` 的内容时，单独跑一次文档构建确认没有断链：
+改到 `docs/` 的内容时，单独跑一次文档构建确认没有断链：
 
 ```bash
 pnpm docs:build

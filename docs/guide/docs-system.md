@@ -7,7 +7,7 @@ description: 如何为这套 VitePress 系统增加页面
 
 ## 新增一页指南
 
-1. 在 `apps/docs/guide/` 下创建 `your-page.md`
+1. 在 `docs/guide/` 下创建 `your-page.md`
 2. 写好 frontmatter
 3. 在 `config.mts` 的 `themeConfig.sidebar` 里加上侧边栏条目
 
@@ -134,7 +134,7 @@ search: {
 
 ## 静态资源
 
-放在 `apps/docs/public/` 下，通过根路径引用：
+放在 `docs/public/` 下，通过根路径引用：
 
 ```md
 ![架构图](/images/architecture.png)

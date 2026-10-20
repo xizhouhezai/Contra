@@ -8,8 +8,8 @@ build/
 *.tsbuildinfo
 
 # vitepress
-apps/docs/.vitepress/dist/
-apps/docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # test artifacts
 coverage/

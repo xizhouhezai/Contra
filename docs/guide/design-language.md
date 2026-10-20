@@ -76,7 +76,7 @@ description: Riso 技术手册风格的设计系统
 
 ## 主题实现
 
-所有样式集中在 `apps/docs/.vitepress/theme/style.css`，
+所有样式集中在 `docs/.vitepress/theme/style.css`，
 用 CSS 变量承载配色，因此切换明暗主题不需要额外的 JS。
 
 新增组件时，优先复用已有的变量：

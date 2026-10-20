@@ -11,7 +11,7 @@ Contra 是一个 **pnpm monorepo 工作区**。它把三类通常各自为政的
 | --- | --- | --- |
 | `packages/core` | `@contra/core` | 类型契约的源头：Result、语义化版本、事件总线 |
 | `packages/cli` | `@contra/cli` | 消费 core 的命令行工具 |
-| `apps/docs` | `@contra/docs` | 由 VitePress 驱动的文档系统 |
+| `docs` | `@contra/docs` | 由 VitePress 驱动的文档系统 |
 
 ## 为什么是 monorepo
 
@@ -58,7 +58,7 @@ if (!isOk(parsed)) {
 
 ### 文档与代码同仓
 
-文档站位于 `apps/docs`，作为工作区的一个包参与构建与校验。
+文档站位于 `docs`，作为工作区的一个包参与构建与校验。
 文档里出现的每一个包名、每一个脚本命令，都应该是真实可执行的。
 
 ## 下一步

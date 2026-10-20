@@ -46,7 +46,7 @@ pnpm docs:dev --port 5174
 
 ## 文档图片不显示
 
-图片必须放在 `apps/docs/public/` 下，并用根路径引用：
+图片必须放在 `docs/public/` 下，并用根路径引用：
 
 ```md
 ![图](/images/foo.png)
@@ -72,7 +72,7 @@ cd packages/core && pnpm vitest
 | --- | --- |
 | `@contra/core` | `packages/core/dist/` |
 | `@contra/cli` | `packages/cli/dist/` |
-| `@contra/docs` | `apps/docs/.vitepress/dist/` |
+| `@contra/docs` | `docs/.vitepress/dist/` |
 
 前两个已在 `.gitignore` 中忽略；文档站的构建产物同理。
 
