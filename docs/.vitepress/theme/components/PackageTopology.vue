@@ -2,7 +2,7 @@
 const roster = [
   {
     name: 'DeepSeek',
-    codename: '深寻',
+    codename: '蓝色大肥鱼',
     role: '范围压制',
     weapon: '扩散散弹',
     passive: '扩散之芯',
@@ -10,7 +10,7 @@ const roster = [
   },
   {
     name: 'Qwen',
-    codename: '通问',
+    codename: '千问',
     role: '远程狙击',
     weapon: '长程连射',
     passive: '远见',

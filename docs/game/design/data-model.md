@@ -125,7 +125,7 @@ export interface BossMoveDefinition {
 export const deepseek: CharacterDefinition = {
   id: "deepseek",
   name: "DeepSeek",
-  codename: "深寻",
+  codename: "蓝色大肥鱼",
   tagline: "让我把所有可能性都算一遍。",
   initialWeapon: "scatter",
   passive: {
