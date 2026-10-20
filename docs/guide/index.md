@@ -65,4 +65,5 @@ if (!isOk(parsed)) {
 
 - [快速开始](/guide/getting-started) — 五分钟跑起来
 - [Monorepo 结构](/guide/monorepo) — 目录与配置的逐项说明
+- [协作规范](/guide/conventions) — 分支模型、版本发布、提交与文档纪律
 - [编写文档](/guide/docs-system) — 如何给这个系统加一页

@@ -67,7 +67,8 @@ if (isOk(result)) {
 :::
 
 ::: warning 注意
-不要在 `master` 上直接改代码。
+不要在 `main` 或 `develop` 上直接改代码 —— 任何改动都要先切分支。
+详见 [协作规范](/guide/conventions)。
 :::
 
 ::: danger 危险
