@@ -374,7 +374,7 @@ body::before {
   line-height: 1.7;
 }
 
-/* --- workspace topology block --- */
+/* --- roster showcase block --- */
 
 .topology {
   max-width: 1200px;
@@ -385,6 +385,10 @@ body::before {
 
 .topology__head {
   margin-bottom: 30px;
+}
+
+.topology__head--minor {
+  margin-top: 56px;
 }
 
 .topology__title {
@@ -443,6 +447,10 @@ body::before {
   background: var(--riso-ink);
 }
 
+.topology__card[data-accent="ochre"]::after {
+  background: var(--riso-ochre);
+}
+
 .topology__role {
   font-family: var(--vp-font-family-mono);
   font-size: 11px;
@@ -461,6 +469,35 @@ body::before {
   font-size: 14px;
   line-height: 1.65;
   color: var(--riso-ink-soft);
+}
+
+.topology__stats {
+  margin: 6px 0 0;
+  padding-top: 12px;
+  border-top: var(--riso-rule);
+  display: grid;
+  grid-template-columns: 4.5em 1fr;
+  gap: 6px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.topology__stats dt {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--riso-ink-faint);
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.topology__stats dd {
+  margin: 0;
+  color: var(--riso-ink);
+}
+
+.topology__grid--boss {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .topology__edges {

@@ -33,10 +33,8 @@ export default defineConfig({
     siteTitle: 'Contra',
 
     nav: [
-      { text: '指南', link: '/guide/', activeMatch: '^/guide/' },
       { text: '游戏', link: '/game/', activeMatch: '^/game/' },
-      { text: 'API', link: '/api/core', activeMatch: '^/api/' },
-      { text: '示例', link: '/examples/', activeMatch: '^/examples/' },
+      { text: '工作区', link: '/guide/', activeMatch: '^/guide/' },
     ],
 
     sidebar: {
@@ -106,26 +104,6 @@ export default defineConfig({
           items: [
             { text: '里程碑', link: '/game/tasks/milestones' },
             { text: '任务拆解', link: '/game/tasks/backlog' },
-          ],
-        },
-      ],
-      '/api/': [
-        {
-          text: 'API 参考',
-          collapsed: false,
-          items: [
-            { text: '@contra/core', link: '/api/core' },
-            { text: '@contra/cli', link: '/api/cli' },
-          ],
-        },
-      ],
-      '/examples/': [
-        {
-          text: '示例',
-          collapsed: false,
-          items: [
-            { text: '概览', link: '/examples/' },
-            { text: '自定义主题组件', link: '/examples/custom-theme' },
           ],
         },
       ],

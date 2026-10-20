@@ -1,54 +1,101 @@
 <script setup lang="ts">
-const packages = [
+const roster = [
   {
-    name: '@contra/core',
-    role: '库',
-    desc: 'Result 类型、语义化版本工具、类型安全事件总线',
+    name: 'DeepSeek',
+    codename: '深寻',
+    role: '范围压制',
+    weapon: '扩散散弹',
+    passive: '扩散之芯',
     accent: 'vermillion',
   },
   {
-    name: '@contra/cli',
-    role: '工具',
-    desc: '参数解析与命令调度，消费 core 的类型契约',
+    name: 'Qwen',
+    codename: '通问',
+    role: '远程狙击',
+    weapon: '长程连射',
+    passive: '远见',
     accent: 'teal',
   },
   {
-    name: '@contra/docs',
-    role: '站点',
-    desc: 'VitePress 文档系统，承载指南与 API 参考',
+    name: '豆包',
+    codename: 'DouBao',
+    role: '辅助支援',
+    weapon: '追踪弹幕',
+    passive: '粘性追踪',
+    accent: 'ochre',
+  },
+  {
+    name: 'GLM',
+    codename: '哥林姆',
+    role: '均衡续航',
+    weapon: '均衡脉冲',
+    passive: '均衡律动',
     accent: 'ink',
   },
 ]
 
-const edges = ['@contra/cli ──▶ @contra/core', '@contra/docs ──▶ 全部包']
+const bosses = [
+  {
+    name: 'Claude',
+    forms: ['审计者', '改写者'],
+    accent: 'vermillion',
+  },
+  {
+    name: 'GPT',
+    forms: ['语料', '涌现'],
+    accent: 'teal',
+  },
+]
 </script>
 
 <template>
   <section class="topology">
     <header class="topology__head">
-      <h2 class="topology__title">工作区拓扑</h2>
+      <h2 class="topology__title">可选角色</h2>
       <p class="topology__lede">
-        三个包，一条依赖主线。CLI 依赖 core，文档站覆盖全部。
+        四位并肩作战的推理者。初始武器、被动与炸弹各不相同，
+        玩起来像四款不同的游戏。
       </p>
     </header>
 
     <ul class="topology__grid">
       <li
-        v-for="pkg in packages"
-        :key="pkg.name"
+        v-for="member in roster"
+        :key="member.name"
         class="topology__card"
-        :data-accent="pkg.accent"
+        :data-accent="member.accent"
       >
-        <span class="topology__role">{{ pkg.role }}</span>
-        <code class="topology__name">{{ pkg.name }}</code>
-        <span class="topology__desc">{{ pkg.desc }}</span>
+        <span class="topology__role">{{ member.role }}</span>
+        <code class="topology__name">{{ member.name }}</code>
+        <span class="topology__desc">{{ member.codename }}</span>
+        <dl class="topology__stats">
+          <dt>初始武器</dt>
+          <dd>{{ member.weapon }}</dd>
+          <dt>被动</dt>
+          <dd>{{ member.passive }}</dd>
+        </dl>
       </li>
     </ul>
 
-    <ul class="topology__edges">
-      <li v-for="edge in edges" :key="edge">
-        <span class="topology__arrow" aria-hidden="true">↳</span>
-        {{ edge }}
+    <header class="topology__head topology__head--minor">
+      <h2 class="topology__title">终极 Boss</h2>
+      <p class="topology__lede">
+        两位主体，各具两副形态。形态之间是质变，不是数值堆叠。
+      </p>
+    </header>
+
+    <ul class="topology__grid topology__grid--boss">
+      <li
+        v-for="boss in bosses"
+        :key="boss.name"
+        class="topology__card"
+        :data-accent="boss.accent"
+      >
+        <span class="topology__role">终局</span>
+        <code class="topology__name">{{ boss.name }}</code>
+        <span class="topology__desc">
+          形态 I「{{ boss.forms[0] }}」 · 形态 II「{{ boss.forms[1] }}」
+        </span>
       </li>
     </ul>
   </section>

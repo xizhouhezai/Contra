@@ -74,5 +74,5 @@ SDD 的核心主张：**规格文档是唯一事实源**。代码是规格的实
 
 ## 与工程文档的关系
 
-`docs/game/` 讲的是**游戏这个产品**；`docs/guide/`、`docs/api/` 讲的是**这个工作区本身**。
+`docs/game/` 讲的是**游戏这个产品**；`docs/guide/` 讲的是**这个工作区本身**。
 两者共用同一套工具链（TypeScript / Vite / Biome / vitest），但关注点不同。

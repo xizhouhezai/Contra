@@ -1,6 +1,6 @@
 # @contra/docs
 
-Contra 文档系统，基于 VitePress。
+Contra 文档系统，基于 VitePress。**主体是游戏策划规格**，另含工作区使用说明。
 
 ## 结构
 
@@ -13,9 +13,13 @@ docs/
 │       ├── style.css      设计语言：纸面、墨色、字体、纹理
 │       └── components/    自定义组件
 ├── public/               静态资源（根路径引用）
-├── guide/                指南
-├── api/                  API 参考
-├── examples/             示例
+├── game/                 游戏规格（SDD 三层，站点主体）
+│   ├── requirements/      需求层：玩法、角色、关卡、策划、非功能
+│   ├── design/            设计层：架构、模块、数据模型、跨端、ADR
+│   ├── tasks/             任务层：里程碑、任务拆解
+│   ├── sdd-guide.md       规格写法规范
+│   └── index.md           规格入口
+├── guide/                工作区使用说明（pnpm / 文档写法 / 协作）
 └── index.md              首页
 ```
 
