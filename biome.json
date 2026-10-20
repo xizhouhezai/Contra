@@ -68,6 +68,34 @@
   },
   "overrides": [
     {
+      "includes": ["packages/game-core/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["phaser", "phaser/**"],
+                    "message": "game-core 是规则层，不得依赖 Phaser（ADR-0003）"
+                  },
+                  {
+                    "group": ["@contra/game-web", "@contra/game-platform"],
+                    "message": "game-core 不得反向依赖表现层或适配层（ADR-0003）"
+                  },
+                  {
+                    "group": ["**", "!./**", "!../**"],
+                    "message": "game-core 必须保持零依赖：只允许包内相对路径导入"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.vue"],
       "linter": {
         "rules": {
