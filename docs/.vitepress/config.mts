@@ -66,6 +66,7 @@ export default defineConfig({
           text: '协作',
           collapsed: true,
           items: [
+            { text: '协作规范', link: '/guide/conventions' },
             { text: '贡献流程', link: '/guide/contributing' },
             { text: '常见问题', link: '/guide/faq' },
           ],
