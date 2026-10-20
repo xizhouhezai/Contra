@@ -34,6 +34,7 @@ export default defineConfig({
 
     nav: [
       { text: '指南', link: '/guide/', activeMatch: '^/guide/' },
+      { text: '游戏', link: '/game/', activeMatch: '^/game/' },
       { text: 'API', link: '/api/core', activeMatch: '^/api/' },
       { text: '示例', link: '/examples/', activeMatch: '^/examples/' },
     ],
@@ -63,6 +64,48 @@ export default defineConfig({
           items: [
             { text: '贡献流程', link: '/guide/contributing' },
             { text: '常见问题', link: '/guide/faq' },
+          ],
+        },
+      ],
+      '/game/': [
+        {
+          text: '规格总览',
+          collapsed: false,
+          items: [
+            { text: '游戏规格', link: '/game/' },
+            { text: 'SDD 规范', link: '/game/sdd-guide' },
+            { text: '需求层索引', link: '/game/requirements/' },
+          ],
+        },
+        {
+          text: '需求层',
+          collapsed: false,
+          items: [
+            { text: '愿景与设计支柱', link: '/game/requirements/vision' },
+            { text: '玩法规格', link: '/game/requirements/gameplay' },
+            { text: '角色规格', link: '/game/requirements/characters' },
+            { text: '关卡规格', link: '/game/requirements/stages' },
+            { text: '游戏策划文档', link: '/game/requirements/gdd' },
+            { text: '非功能需求', link: '/game/requirements/nonfunctional' },
+          ],
+        },
+        {
+          text: '设计层',
+          collapsed: false,
+          items: [
+            { text: '技术架构', link: '/game/design/architecture' },
+            { text: '模块设计', link: '/game/design/modules' },
+            { text: '数据模型', link: '/game/design/data-model' },
+            { text: '跨端策略', link: '/game/design/cross-platform' },
+            { text: '架构决策记录', link: '/game/design/adr' },
+          ],
+        },
+        {
+          text: '任务层',
+          collapsed: false,
+          items: [
+            { text: '里程碑', link: '/game/tasks/milestones' },
+            { text: '任务拆解', link: '/game/tasks/backlog' },
           ],
         },
       ],
