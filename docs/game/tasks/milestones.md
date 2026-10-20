@@ -48,10 +48,19 @@ M4 替换为最终美术音频 —— 玩法先跑通，资产后到位。
 
 **出口标准**
 
-- [ ] 灰盒关卡可从头跑到尾，帧率稳定 60fps
-- [ ] 规则层有 ≥ 20 个单测，覆盖移动、跳跃、碰撞、射击
-- [ ] Biome 依赖边界检查通过（game-core 零依赖）
-- [ ] `pnpm verify` 全绿
+- [x] 灰盒关卡可从头跑到尾，帧率稳定 60fps
+- [x] 规则层有 ≥ 20 个单测，覆盖移动、跳跃、碰撞、射击
+- [x] Biome 依赖边界检查通过（game-core 零依赖）
+- [x] `pnpm verify` 全绿
+
+**出口核对**（2026-10-20，M0 波次 3 收尾）
+
+| 标准 | 实测证据 |
+| --- | --- |
+| 全程可跑通且 60fps | 无头 Chrome 按住 D 从 x=40 跑到 x=1504 触发 stageCleared；Phaser `actualFps` 采样 60.3 / 60.4 / 60.6 |
+| 规则层 ≥ 20 单测 | game-core 35 个：移动 8、固定步长 6、射击 9、事件 2、关卡与终点 10 |
+| 依赖边界 | Biome `noRestrictedImports` + `pnpm boundary` 双重检查通过；game-core `dependencies` 为 `{}` |
+| `pnpm verify` | `boundary → lint → typecheck → test → build` 五项全绿 |
 
 **追溯**：REQ-PLY-001 · REQ-PLY-002 · REQ-NFR-004
 

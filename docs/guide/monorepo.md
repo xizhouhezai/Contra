@@ -26,10 +26,20 @@ contra/
 │   │   ├── src/                      # 源码，产出 dist/
 │   │   ├── test/                     # vitest 测试
 │   │   └── tsconfig.typecheck.json   # 含测试的全量类型检查
-│   └── cli/                          # @contra/cli
+│   ├── cli/                          # @contra/cli
+│   │   ├── src/
+│   │   ├── test/
+│   │   └── tsconfig.typecheck.json
+│   ├── game-core/                    # @contra/game-core —— 规则层（零依赖）
+│   ├── game-platform/                # @contra/game-platform —— 适配层
+│   └── game-web/                     # @contra/game-web —— 表现层（Phaser + Vite）
 │       ├── src/
+│       │   ├── scenes/               # Boot / Title / Stage
+│       │   ├── sprites/              # 精灵封装，单向同步规则层实体
+│       │   ├── events/               # CoreEvent 事件桥
+│       │   └── stage/                # World 装配（不含 Phaser）
 │       ├── test/
-│       └── tsconfig.typecheck.json
+│       └── vite.config.ts
 ├── package.json                      # 根：脚本聚合与共享 devDependencies
 ├── pnpm-workspace.yaml               # 包发现范围与构建白名单
 ├── tsconfig.base.json                # 共享编译选项
@@ -117,8 +127,10 @@ pnpm 10 之后用 `onlyBuiltDependencies`；pnpm 11 改用 `allowBuilds`，
 | `pnpm typecheck` | `pnpm -r run typecheck` | 全工作区类型检查 |
 | `pnpm docs:dev` | 过滤到 `@contra/docs` | 启动文档开发服务器 |
 | `pnpm docs:build` | 过滤到 `@contra/docs` | 构建静态站点 |
-| `pnpm verify` | 串联 lint / typecheck / test / build | CI 入口 |
+| `pnpm game:dev` | `pnpm --filter @contra/game-web run dev` | 启动游戏开发服（:4173） |
+| `pnpm verify` | 串联 boundary / lint / typecheck / test / build | CI 入口 |
 | `pnpm lint` | `biome check .` | 静态检查 |
+| `pnpm boundary` | `node scripts/check-game-core-boundary.mjs` | 规则层依赖边界检查 |
 | `pnpm format` | `biome format --write .` | 自动格式化 |
 
 ## 依赖声明规则
@@ -135,6 +147,19 @@ pnpm 10 之后用 `onlyBuiltDependencies`；pnpm 11 改用 `allowBuilds`，
 
 这样 pnpm 永远不会尝试从 registry 下载 `@contra/core`，
 发布时 `workspace:*` 会被替换成实际版本号。
+
+## 渲染层与规则层的边界
+
+`@contra/game-core` 是规则层，**不得**出现任何依赖或渲染导入（ADR-0003）。
+这条约束由两道闸门机器验证，二者都在 `pnpm verify` 里跑：
+
+| 闸门 | 覆盖范围 | 位置 |
+| --- | --- | --- |
+| Biome `noRestrictedImports` | 逐文件的 import 语句 | `biome.json` 的 overrides |
+| `pnpm boundary` | `dependencies` 字段 + 未被 lint 覆盖的包导入 | `scripts/check-game-core-boundary.mjs` |
+
+`@contra/game-web` 通过 Vite `resolve.alias` 直接引用另两个包的 `src/`，
+因此在新克隆的仓库里 `pnpm game:dev` 不需要先 `pnpm build`。
 
 ::: warning 别把 `workspace:` 用在普通依赖上
 `workspace:` 只能用于**工作区里的包**。像 `typescript`、`vitest` 这类

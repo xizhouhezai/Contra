@@ -5,6 +5,8 @@
  * presentation layer subscribes to them (docs/game/design/architecture.md §事件驱动).
  */
 import {
+  BULLET_HEIGHT,
+  BULLET_WIDTH,
   FIXED_STEP_SECONDS,
   MAX_STEPS_PER_FRAME,
   PLAYER_HEIGHT,
@@ -17,11 +19,19 @@ import type {
   EntityId,
   InputState,
   PlatformDefinition,
+  Rect,
   Vec2,
   WeaponId,
 } from './data/types.js'
 import { type Bullet, stepBullet } from './entities/Bullet.js'
 import { createPlayer, type PlayerState, playerRect } from './entities/Player.js'
+import {
+  createTarget,
+  damageTarget,
+  type TargetDefinition,
+  type TargetState,
+} from './entities/Target.js'
+import { overlaps } from './systems/Collision.js'
 import { updateMovement } from './systems/Movement.js'
 import { createWeaponState, updateWeapons, type WeaponState } from './systems/Weapons.js'
 
@@ -119,6 +129,10 @@ export interface WorldOptions {
   readonly spawn: Vec2
   /** Solid platforms the player collides with. */
   readonly platforms?: readonly PlatformDefinition[]
+  /** Gray-box targets that absorb bullets (T-M0-07). */
+  readonly targets?: readonly TargetDefinition[]
+  /** Stage exit box; reaching it emits one stageCleared event. */
+  readonly exit?: Rect | null
   /** Overridable step length; defaults to the GDD 1/60s and is not for rendering. */
   readonly fixedStepSeconds?: number
 }
@@ -140,6 +154,13 @@ export interface WorldSnapshot {
     readonly vx: number
     readonly vy: number
   }[]
+  readonly targets: readonly {
+    readonly id: string
+    readonly hp: number
+    readonly alive: boolean
+  }[]
+  readonly score: number
+  readonly cleared: boolean
   readonly steps: number
 }
 
@@ -154,17 +175,33 @@ export interface WorldSnapshot {
 export class World {
   readonly player: PlayerState
   readonly platforms: readonly PlatformDefinition[]
+  readonly targets: readonly TargetState[]
+  readonly exit: Rect | null
   readonly fixedStepSeconds: number
   bullets: Bullet[] = []
   private readonly weapon: WeaponState = createWeaponState()
   private accumulator = 0
   private eventQueue: CoreEvent[] = []
   private stepCount = 0
+  private score = 0
+  private cleared = false
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(options.spawn)
     this.platforms = options.platforms ?? []
+    this.targets = (options.targets ?? []).map(createTarget)
+    this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
+  }
+
+  /** Accumulated run score; every destroyed target adds its own score. */
+  get currentScore(): number {
+    return this.score
+  }
+
+  /** Whether the stage exit has already been reached in this run. */
+  get clearedStage(): boolean {
+    return this.cleared
   }
 
   /** Fixed steps advanced since construction; the determinism handle for tests. */
@@ -233,8 +270,57 @@ export class World {
     }
 
     for (const bullet of this.bullets) stepBullet(bullet, this.fixedStepSeconds)
+    this.resolveBulletHits()
+    this.checkExit()
 
     this.stepCount += 1
+  }
+
+  /** Gray-box target resolution: a bullet that leaves a live target is spent (T-M0-07). */
+  private resolveBulletHits(): void {
+    if (this.targets.length === 0) return
+
+    const survivors: Bullet[] = []
+    for (const bullet of this.bullets) {
+      const box = {
+        x: bullet.position.x,
+        y: bullet.position.y,
+        width: BULLET_WIDTH,
+        height: BULLET_HEIGHT,
+      }
+      const target = this.targets.find(
+        (candidate) => candidate.alive && overlaps(box, candidate.box),
+      )
+      if (target === undefined) {
+        survivors.push(bullet)
+        continue
+      }
+
+      this.eventQueue.push({
+        type: 'hit',
+        targetId: target.id,
+        damage: bullet.damage,
+        position: { x: bullet.position.x, y: bullet.position.y },
+      })
+      if (!damageTarget(target, bullet.damage)) continue
+
+      this.score += target.score
+      this.eventQueue.push({
+        type: 'enemyDied',
+        enemyId: target.id,
+        position: { x: target.box.x, y: target.box.y },
+        score: target.score,
+      })
+    }
+    this.bullets = survivors
+  }
+
+  /** Fires exactly one stageCleared event the first time the player box meets the exit. */
+  private checkExit(): void {
+    if (this.cleared || this.exit === null) return
+    if (!overlaps(playerRect(this.player), this.exit)) return
+    this.cleared = true
+    this.eventQueue.push({ type: 'stageCleared', score: this.score })
   }
 
   private drainEvents(): readonly CoreEvent[] {
@@ -261,6 +347,13 @@ export class World {
         vx: bullet.velocity.x,
         vy: bullet.velocity.y,
       })),
+      targets: this.targets.map((target) => ({
+        id: target.id,
+        hp: target.hp,
+        alive: target.alive,
+      })),
+      score: this.score,
+      cleared: this.cleared,
       steps: this.stepCount,
     }
   }
