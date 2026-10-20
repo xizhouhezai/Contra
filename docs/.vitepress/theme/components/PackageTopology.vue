@@ -32,6 +32,22 @@ const roster = [
     passive: '均衡律动',
     accent: 'ink',
   },
+  {
+    name: 'Kimi',
+    codename: '月读',
+    role: '记忆延迟',
+    weapon: '回溯弹',
+    passive: '长上下文',
+    accent: 'silver',
+  },
+  {
+    name: 'Gemini',
+    codename: '双子',
+    role: '多目标',
+    weapon: '棱镜弹',
+    passive: '多模态',
+    accent: 'prism',
+  },
 ]
 
 const bosses = [
@@ -53,8 +69,8 @@ const bosses = [
     <header class="topology__head">
       <h2 class="topology__title">可选角色</h2>
       <p class="topology__lede">
-        四位并肩作战的推理者。初始武器、被动与炸弹各不相同，
-        玩起来像四款不同的游戏。
+        六位并肩作战的推理者。初始武器、被动与炸弹各不相同，
+        六种打法互不重叠。
       </p>
     </header>
 

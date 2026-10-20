@@ -21,6 +21,8 @@
   --riso-teal: #1f6f6b;
   --riso-teal-soft: #58a8a2;
   --riso-ochre: #c8901f;
+  --riso-silver: #9aa7b4;
+  --riso-prism: #7b6cc4;
 
   /* --- semantic --- */
   --vp-c-bg: var(--riso-paper);
@@ -88,6 +90,8 @@
   --riso-teal: #5fb3ac;
   --riso-teal-soft: #235a57;
   --riso-ochre: #d9a83f;
+  --riso-silver: #6f7d8c;
+  --riso-prism: #9b8fe0;
 
   --vp-c-brand-soft: rgb(242 112 90 / 16%);
   --vp-c-default-soft: rgb(240 233 221 / 10%);
@@ -449,6 +453,14 @@ body::before {
 
 .topology__card[data-accent="ochre"]::after {
   background: var(--riso-ochre);
+}
+
+.topology__card[data-accent="silver"]::after {
+  background: var(--riso-silver);
+}
+
+.topology__card[data-accent="prism"]::after {
+  background: var(--riso-prism);
 }
 
 .topology__role {

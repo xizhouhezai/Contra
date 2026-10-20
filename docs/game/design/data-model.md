@@ -13,7 +13,7 @@ description: 角色、武器、关卡、敌人的数据结构定义
 ```text
 packages/game-core/src/data/
 ├── types.ts        全部类型定义
-├── characters.ts   4 角色 + 4 Boss 形态
+├── characters.ts   6 角色 + 4 Boss 形态
 ├── weapons.ts      8 种武器
 ├── enemies.ts      10 种敌人
 ├── stages.ts       12 关配置
@@ -35,8 +35,9 @@ export type Difficulty = "casual" | "standard" | "hardcore"
 export type WeaponId =
   | "pulse" | "scatter" | "rifle" | "homing"
   | "pierce" | "cluster" | "laser" | "grenade"
+  | "replay" | "prism"
 
-export type CharacterId = "deepseek" | "qwen" | "doubao" | "glm"
+export type CharacterId = "deepseek" | "qwen" | "doubao" | "glm" | "kimi" | "gemini"
 
 export type BossId =
   | "claude-auditor" | "claude-rewriter" | "gpt-corpus" | "gpt-emergent"

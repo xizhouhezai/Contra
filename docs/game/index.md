@@ -34,7 +34,7 @@ SDD 的核心主张：**规格文档是唯一事实源**。代码是规格的实
 | --- | --- | --- |
 | [愿景与设计支柱](/game/requirements/vision) | 产品定位、核心体验、设计原则 | `REQ-VIS` |
 | [玩法规格](/game/requirements/gameplay) | 核心机制、操作、战斗、武器、状态 | `REQ-PLY` |
-| [角色规格](/game/requirements/characters) | 4 可选角色 + 4 终极 Boss | `REQ-CHR` |
+| [角色规格](/game/requirements/characters) | 6 可选角色 + 4 终极 Boss | `REQ-CHR` |
 | [关卡规格](/game/requirements/stages) | 12 关 3 幕、场景、Boss、机制 | `REQ-STG` |
 | [游戏策划文档](/game/requirements/gdd) | 美术、音频、数值、流程、发行 | `REQ-GDD` |
 | [非功能需求](/game/requirements/nonfunctional) | 性能、兼容、可访问性、隐私 | `REQ-NFR` |
@@ -66,7 +66,7 @@ SDD 的核心主张：**规格文档是唯一事实源**。代码是规格的实
 | Web 端技术栈 | Phaser 3 + TypeScript |
 | 移动端 | 共享纯逻辑层 + 平台适配层，引擎可换 |
 | 美术风格 | 二次元立绘 + 序列帧 |
-| 阵容 | 4 可选角色（DeepSeek / Qwen / 豆包 / GLM）+ 4 终极 Boss（Claude / GPT 各两形态） |
+| 阵容 | 6 可选角色（DeepSeek / Qwen / 豆包 / GLM / Kimi / Gemini）+ 4 终极 Boss（Claude / GPT 各两形态） |
 | 关卡规模 | 12 关 / 3 幕 |
 | 武器系统 | 4 槽共享 + 角色专属初始武器 |
 | 联机 | 单人为主，双人合作机制预留但不在首发启用 |

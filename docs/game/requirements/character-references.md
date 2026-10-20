@@ -171,12 +171,22 @@ ZipZipPipe 将其画成持折扇的古典仕女 ——
 
 ## 其他形象（同系列，可作扩展角色）
 
-### Kimi
+### Kimi · 月读
 
 ![Kimi 星空学者](./assets/zipzippipe/kimi-starlight-k.webp)
 
-银白长发，星空披风缀满月亮与音符，胸前 **K 徽章**，腰间挂 flute 与调音器。
-气质是静谧的星空观测者。
+银白长发，**月牙发饰**、**K 徽章**（三处）、**彩虹小旗**（Kimi 官方 logo 的彩虹元素），
+缀满星月与音符的深蓝星空披风，白色荷叶边上衣。气质是静谧的星空观测者。
+
+### Gemini · 双子
+
+![Gemini 四色星芒](./assets/official/meme-gemini/2172.webp)
+
+蓝紫渐变长发（发梢转粉青）、**猫耳**、**四色星芒**发饰与耳饰、
+白色短裙配渐变长发飘带、小翅膀。四色星芒直接对应 Gemini 品牌 logo 的四色渐变。
+
+> Gemini 目前以社区 Q 版立绘作为形象基准 ——
+> 完整站姿立绘尚未找到公认来源，后续补齐。
 
 ### opencode
 
@@ -268,6 +278,8 @@ Q 萌版保留了立绘的全部识别特征（呆毛、鲸鱼头鳍、围裙鲸
 | Qwen | 淡紫蓝 | 白 + 深蓝 | 淡金 |
 | 豆包 | 深棕 + 暖橙 | 米白 + 朱红围巾 | 蜜橙 |
 | GLM | 墨黑 | 纯白 | 冷银 |
+| Kimi | 银白 | 深蓝 + 淡金 | 月白 |
+| Gemini | 蓝紫 | 青粉 | 虹彩 |
 | Claude | 银白 + 琥珀 | 赤红 | 琥珀 |
 | GPT | 金 | 暗红 + 黑 | 琥珀 |
 
@@ -283,7 +295,7 @@ Q 萌版保留了立绘的全部识别特征（呆毛、鲸鱼头鳍、围裙鲸
 | `zipzippipe/gpt-reaper-scythe.webp` | 金发持镰 | 镰刀为 OpenAI X 形 Logo |
 | `zipzippipe/kimi-starlight-k.webp` | 星空学者 | K 徽章 |
 | `zipzippipe/opencode-terminal.webp` | 终端观测者 | 肩带 OPENCODE 字样 |
-| `zipzippipe/batch2-01.webp` | 豆包 Seed 版立绘 | 手中托着豆包 3D 小人 |
+| `zipzippipe/seed-bytedance.webp` | Seed 娘（字节模型团队） | 胸前 SEED 吊牌，手托豆包 3D 小人 |
 | `zipzippipe/batch2-05.webp` | MiniMax 场记板 | 帽子与工牌写 MINIMAX |
 | `zipzippipe/batch2-08.webp` | Q 版 DeepSeek | 同系列 Q 版立绘 |
 | `official/doubao/doubao-3d-avatar.png` | 豆包官方 3D 形象 | doubao.com CDN |
