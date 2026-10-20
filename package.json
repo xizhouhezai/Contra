@@ -1,0 +1,33 @@
+{
+  "name": "contra-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contra - a pnpm monorepo workspace pairing a typed core library, a CLI, and a VitePress documentation system.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.28.5",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "clean": "pnpm -r run clean",
+    "dev": "pnpm --filter @contra/docs run dev",
+    "docs:build": "pnpm --filter @contra/docs run build",
+    "docs:dev": "pnpm --filter @contra/docs run dev",
+    "docs:preview": "pnpm --filter @contra/docs run preview",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm --filter @contra/core run test:watch",
+    "typecheck": "pnpm -r run typecheck",
+    "verify": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "26.6.5",
+    "typescript": "5.9.3"
+  }
+}

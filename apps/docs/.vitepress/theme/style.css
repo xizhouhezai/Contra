@@ -1,0 +1,736 @@
+/**
+ * Contra documentation theme — "Riso Technical Manual"
+ *
+ * Two ink colours (vermillion, teal) on warm paper, Instrument Serif for
+ * display, IBM Plex for body and mono. Light and dark are both authored
+ * explicitly rather than derived, so each has its own paper tone.
+ */
+
+:root {
+  /* --- paper & ink --- */
+  --riso-paper: #f4efe6;
+  --riso-paper-raised: #fbf7f0;
+  --riso-paper-sunken: #ebe3d6;
+  --riso-ink: #1a1714;
+  --riso-ink-soft: #4a443c;
+  --riso-ink-faint: #8a8073;
+
+  /* --- two-colour riso palette --- */
+  --riso-vermillion: #d6452c;
+  --riso-vermillion-soft: #e8816c;
+  --riso-teal: #1f6f6b;
+  --riso-teal-soft: #58a8a2;
+  --riso-ochre: #c8901f;
+
+  /* --- semantic --- */
+  --vp-c-bg: var(--riso-paper);
+  --vp-c-bg-alt: var(--riso-paper-sunken);
+  --vp-c-bg-elv: var(--riso-paper-raised);
+  --vp-c-bg-soft: var(--riso-paper-raised);
+
+  --vp-c-text-1: var(--riso-ink);
+  --vp-c-text-2: var(--riso-ink-soft);
+  --vp-c-text-3: var(--riso-ink-faint);
+
+  --vp-c-brand-1: var(--riso-vermillion);
+  --vp-c-brand-2: var(--riso-vermillion);
+  --vp-c-brand-3: var(--riso-vermillion);
+  --vp-c-brand-soft: rgb(214 69 44 / 14%);
+
+  --vp-c-default-1: var(--riso-ink);
+  --vp-c-default-2: var(--riso-ink-soft);
+  --vp-c-default-3: var(--riso-ink-faint);
+  --vp-c-default-soft: rgb(26 23 20 / 8%);
+
+  --vp-c-divider: rgb(26 23 20 / 14%);
+  --vp-c-gutter: rgb(26 23 20 / 7%);
+
+  --vp-c-tip-1: var(--riso-teal);
+  --vp-c-tip-2: var(--riso-teal);
+  --vp-c-tip-3: var(--riso-teal);
+  --vp-c-tip-soft: rgb(31 111 107 / 13%);
+
+  --vp-c-warning-1: var(--riso-ochre);
+  --vp-c-warning-2: var(--riso-ochre);
+  --vp-c-warning-3: var(--riso-ochre);
+  --vp-c-warning-soft: rgb(200 144 31 / 15%);
+
+  --vp-c-danger-1: var(--riso-vermillion);
+  --vp-c-danger-2: var(--riso-vermillion);
+  --vp-c-danger-3: var(--riso-vermillion);
+  --vp-c-danger-soft: rgb(214 69 44 / 12%);
+
+  /* --- type --- */
+  --vp-font-family-base: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --vp-font-family-mono: "IBM Plex Mono", "Cascadia Code", ui-monospace, monospace;
+  --vp-font-family-button: "IBM Plex Sans", "PingFang SC", sans-serif;
+  --vp-font-family-code: "IBM Plex Mono", ui-monospace, monospace;
+
+  --riso-display: "Instrument Serif", "Songti SC", Georgia, serif;
+
+  /* --- rhythm --- */
+  --riso-rule: 1px solid rgb(26 23 20 / 18%);
+  --riso-shadow-print: 4px 4px 0 0 rgb(26 23 20 / 16%);
+  --riso-grain-opacity: 0.4;
+  --riso-grid-opacity: 0.55;
+}
+
+.dark {
+  --riso-paper: #14120f;
+  --riso-paper-raised: #1e1b17;
+  --riso-paper-sunken: #0e0d0b;
+  --riso-ink: #f0e9dd;
+  --riso-ink-soft: #b8afa1;
+  --riso-ink-faint: #7d7466;
+
+  --riso-vermillion: #f2705a;
+  --riso-vermillion-soft: #a8402c;
+  --riso-teal: #5fb3ac;
+  --riso-teal-soft: #235a57;
+  --riso-ochre: #d9a83f;
+
+  --vp-c-brand-soft: rgb(242 112 90 / 16%);
+  --vp-c-default-soft: rgb(240 233 221 / 10%);
+  --vp-c-divider: rgb(240 233 221 / 16%);
+  --vp-c-gutter: rgb(240 233 221 / 8%);
+  --vp-c-tip-soft: rgb(95 179 172 / 16%);
+  --vp-c-warning-soft: rgb(217 168 63 / 16%);
+  --vp-c-danger-soft: rgb(242 112 90 / 14%);
+
+  --riso-rule: 1px solid rgb(240 233 221 / 20%);
+  --riso-shadow-print: 4px 4px 0 0 rgb(0 0 0 / 45%);
+  --riso-grain-opacity: 0.22;
+  --riso-grid-opacity: 0.28;
+}
+
+/* ------------------------------------------------------------------ */
+/* paper texture: grain + faint blueprint grid                          */
+/* ------------------------------------------------------------------ */
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--riso-grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+.dark body::before {
+  mix-blend-mode: screen;
+}
+
+.VPNav,
+.VPSidebar,
+.VPContent,
+.VPHome,
+.VPLocalNav,
+.VPDocFooter,
+.VPFooter {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* brand / nav                                                          */
+/* ------------------------------------------------------------------ */
+
+.VPNavBarTitle .title {
+  font-family: var(--riso-display);
+  font-size: 26px;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+.VPNavBarTitle .logo {
+  width: 30px;
+  height: 30px;
+}
+
+.VPNavBarMenuLink,
+.VPNavBarMenuLink:hover,
+.VPNavBarMenuLink.active {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.VPNavBarMenuLink.active {
+  color: var(--riso-vermillion);
+  position: relative;
+}
+
+.VPNavBarMenuLink.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--riso-vermillion);
+  transform: scaleX(var(--riso-underline-scale, 1));
+  transform-origin: left;
+}
+
+.VPButton.brand {
+  border-radius: 0;
+  background: var(--riso-ink);
+  color: var(--riso-paper);
+  border: 1px solid var(--riso-ink);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  box-shadow: 3px 3px 0 0 var(--riso-vermillion);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.VPButton.brand:hover {
+  background: var(--riso-vermillion);
+  color: #fff;
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--riso-ink);
+}
+
+.VPButton.alt {
+  border-radius: 0;
+  border: 1px solid var(--riso-ink);
+  background: transparent;
+  color: var(--riso-ink);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.VPButton.alt:hover {
+  background: var(--riso-ink);
+  color: var(--riso-paper);
+}
+
+.VPDocAsideOutline .outline-link {
+  transition: color 140ms ease;
+}
+
+.VPDocAsideOutline .outline-link.active {
+  color: var(--riso-vermillion);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ */
+/* home page                                                            */
+/* ------------------------------------------------------------------ */
+
+.VPHero .name {
+  font-family: var(--riso-display);
+  font-size: clamp(56px, 11vw, 116px);
+  line-height: 0.92;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--riso-ink);
+}
+
+.VPHero .text {
+  font-family: var(--riso-display);
+  font-size: clamp(28px, 5vw, 48px);
+  line-height: 1.02;
+  font-weight: 400;
+  color: var(--riso-vermillion);
+  font-style: italic;
+}
+
+.VPHero .tagline {
+  font-size: 17px;
+  line-height: 1.65;
+  max-width: 34rem;
+  color: var(--riso-ink-soft);
+}
+
+.VPHero .actions .VPButton {
+  border-radius: 0;
+}
+
+.VPHomeHero {
+  padding-top: 56px;
+}
+
+.VPHero .image-bg,
+.VPHero .image-src {
+  display: none;
+}
+
+.riso-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 190px;
+  height: 190px;
+  border: 3px solid var(--riso-vermillion);
+  border-radius: 50%;
+  color: var(--riso-vermillion);
+  font-family: var(--riso-display);
+  font-size: 27px;
+  letter-spacing: 0.04em;
+  transform: rotate(-11deg);
+  opacity: 0.9;
+  box-shadow: inset 0 0 0 5px var(--riso-bg-translucent, transparent);
+  animation: riso-stamp-in 700ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+@keyframes riso-stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-24deg) scale(1.3);
+  }
+  to {
+    opacity: 0.9;
+    transform: rotate(-11deg) scale(1);
+  }
+}
+
+.riso-kicker {
+  max-width: 1200px;
+  margin: 0 auto 34px;
+  padding: 0 24px;
+}
+
+.riso-kicker__rule {
+  height: 3px;
+  background: var(--riso-ink);
+  margin-bottom: 12px;
+}
+
+.riso-kicker__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.riso-kicker__tag {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 3px 9px;
+  background: var(--riso-ink);
+  color: var(--riso-paper);
+}
+
+.riso-kicker__pillar {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border: 1px solid var(--riso-ink);
+  color: var(--riso-ink-soft);
+}
+
+.VPFeature {
+  border-radius: 0;
+  border: var(--riso-rule);
+  background: var(--riso-paper-raised);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.VPFeature::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--riso-vermillion);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms ease;
+}
+
+.VPFeature:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--riso-shadow-print);
+}
+
+.VPFeature:hover::before {
+  transform: scaleX(1);
+}
+
+.VPFeature .icon {
+  background: transparent;
+}
+
+.VPFeature .title {
+  font-family: var(--riso-display);
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.VPFeature .details {
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+/* --- workspace topology block --- */
+
+.topology {
+  max-width: 1200px;
+  margin: 72px auto 0;
+  padding: 44px 24px 0;
+  border-top: var(--riso-rule);
+}
+
+.topology__head {
+  margin-bottom: 30px;
+}
+
+.topology__title {
+  font-family: var(--riso-display);
+  font-size: 40px;
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+
+.topology__lede {
+  margin: 0;
+  color: var(--riso-ink-soft);
+  font-size: 15.5px;
+}
+
+.topology__grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+}
+
+.topology__card {
+  border: var(--riso-rule);
+  background: var(--riso-paper-raised);
+  padding: 20px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  position: relative;
+  overflow: hidden;
+}
+
+.topology__card::after {
+  content: "";
+  position: absolute;
+  right: -26px;
+  bottom: -26px;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  opacity: 0.24;
+}
+
+.topology__card[data-accent="vermillion"]::after {
+  background: var(--riso-vermillion);
+}
+
+.topology__card[data-accent="teal"]::after {
+  background: var(--riso-teal);
+}
+
+.topology__card[data-accent="ink"]::after {
+  background: var(--riso-ink);
+}
+
+.topology__role {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--riso-ink-faint);
+}
+
+.topology__name {
+  font-family: var(--vp-font-family-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.topology__desc {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--riso-ink-soft);
+}
+
+.topology__edges {
+  list-style: none;
+  padding: 0;
+  margin: 26px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  color: var(--riso-ink-soft);
+}
+
+.topology__arrow {
+  color: var(--riso-vermillion);
+  margin-right: 5px;
+}
+
+/* ------------------------------------------------------------------ */
+/* doc pages                                                            */
+/* ------------------------------------------------------------------ */
+
+.vp-doc h1 {
+  font-family: var(--riso-display);
+  font-size: 46px;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.005em;
+  border-bottom: 3px solid var(--riso-ink);
+  padding-bottom: 14px;
+}
+
+.vp-doc h2 {
+  font-family: var(--riso-display);
+  font-weight: 400;
+  font-size: 31px;
+  margin-top: 44px;
+  padding-top: 18px;
+  border-top: var(--riso-rule);
+}
+
+.vp-doc h3 {
+  font-weight: 600;
+  font-size: 19px;
+  margin-top: 32px;
+  letter-spacing: 0.01em;
+}
+
+.vp-doc h4 {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--riso-ink-soft);
+}
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.78;
+}
+
+.vp-doc a {
+  text-decoration-color: var(--riso-vermillion);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+
+.vp-doc a:hover {
+  color: var(--riso-vermillion);
+}
+
+.vp-doc strong {
+  font-weight: 600;
+}
+
+.vp-doc code {
+  font-size: 0.875em;
+  background: var(--vp-c-default-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 2px;
+  padding: 0.1em 0.34em;
+}
+
+.vp-doc :not(pre) > code {
+  word-break: keep-all;
+}
+
+.vp-doc div[class*="language-"] {
+  border-radius: 0;
+  border: 1px solid var(--vp-c-divider);
+  border-left: 3px solid var(--riso-teal);
+  box-shadow: var(--riso-shadow-print);
+}
+
+.vp-doc div[class*="language-"] pre {
+  background: var(--riso-paper-sunken);
+}
+
+.vp-doc div[class*="language-"] code {
+  background: transparent;
+  border: none;
+  font-weight: 400;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.vp-doc .custom-block {
+  border-radius: 0;
+  border-width: 1px;
+  border-left-width: 4px;
+}
+
+.vp-doc .custom-block.tip {
+  border-color: var(--riso-teal);
+  background: var(--vp-c-tip-soft);
+}
+
+.vp-doc .custom-block.warning {
+  border-color: var(--riso-ochre);
+  background: var(--vp-c-warning-soft);
+}
+
+.vp-doc .custom-block.danger {
+  border-color: var(--riso-vermillion);
+  background: var(--vp-c-danger-soft);
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+
+.vp-doc th {
+  background: var(--riso-ink);
+  color: var(--riso-paper);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11.5px;
+  padding: 9px 14px;
+  border: 1px solid var(--riso-ink);
+}
+
+.vp-doc td {
+  border: 1px solid var(--vp-c-divider);
+  padding: 9px 14px;
+}
+
+.vp-doc blockquote {
+  border-left: 3px solid var(--riso-teal);
+  padding-left: 18px;
+  font-style: italic;
+  color: var(--riso-ink-soft);
+}
+
+.vp-doc hr {
+  border: none;
+  border-top: var(--riso-rule);
+}
+
+/* ------------------------------------------------------------------ */
+/* sidebar                                                              */
+/* ------------------------------------------------------------------ */
+
+.VPSidebar {
+  background: var(--riso-paper-sunken);
+  border-right: var(--riso-rule);
+}
+
+.VPSidebarItem.level-0 > .item > .text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--riso-ink-faint);
+}
+
+.VPSidebarItem .link:hover .text {
+  color: var(--riso-vermillion);
+}
+
+.VPSidebarItem.is-active > .item .link .text {
+  color: var(--riso-vermillion);
+  font-weight: 600;
+  border-left: 2px solid var(--riso-vermillion);
+  padding-left: 10px;
+  margin-left: -12px;
+}
+
+/* ------------------------------------------------------------------ */
+/* search                                                                */
+/* ------------------------------------------------------------------ */
+
+.VPLocalSearchBox .doc-search-input {
+  border-radius: 0;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--riso-paper-raised);
+}
+
+.VPButton.search {
+  border-radius: 0;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--riso-paper-raised);
+}
+
+/* ------------------------------------------------------------------ */
+/* footer & pagination                                                   */
+/* ------------------------------------------------------------------ */
+
+.VPFooter {
+  border-top: var(--riso-rule);
+  background: var(--riso-paper-sunken);
+}
+
+.VPDocFooter a {
+  font-weight: 500;
+}
+
+.VPDocFooter .title {
+  font-family: var(--riso-display);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.VPPage .prev .title {
+  color: var(--riso-ink-soft);
+}
+
+.VPPage .next .title {
+  color: var(--riso-ink-soft);
+}
+
+/* ------------------------------------------------------------------ */
+/* responsive                                                            */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .VPHomeHero {
+    padding-top: 32px;
+  }
+
+  .riso-stamp {
+    width: 132px;
+    height: 132px;
+    font-size: 20px;
+  }
+
+  .topology {
+    margin-top: 48px;
+  }
+
+  .vp-doc h1 {
+    font-size: 34px;
+  }
+
+  .vp-doc h2 {
+    font-size: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .riso-stamp {
+    animation: none;
+  }
+
+  .VPFeature,
+  .VPFeature::before {
+    transition: none;
+  }
+}

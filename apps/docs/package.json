@@ -1,0 +1,25 @@
+{
+  "name": "@contra/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "VitePress documentation system for the Contra workspace.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "clean": "rimraf .vitepress/dist .vitepress/cache"
+  },
+  "dependencies": {
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "@fontsource/instrument-serif": "5.3.0",
+    "rimraf": "6.0.1",
+    "typescript": "5.9.3",
+    "vitepress": "1.6.4"
+  }
+}

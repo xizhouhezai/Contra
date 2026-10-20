@@ -1,0 +1,31 @@
+{
+  "name": "@contra/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Core primitives: typed result helpers, version utilities, and a small event bus.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.typecheck.json"
+  },
+  "devDependencies": {
+    "rimraf": "6.0.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
