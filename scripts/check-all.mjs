@@ -20,7 +20,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, delimiter as pathDelimiter, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -28,6 +28,29 @@ const quiet = process.argv.includes('--quiet')
 
 /** Workspace packages, in dependency order. */
 const WORKSPACE_PACKAGES = ['core', 'cli', 'game-core', 'game-platform', 'game-web']
+
+/** Directory holding the running node executable. */
+function nodeDir() {
+  return process.execPath.slice(0, process.execPath.lastIndexOf(sep))
+}
+
+/**
+ * Environment for child processes.
+ *
+ * Most gates run fine under an inherited environment, but the ones that shell
+ * out - VitePress spawns esbuild, tsc resolves its own binaries - still need the
+ * node directory and the local .bin on PATH. Passing it explicitly keeps the
+ * gate working from a shell that has neither, which is the whole point of
+ * launching tools by absolute entry point above.
+ */
+function childEnv() {
+  const pathKey = Object.keys(process.env).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH'
+  const parts = (process.env[pathKey] ?? '').split(pathDelimiter).filter(Boolean)
+  for (const dir of [join(root, 'node_modules', '.bin'), nodeDir()].reverse()) {
+    if (!parts.includes(dir)) parts.unshift(dir)
+  }
+  return { ...process.env, [pathKey]: parts.join(pathDelimiter) }
+}
 
 /** Locates a tool's script entry point, following the pnpm virtual store. */
 function toolEntry(name) {
@@ -195,6 +218,7 @@ for (const gate of GATES) {
     const args = isNative ? gate.args : gate.run()
     execFileSync(executable, args, {
       cwd: root,
+      env: childEnv(),
       stdio: quiet ? 'ignore' : 'inherit',
     })
   } catch (error) {
