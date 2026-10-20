@@ -3,6 +3,18 @@
 本项目遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 版本发布规则见 [协作规范](/guide/conventions)。
 
+## [0.2.0] - 2026-10-20
+
+### 新增
+
+- **M0 波次 1**（T-M0-01 / T-M0-02）：新建 `@contra/game-core` 规则层包
+  - 零运行时依赖，遵循 ADR-0003 的分层约束
+  - 基础类型：`Vec2`、`EntityId`、`Difficulty`、`WeaponId`（10 种）、
+    `CharacterId`（6 名）、`BossId`（4 形态）、`MechanicId`（8 种）
+  - `CoreEvent` 联合类型覆盖 shot / hit / enemyDied / playerHurt / playerDied /
+    weaponPicked / explosion / bossPhaseChanged / stageCleared 九类事件
+  - 事件覆盖由编译期断言 + 运行时穷举 switch 双重保证
+
 ## [0.1.1] - 2026-10-20
 
 ### 文档
