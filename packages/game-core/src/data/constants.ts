@@ -34,6 +34,12 @@ export const PLAYER_WIDTH = 24
 /** Player collision box height, px. */
 export const PLAYER_HEIGHT = 40
 
+/** Bullet collision box width, px. Gray-box value until the real sprites land (M4). */
+export const BULLET_WIDTH = 8
+
+/** Bullet collision box height, px. */
+export const BULLET_HEIGHT = 8
+
 /** Pulse bullet damage (GDD §3.2). */
 export const PULSE_DAMAGE = 10
 

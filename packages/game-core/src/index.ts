@@ -16,6 +16,8 @@ export type {
 } from './core.js'
 export { World } from './core.js'
 export {
+  BULLET_HEIGHT,
+  BULLET_WIDTH,
   FIXED_STEP_SECONDS,
   GRAVITY,
   JUMP_SPEED,
@@ -29,6 +31,8 @@ export {
   PULSE_SHOTS_PER_SECOND,
   TIME_EPSILON,
 } from './data/constants.js'
+export type { GrayboxStageDefinition } from './data/stages.js'
+export { GRAYBOX_STAGE } from './data/stages.js'
 export type {
   BossId,
   CharacterId,
@@ -46,6 +50,9 @@ export type { Bullet, BulletOwner } from './entities/Bullet.js'
 export { stepBullet } from './entities/Bullet.js'
 export type { PlayerState } from './entities/Player.js'
 export { createPlayer, playerRect } from './entities/Player.js'
+export type { TargetDefinition, TargetState } from './entities/Target.js'
+export { createTarget, damageTarget } from './entities/Target.js'
+export { overlaps } from './systems/Collision.js'
 export { updateMovement } from './systems/Movement.js'
 export type { WeaponState } from './systems/Weapons.js'
 export { AIM_DIRECTIONS, aimVector, createWeaponState, updateWeapons } from './systems/Weapons.js'

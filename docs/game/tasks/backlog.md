@@ -27,48 +27,54 @@ T-<里程碑>-<序号>  任务标题
 
 ## M0 · 骨架与核心循环
 
-### T-M0-01 建立 game-core 包骨架
+### T-M0-01 建立 game-core 包骨架 `[x]`
 
 - **追溯**：REQ-NFR-004 · ADR-0003
 - **产出**：`packages/game-core/` 目录、package.json（零依赖）、tsconfig、vitest 配置
 - **验收**：`pnpm --filter @contra/game-core test` 可运行；依赖检查脚本通过
 
-### T-M0-02 定义核心类型与事件
+### T-M0-02 定义核心类型与事件 `[x]`
 
 - **追溯**：REQ-NFR-004
 - **产出**：`src/data/types.ts`、`src/core.ts` 中的 `CoreEvent` 联合类型
 - **验收**：类型被 `verbatimModuleSyntax` 正确处理；事件联合覆盖 shot/hit/death/pickup 等
 
-### T-M0-03 实现固定步长循环
+### T-M0-03 实现固定步长循环 `[x]`
 
 - **追溯**：REQ-NFR-001
 - **产出**：`World.update(dt, input)`，固定 1/60s，单帧最多追 5 步
 - **验收**：相同输入序列在 30fps 与 120fps 下产生相同结果（单测断言）
 
-### T-M0-04 实现移动与跳跃
+### T-M0-04 实现移动与跳跃 `[x]`
 
 - **追溯**：REQ-PLY-001
 - **产出**：`systems/Movement.ts`，含重力、平台碰撞、落地判定
 - **验收**：跳跃弧线符合 GDD §3.1 数值；站立平台不穿透；单测覆盖
 
-### T-M0-05 实现 8 向瞄准与射击
+### T-M0-05 实现 8 向瞄准与射击 `[x]`
 
 - **追溯**：REQ-PLY-002
 - **产出**：`systems/Weapons.ts` 基础版、实体 `Bullet`
 - **验收**：8 个方向均可射击；方向与移动解耦（前进中按后键可向后射）
 
-### T-M0-06 搭建 Phaser 骨架与场景切换
+### T-M0-06 搭建 Phaser 骨架与场景切换 `[x]`
 
 - **追溯**：REQ-NFR-001
 - **产出**：`packages/game-web/`，Boot/Title/Stage 三场景
 - **验收**：Vite 开发服务器可启动；场景切换正常；规则层实体与精灵同步
+- **验证结论**（2026-10-20）：`pnpm --filter @contra/game-web dev` 起服 315ms；
+  无头 Chrome 经 CDP 实测 Boot→Title→Stage 逐场景进入；精灵每帧单向读 World，无回写；
+  实测 60.3~60.7fps。事件桥只接 shot / stageCleared，其余七类留 M1（T-M1-09）。
 
-### T-M0-07 灰盒关卡与终点判定
+### T-M0-07 灰盒关卡与终点判定 `[x]`
 
 - **产出**：一条 1600px 灰盒平台 + 靶子 + 终点
 - **验收**：可从头跑到尾触发通关事件
+- **验证结论**（2026-10-20）：1600px 地面 + 2 块高台 + 4 靶子 + 右侧终点；
+  浏览器实测按住 D 从 x=40 跑到 x=1504，stageCleared 触发 1 次（score=200），
+  控制台输出 `[contra] stageCleared score=200`，界面显示 STAGE CLEARED。
 
-### T-M0-08 实现平台适配层接口
+### T-M0-08 实现平台适配层接口 `[x]`
 
 - **追溯**：ADR-0003
 - **产出**：`packages/game-platform/` 五个接口 + Web 实现
