@@ -3,6 +3,26 @@
 本项目遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 版本发布规则见 [协作规范](/guide/conventions)。
 
+## [0.4.0] - 2026-10-20
+
+### 新增
+
+- **M0 波次 3**（T-M0-06 / T-M0-07）：Phaser 表现层与灰盒关卡，M0 收尾
+  - 新建 `@contra/game-web`：Vite + Phaser 3 + TypeScript，Boot → Title → Stage 三场景
+  - 精灵封装 `ActorView` 每帧单向读规则层实体盒并写渲染器，从不回写
+  - `CoreEventBridge` 只接 `shot` 与 `stageCleared` 两族，其余七类留到 M1（T-M1-09）
+  - 灰盒关卡：1600px 地面 + 2 块高台 + 4 个靶子 + 右侧终点，跑到终点触发一次
+    `stageCleared`，界面与控制台同步可见
+  - 全部美术为程序生成的纯色矩形，不引入任何素材文件
+- **依赖边界机器验证**：`biome.json` 为 `game-core/src` 增加 `noRestrictedImports`
+  （禁 Phaser / 表现层 / 适配层 / 非相对导入），新增 `pnpm boundary` 脚本检查
+  `dependencies` 字段与游离导入；两者都进入 `pnpm verify`
+
+### 里程碑
+
+- **M0 四项出口标准全部达成**：全程可跑通且 60fps、规则层 35 个单测、
+  依赖边界通过、`pnpm verify` 全绿
+
 ## [0.3.0] - 2026-10-20
 
 ### 新增
