@@ -4,12 +4,12 @@ export default defineConfig({
   title: 'Contra',
   titleTemplate: ':title | Contra',
   description:
-    'Contra 是一个 pnpm monorepo 工作区，将类型安全的核心库、命令行工具与这套文档系统组织在一起。',
+    'Contra 是一款横版跑轰动作游戏 —— 四个大模型拟人化的推理者并肩突袭，由 Claude 与 GPT 镇守的十二道封锁线。',
   lang: 'zh-CN',
   cleanUrls: true,
   lastUpdated: true,
-  appearance: true,
   srcExclude: ['**/README.md'],
+  appearance: true,
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
@@ -17,7 +17,13 @@ export default defineConfig({
     ['meta', { name: 'author', content: 'Contra Contributors' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Contra' }],
-    ['meta', { property: 'og:description', content: '类型安全的核心库、命令行工具与文档系统' }],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content: '横版跑轰动作游戏 —— 四个推理者，十二道关卡，两个终局 Boss',
+      },
+    ],
   ],
 
   markdown: {
@@ -82,6 +88,7 @@ export default defineConfig({
             { text: '愿景与设计支柱', link: '/game/requirements/vision' },
             { text: '玩法规格', link: '/game/requirements/gameplay' },
             { text: '角色规格', link: '/game/requirements/characters' },
+            { text: '角色视觉参考', link: '/game/requirements/character-references' },
             { text: '关卡规格', link: '/game/requirements/stages' },
             { text: '游戏策划文档', link: '/game/requirements/gdd' },
             { text: '非功能需求', link: '/game/requirements/nonfunctional' },

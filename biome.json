@@ -13,7 +13,8 @@
       "!**/dist",
       "!**/.vitepress/dist",
       "!**/.vitepress/cache",
-      "!**/coverage"
+      "!**/coverage",
+      "!**/.tmp"
     ]
   },
   "formatter": {

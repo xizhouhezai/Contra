@@ -126,7 +126,7 @@ export const deepseek: CharacterDefinition = {
   id: "deepseek",
   name: "DeepSeek",
   codename: "蓝色大肥鱼",
-  tagline: "让我把所有可能性都算一遍。",
+  tagline: "你骂我也没用，白饭真好吃～",
   initialWeapon: "scatter",
   passive: {
     id: "scatter-decay",
@@ -144,8 +144,8 @@ export const deepseek: CharacterDefinition = {
   },
   bombCharges: 3,
   palette: {
-    primary: "#1f3a5f",
-    secondary: "#3d6ea5",
+    primary: "#1b3a63",
+    secondary: "#f0f0f5",
     projectile: "#8fb8e8",
   },
   quotes: ["让我把所有可能性都算一遍。"],
