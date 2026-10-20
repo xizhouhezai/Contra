@@ -1,0 +1,5 @@
+export type { AudioChannel, AudioPort } from './Audio.js'
+export type { HapticPattern, Haptics } from './Haptics.js'
+export type { InputSource } from './Input.js'
+export type { Lifecycle } from './Lifecycle.js'
+export type { Storage } from './Storage.js'

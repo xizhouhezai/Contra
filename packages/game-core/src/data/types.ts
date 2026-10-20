@@ -11,6 +11,12 @@ export interface Vec2 {
   readonly y: number
 }
 
+/** A vector whose components the simulation mutates in place. */
+export interface MutableVec2 {
+  x: number
+  y: number
+}
+
 /** Stable identifier for any runtime entity (player, enemy, bullet, pickup). */
 export type EntityId = string
 
@@ -46,3 +52,29 @@ export type MechanicId =
   | 'breakable-terrain'
   | 'moving-platform'
   | 'vertical-scroll'
+
+/**
+ * The only input shape the rule layer sees (docs/game/design/modules.md §适配层接口).
+ *
+ * moveX/moveY do double duty: they drive movement on X and the eight aim
+ * directions. Aim is therefore derived from the input alone and never from the
+ * player velocity, which is what keeps aiming decoupled from running.
+ */
+export interface InputState {
+  readonly moveX: -1 | 0 | 1
+  readonly moveY: -1 | 0 | 1
+  readonly jump: boolean
+  readonly fire: boolean
+  readonly bomb: boolean
+}
+
+/** Axis-aligned box in world space, top-left origin, y pointing down. */
+export interface Rect {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+/** A collision platform (docs/game/design/data-model.md §关卡数据). */
+export type PlatformDefinition = Rect
