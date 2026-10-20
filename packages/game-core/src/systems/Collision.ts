@@ -12,7 +12,11 @@ export function overlaps(a: Rect, b: Rect): boolean {
  * the box, and an empty interval means the ray never reaches it. Used by beam
  * weapons, which hit instantly and therefore cannot rely on a swept projectile.
  */
-export function rayBoxDistance(origin: { x: number; y: number }, direction: { x: number; y: number }, box: Rect): number | null {
+export function rayBoxDistance(
+  origin: { x: number; y: number },
+  direction: { x: number; y: number },
+  box: Rect,
+): number | null {
   const inverseX = direction.x === 0 ? Number.POSITIVE_INFINITY : 1 / direction.x
   const inverseY = direction.y === 0 ? Number.POSITIVE_INFINITY : 1 / direction.y
 

@@ -431,12 +431,11 @@ export class World {
         height: BULLET_HEIGHT,
       }
       let spent = false
-      const consumed = new Set<EntityId>()
       for (const target of this.targets) {
-        if (spent || consumed.has(target.id)) continue
+        if (spent || bullet.hitTargets.has(target.id)) continue
         if (!target.alive || !overlaps(box, target.box)) continue
 
-        consumed.add(target.id)
+        bullet.hitTargets.add(target.id)
         this.applyDamageToTarget(target, bullet.damage, bullet.position)
         if (bullet.remainingPierces > 0) {
           bullet.remainingPierces -= 1

@@ -20,6 +20,13 @@ export interface Bullet {
   lockedTargetId: EntityId | null
   /** Downward acceleration, px/s²; non-zero only for thrown weapons. */
   gravity: number
+  /**
+   * Targets this round has already damaged.
+   *
+   * A piercing round overlaps the same body across several steps, so without this
+   * record one wide enemy would spend every pierce the round has in a single frame.
+   */
+  readonly hitTargets: Set<EntityId>
 }
 
 /** Every option a caller may leave out when spawning a projectile. */
@@ -48,6 +55,7 @@ export function createBullet(
     remainingPierces: options.remainingPierces ?? 0,
     lockedTargetId: options.lockedTargetId ?? null,
     gravity: options.gravity ?? 0,
+    hitTargets: new Set<EntityId>(),
   }
 }
 

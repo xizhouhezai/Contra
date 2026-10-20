@@ -232,7 +232,8 @@ export function updateWeapons(
   const definition = WEAPONS[weaponId]
   // A beam delivers its damage instantly along the aim, so it spawns no round
   // (GDD §3.2 · 持续光束 / 3 per tick).
-  const bullets = definition.kind === 'beam' ? [] : buildVolley(player, slot, direction, state, lock)
+  const bullets =
+    definition.kind === 'beam' ? [] : buildVolley(player, slot, direction, state, lock)
   // Only a weapon with a cone accumulates one (gameplay.md §状态效果 · 散射衰减).
   if (definition.spreadDeg > 0) accumulateSpread(slot)
   consumeShot(player)

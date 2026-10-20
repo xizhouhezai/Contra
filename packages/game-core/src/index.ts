@@ -53,8 +53,8 @@ export type {
   WeaponKind,
 } from './data/types.js'
 export {
-  explosionRadius,
   BEAM_RANGE,
+  explosionRadius,
   FALLBACK_WEAPON_ID,
   HOMING_LOCK_LIMIT,
   THROW_GRAVITY,
