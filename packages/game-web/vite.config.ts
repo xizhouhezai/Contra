@@ -16,5 +16,12 @@ export default defineConfig({
     },
   },
   server: { port: 4173, strictPort: true },
-  build: { target: 'es2022', outDir: 'dist', sourcemap: true },
+  build: {
+    target: 'es2022',
+    outDir: 'dist',
+    // Sourcemaps are debugging aids, not payload: they were 9.9MB of a 17MB
+    // "first load" and none of it is fetched by a player. Emit them only when
+    // explicitly profiling.
+    sourcemap: process.env.CONTRA_SOURCEMAP === '1',
+  },
 })

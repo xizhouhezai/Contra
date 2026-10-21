@@ -5,7 +5,7 @@ import {
   isUnlocked,
   loadProgress,
 } from '@contra/game-core'
-import { LocalStorage } from '@contra/game-platform'
+import { LocalStorageAdapter } from '@contra/game-platform'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 
@@ -17,7 +17,7 @@ import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
  * code path (T-M2-12).
  */
 export class StageSelectScene extends Phaser.Scene {
-  private storage = new LocalStorage()
+  private storage = new LocalStorageAdapter()
   private progress!: CampaignProgress
 
   constructor() {
@@ -26,7 +26,7 @@ export class StageSelectScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(PALETTE.background)
-    this.storage = new LocalStorage()
+    this.storage = new LocalStorageAdapter()
     this.progress = loadProgress(
       this.storage,
       CAMPAIGN_STAGES.map((stage) => stage.id),

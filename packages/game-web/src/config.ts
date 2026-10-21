@@ -1,24 +1,48 @@
-/** Gray-box palette (docs/game/requirements/gdd.md §视觉: 灰盒 = 矩形 + 纯色). */
+/**
+ * Game palette.
+ *
+ * Source of truth: docs/game/design/art-style.md §2 视觉基调.
+ * These are the same inks the documentation site uses, so the game and the
+ * spec site read as one artifact rather than two unrelated products.
+ */
 export const GAME_WIDTH = 960
 export const GAME_HEIGHT = 540
 
+/** Riso inks: vermillion and teal carry meaning, the rest is paper and ink. */
 export const PALETTE = {
-  background: '#0b0b0e',
-  floor: 0x2a2a32,
-  platform: 0x3d3d48,
-  player: 0x8fb8e8,
-  target: 0xd0503c,
-  targetDead: 0x4a2a28,
-  bullet: 0xf5e6a3,
-  exit: 0x3f7f5f,
-  exitCleared: 0x7ee0a8,
-  hud: '#c9c9d4',
-  alert: '#7ee0a8',
+  /** Paper, not black: the site is printed, not lit. */
+  background: '#f4f1ea',
+  floor: 0x2b2a26,
+  platform: 0x5a5750,
+  player: 0x1f4e8c,
+  target: 0xd6452c,
+  targetDead: 0x9a9088,
+  bullet: 0xc8901f,
+  exit: 0x1f6f6b,
+  exitCleared: 0x1f6f6b,
+  hud: '#1a1a1a',
+  /** Alert red doubles as the hurt and boss colour. */
+  alert: '#d6452c',
 } as const
 
-/** Texture keys generated procedurally in the boot scene. No image files ship in M0. */
+/** Procedural texture keys; M4 loads real sheets alongside these. */
 export const TEXTURES = {
   player: 'graybox-player',
   target: 'graybox-target',
   bullet: 'graybox-bullet',
+} as const
+
+/** Riso typography (art-style.md §2): serif for titles, mono for labels. */
+export const FONTS = {
+  title: 'Georgia, serif',
+  label: 'monospace',
+} as const
+
+/** Shared UI metrics: square corners, 2px ink strokes, no rounding. */
+export const UI = {
+  strokeWidth: 2,
+  ink: 0x1a1a1a,
+  paper: 0xf4f1ea,
+  vermillion: 0xd6452c,
+  teal: 0x1f6f6b,
 } as const
