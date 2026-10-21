@@ -1,13 +1,24 @@
 import {
   type CharacterId,
+  type InputState,
   loadProgress,
   recordClear,
   type StageDefinition,
   saveProgress,
   World,
 } from '@contra/game-core'
-import { KeyboardInputSource, LocalStorageAdapter } from '@contra/game-platform'
+import {
+  type InputSource,
+  KeyboardInputSource,
+  LocalStorageAdapter,
+  MIN_TOUCH_TARGET_PX,
+  STICK_RADIUS_PX,
+  TouchInputSource,
+  wantsTouchControls,
+} from '@contra/game-platform'
 import Phaser from 'phaser'
+import { AudioManager } from '../audio/AudioManager'
+import { sfxForEvent } from '../audio/eventSfx'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
 import { CoreEventBridge } from '../events/CoreEventBridge'
 import { publishStageProbe } from '../StageProbe'
@@ -31,19 +42,48 @@ export class StageScene extends Phaser.Scene {
   private request: StageRequest = {}
 
   private readonly bridge = new CoreEventBridge({
-    shot: (event) => this.showMuzzleFlash(event.position.x, event.position.y),
-    hit: (event) => this.showImpact(event.position.x, event.position.y),
+    shot: (event) => {
+      this.showMuzzleFlash(event.position.x, event.position.y)
+      this.playEventSound(event)
+    },
+    hit: (event) => {
+      this.showImpact(event.position.x, event.position.y)
+      this.playEventSound(event)
+    },
     enemyDied: (event) => this.showImpact(event.position.x, event.position.y),
-    playerHurt: (event) => this.showBanner(`受创 · 剩余 ${event.heartsLeft}`),
-    playerDied: () => this.showBanner('推理中断'),
-    weaponPicked: (event) => this.showBanner(`拾取 ${event.weaponId}`),
-    explosion: (event) => this.showBlast(event.position.x, event.position.y, event.radius),
-    bossPhaseChanged: (event) => this.showBanner(`形态 ${event.phase}`),
-    stageCleared: (event) => this.showCleared(event.score),
+    playerHurt: (event) => {
+      this.showBanner(`受创 · 剩余 ${event.heartsLeft}`)
+      this.playEventSound(event)
+    },
+    playerHealed: (event) => this.showBanner(`回血 · 剩余 ${event.heartsLeft}`),
+    playerDied: (event) => {
+      this.showBanner('推理中断')
+      this.playEventSound(event)
+    },
+    weaponPicked: (event) => {
+      this.showBanner(`拾取 ${event.weaponId}`)
+      this.playEventSound(event)
+    },
+    explosion: (event) => {
+      this.showBlast(event.position.x, event.position.y, event.radius)
+      this.playEventSound(event)
+    },
+    bossPhaseChanged: (event) => {
+      this.showBanner(`形态 ${event.phase}`)
+      this.playEventSound(event)
+    },
+    stageCleared: (event) => {
+      this.showCleared(event.score)
+      this.playEventSound(event)
+    },
   })
 
   private parallax: Phaser.GameObjects.TileSprite[] = []
-  private inputSource: KeyboardInputSource | null = null
+  private audio: AudioManager | null = null
+  private inputSource: InputSource | null = null
+  /** Touch controls, when the device has a touchscreen. */
+  private touch: TouchInputSource | null = null
+  private stickKnob: Phaser.GameObjects.Arc | null = null
   private playerView: ActorView | null = null
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
@@ -89,7 +129,17 @@ export class StageScene extends Phaser.Scene {
     this.parallax = createParallax(this, this.stage.widthPx)
     this.drawStage()
     this.createViews()
+    // Audio first so the opening frame already has music.
+    this.audio = new AudioManager(this)
+    this.audio.playStageBgm(this.stage.index, this.stage.bossId !== undefined)
+
+    // Keyboard always exists; touch is added on top when the device offers it,
+    // because a laptop with a touchscreen should keep working on its keyboard.
     this.inputSource = new KeyboardInputSource(window)
+    if (wantsTouchControls(navigator.maxTouchPoints > 0, navigator.maxTouchPoints)) {
+      this.touch = new TouchInputSource()
+      this.createTouchControls()
+    }
 
     this.hud = this.add
       .text(16, 12, '', { fontFamily: 'monospace', fontSize: '14px', color: PALETTE.hud })
@@ -138,6 +188,10 @@ export class StageScene extends Phaser.Scene {
       publishStageProbe(null)
       this.inputSource?.dispose()
       this.inputSource = null
+      this.touch?.dispose()
+      this.touch = null
+      this.audio?.stopBgm()
+      this.audio = null
     })
   }
 
@@ -155,7 +209,7 @@ export class StageScene extends Phaser.Scene {
     this.prevX = before.x
     this.prevY = before.y
 
-    const events = this.world.update(delta / 1000, source.poll())
+    const events = this.world.update(delta / 1000, this.pollInput(source))
     this.bridge.consume(events)
     this.syncViews()
     updateParallax(this.parallax, this.cameras.main.scrollX)
@@ -308,6 +362,107 @@ export class StageScene extends Phaser.Scene {
     this.time.delayedCall(900, () => {
       if (this.banner?.text === text && !this.world.clearedStage) this.banner.setText('')
     })
+  }
+
+  /**
+   * Merges the device inputs into one state.
+   *
+   * Keyboard and touch are added rather than switched between, because on a
+   * touchscreen laptop both are live at once and a player reaching for the
+   * stick should not have their keyboard go dead. Values are clamped so holding
+   * a key and dragging the stick the same way does not double the speed - the
+   * axis saturates at one, which is what InputState means.
+   */
+  private pollInput(keyboard: InputSource): InputState {
+    const base = keyboard.poll()
+    const touch = this.touch?.poll()
+    if (touch === undefined) return base
+
+    const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+    return {
+      moveX: clamp(base.moveX + touch.moveX) as InputState['moveX'],
+      moveY: clamp(base.moveY + touch.moveY) as InputState['moveY'],
+      jump: base.jump || touch.jump,
+      fire: base.fire || touch.fire,
+      bomb: base.bomb || touch.bomb,
+    }
+  }
+
+  /** Plays whatever the event maps to; silent events map to null. */
+  private playEventSound(event: Parameters<typeof sfxForEvent>[0]): void {
+    const key = sfxForEvent(event)
+    if (key !== null) this.audio?.playSfx(key)
+  }
+
+  /**
+   * Draws the virtual stick and the three action buttons (T-M5-01).
+   *
+   * Drawn with Phaser rather than DOM so the controls live in the same camera
+   * space as the game and scale with it. Every element is at least
+   * MIN_TOUCH_TARGET_PX across; the stick has a wider invisible hit area than
+   * its visible circle, because a thumb does not aim.
+   */
+  private createTouchControls(): void {
+    const stickX = 96
+    const stickY = GAME_HEIGHT - 96
+
+    this.stickBase = this.add
+      .circle(stickX, stickY, STICK_RADIUS_PX, PALETTE.hud as unknown as number, 0.15)
+      .setScrollFactor(0)
+      .setDepth(200)
+    this.stickKnob = this.add
+      .circle(stickX, stickY, 18, PALETTE.alert as unknown as number, 0.35)
+      .setScrollFactor(0)
+      .setDepth(201)
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.x < GAME_WIDTH / 2) {
+        this.touch?.setStick({ x: stickX, y: stickY }, { x: pointer.x, y: pointer.y })
+        this.stickKnob?.setPosition(pointer.x, pointer.y)
+      }
+    })
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || pointer.x >= GAME_WIDTH / 2) return
+      this.touch?.setStick({ x: stickX, y: stickY }, { x: pointer.x, y: pointer.y })
+      this.stickKnob?.setPosition(pointer.x, pointer.y)
+    })
+    this.input.on('pointerup', () => {
+      this.touch?.clearStick()
+      this.stickKnob?.setPosition(stickX, stickY)
+    })
+
+    const buttons: { id: 'fire' | 'jump' | 'bomb'; label: string; x: number; y: number }[] = [
+      { id: 'fire', label: '射', x: GAME_WIDTH - 190, y: GAME_HEIGHT - 110 },
+      { id: 'jump', label: '跳', x: GAME_WIDTH - 110, y: GAME_HEIGHT - 150 },
+      { id: 'bomb', label: '弹', x: GAME_WIDTH - 90, y: GAME_HEIGHT - 70 },
+    ]
+
+    for (const button of buttons) {
+      const zone = this.add
+        .circle(
+          button.x,
+          button.y,
+          MIN_TOUCH_TARGET_PX / 2,
+          PALETTE.exit as unknown as number,
+          0.25,
+        )
+        .setScrollFactor(0)
+        .setDepth(200)
+        .setInteractive()
+      this.add
+        .text(button.x, button.y, button.label, {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: PALETTE.hud,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(201)
+
+      zone.on('pointerdown', () => this.touch?.press(button.id))
+      zone.on('pointerup', () => this.touch?.release(button.id))
+      zone.on('pointerout', () => this.touch?.release(button.id))
+    }
   }
 
   private showCleared(score: number): void {
