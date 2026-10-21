@@ -224,6 +224,23 @@ export {
 } from './systems/Score.js'
 export type { SpatialEntry } from './systems/SpatialHash.js'
 export { CELL_SIZE, cellRange, SpatialHash } from './systems/SpatialHash.js'
+export type {
+  PlatformMotion,
+  ScrollMode,
+  TerrainPlatform,
+  TerrainState,
+} from './systems/Terrain.js'
+export {
+  applyBlast,
+  blocksMovement,
+  createTerrainState,
+  isVerticalScroll,
+  motionOffset,
+  platformAt,
+  platformDelta,
+  platformId,
+  reachedExit,
+} from './systems/Terrain.js'
 export type { FireOutcome, LockCandidate, WeaponState } from './systems/Weapons.js'
 export {
   AIM_DIRECTIONS,

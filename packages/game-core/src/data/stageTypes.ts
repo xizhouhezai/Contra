@@ -31,4 +31,10 @@ export interface StageDefinition {
   /** Designed clear time, used to sanity-check pacing. */
   readonly timeTargetSeconds: number
   readonly exit: Rect
+  /**
+   * Direction the stage scrolls as the player advances (T-M3-03).
+   *
+   * Absent means horizontal, which is every stage but the eleventh.
+   */
+  readonly scrollMode?: 'horizontal' | 'vertical'
 }
