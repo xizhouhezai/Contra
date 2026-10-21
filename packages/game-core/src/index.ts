@@ -16,6 +16,17 @@ export type {
 } from './core.js'
 export { World } from './core.js'
 export { BOSSES, bossDefinition, CLAUDE_AUDITOR, CLAUDE_REWRITER } from './data/bosses.js'
+export {
+  CAMPAIGN_STAGES,
+  STAGE_01,
+  STAGE_02,
+  STAGE_03,
+  STAGE_04,
+  STAGE_05,
+  STAGE_06,
+  STAGE_07,
+  STAGE_08,
+} from './data/campaign.js'
 export type {
   BombId,
   CharacterDefinition,
@@ -111,6 +122,22 @@ export {
   phaseForHp,
   stepBoss,
 } from './stages/BossDirector.js'
+export type {
+  CampaignProgress,
+  Grade,
+  ProgressStorage,
+  RunResult,
+  StageRecord,
+} from './stages/Progress.js'
+export {
+  clearProgress,
+  emptyProgress,
+  gradeRun,
+  isUnlocked,
+  loadProgress,
+  recordClear,
+  saveProgress,
+} from './stages/Progress.js'
 export type { StageProgress } from './stages/StageRunner.js'
 export { findStage, StageRunner } from './stages/StageRunner.js'
 export {
