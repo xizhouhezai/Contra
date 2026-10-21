@@ -33,9 +33,15 @@ export class StageSelectScene extends Phaser.Scene {
   private cursor = 0
   private highlight: Phaser.GameObjects.Rectangle | null = null
   private readonly columns = 4
+  /** Carried from the character screen through to the stage scene. */
+  private characterId: string | undefined
 
   constructor() {
     super('StageSelect')
+  }
+
+  init(data: { characterId?: string }): void {
+    this.characterId = data?.characterId
   }
 
   create(): void {
@@ -126,7 +132,7 @@ export class StageSelectScene extends Phaser.Scene {
         const hit = this.add
           .rectangle(x, y, cardWidth, cardHeight, 0xffffff, 0.001)
           .setInteractive({ useHandCursor: true })
-        hit.on('pointerdown', () => this.scene.start('Stage', { stageId: stage.id }))
+        hit.on('pointerdown', () => this.enterStage(stage.id))
       } else {
         card.setAlpha(0.5)
       }
@@ -149,7 +155,7 @@ export class StageSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-DOWN', () => this.moveCursor(0, 1))
     this.input.keyboard?.on('keydown-ENTER', () => this.enterSelected())
     this.input.keyboard?.on('keydown-SPACE', () => this.enterSelected())
-    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Title'))
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('CharacterSelect'))
 
     this.input.keyboard?.on('keydown-R', () => {
       clearProgress(this.storage)
@@ -205,6 +211,11 @@ export class StageSelectScene extends Phaser.Scene {
   private enterSelected(): void {
     const card = this.cards[this.cursor]
     if (card === undefined || !card.unlocked) return
-    this.scene.start('Stage', { stageId: card.stageId })
+    this.enterStage(card.stageId)
+  }
+
+  /** Starts a stage, passing along whoever was chosen on the previous screen. */
+  private enterStage(stageId: string): void {
+    this.scene.start('Stage', { stageId, characterId: this.characterId })
   }
 }
