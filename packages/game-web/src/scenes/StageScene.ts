@@ -20,6 +20,13 @@ export class StageScene extends Phaser.Scene {
 
   private readonly bridge = new CoreEventBridge({
     shot: (event) => this.showMuzzleFlash(event.position.x, event.position.y),
+    hit: (event) => this.showImpact(event.position.x, event.position.y),
+    enemyDied: (event) => this.showImpact(event.position.x, event.position.y),
+    playerHurt: (event) => this.showBanner(`受创 · 剩余 ${event.heartsLeft}`),
+    playerDied: () => this.showBanner('推理中断'),
+    weaponPicked: (event) => this.showBanner(`拾取 ${event.weaponId}`),
+    explosion: (event) => this.showBlast(event.position.x, event.position.y, event.radius),
+    bossPhaseChanged: (event) => this.showBanner(`形态 ${event.phase}`),
     stageCleared: (event) => this.showCleared(event.score),
   })
 
@@ -164,6 +171,39 @@ export class StageScene extends Phaser.Scene {
   private showMuzzleFlash(x: number, y: number): void {
     const flash = this.add.rectangle(x, y, 16, 16, PALETTE.bullet, 0.9).setDepth(19)
     this.tweens.add({ targets: flash, alpha: 0, duration: 80, onComplete: () => flash.destroy() })
+  }
+
+  /** Short-lived square at a hit point; used for both damage and deaths. */
+  private showImpact(x: number, y: number): void {
+    const impact = this.add.rectangle(x, y, 10, 10, PALETTE.alert, 0.85).setDepth(18)
+    this.tweens.add({
+      targets: impact,
+      alpha: 0,
+      scale: 1.8,
+      duration: 120,
+      onComplete: () => impact.destroy(),
+    })
+  }
+
+  /** A blast ring sized by the radius the rule layer reported. */
+  private showBlast(x: number, y: number, radius: number): void {
+    const blast = this.add.circle(x, y, radius, PALETTE.alert, 0.35).setDepth(17)
+    this.tweens.add({
+      targets: blast,
+      alpha: 0,
+      scale: 1.2,
+      duration: 240,
+      onComplete: () => blast.destroy(),
+    })
+  }
+
+  /** One-line notice in the banner slot, cleared after a moment. */
+  private showBanner(text: string): void {
+    if (this.banner === null) return
+    this.banner.setText(text)
+    this.time.delayedCall(900, () => {
+      if (this.banner?.text === text && !this.world.clearedStage) this.banner.setText('')
+    })
   }
 
   private showCleared(score: number): void {
