@@ -114,6 +114,8 @@ export default defineConfig({
           items: [
             { text: '里程碑', link: '/game/tasks/milestones' },
             { text: '任务拆解', link: '/game/tasks/backlog' },
+            { text: '非功能核对', link: '/game/tasks/nfr-checklist' },
+            { text: '部署说明', link: '/game/tasks/deployment' },
           ],
         },
       ],

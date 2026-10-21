@@ -157,8 +157,12 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponDefinition>> = {
     id: 'replay',
     name: '回溯弹',
     kind: 'projectile',
-    damage: 8,
-    shotsPerSecond: 5,
+    // Damage was 8 at 5/s, which left the infinite-ammo pulse strictly better on
+    // every axis at once - the balance check caught it. The marks are what replay
+    // is for, so the base shot has to be at least worth holding: 9 at 5.5/s keeps
+    // it ahead of the fallback in feel without making it the default pick.
+    damage: 9,
+    shotsPerSecond: 5.5,
     projectileSpeed: 480,
     projectileCount: 1,
     ammo: 150,

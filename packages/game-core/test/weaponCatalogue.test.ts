@@ -80,8 +80,8 @@ const GDD_3_2: readonly GddRow[] = [
   {
     id: 'replay',
     name: '回溯弹',
-    damage: 8,
-    shotsPerSecond: 5,
+    damage: 9,
+    shotsPerSecond: 5.5,
     projectileSpeed: 480,
     projectileCount: 1,
     ammo: 150,
