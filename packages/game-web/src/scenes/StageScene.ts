@@ -116,6 +116,8 @@ export class StageScene extends Phaser.Scene {
       // CharacterSelect always sends one; a direct stage launch may not, and
       // World has its own default for that case.
       characterId: this.request.characterId as CharacterId | undefined,
+      // Boss stages name their boss in the stage data (T3).
+      bossId: this.stage.bossId,
     })
   }
 

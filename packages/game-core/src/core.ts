@@ -5,6 +5,7 @@
  * presentation layer subscribes to them (docs/game/design/architecture.md §事件驱动).
  */
 
+import { bossDefinition } from './data/bosses.js'
 import { INITIAL_WEAPON } from './data/characters.js'
 import {
   BULLET_HEIGHT,
@@ -34,6 +35,13 @@ import {
   type TargetDefinition,
   type TargetState,
 } from './entities/Target.js'
+import {
+  type BossRuntimeState,
+  createBossState,
+  damageBoss,
+  hpFraction,
+  stepBoss,
+} from './stages/BossDirector.js'
 import { equipWeapon } from './systems/Arsenal.js'
 import { overlaps, rayBoxDistance } from './systems/Collision.js'
 import { applyHit, canDamage } from './systems/Combat.js'
@@ -109,6 +117,8 @@ export interface BossPhaseChangedEvent {
   readonly type: 'bossPhaseChanged'
   readonly bossId: BossId
   readonly phase: number
+  /** HP fraction at the moment of the change; drives the segmented bar (T3). */
+  readonly healthFraction: number
 }
 
 /** The stage exit was reached; carries the final score of the run. */
@@ -158,6 +168,8 @@ export interface WorldOptions {
     readonly exit: Rect
     readonly bounceWalls?: readonly Rect[]
   }
+  /** Boss to spawn when the stage has one (T3). */
+  readonly bossId?: BossId
   /** Playable character; decides the initial weapon (T-M1-01). */
   readonly characterId?: CharacterId
   /** Starting hearts; defaults to the GDD §3.1 three hearts. */
@@ -230,6 +242,15 @@ export class World {
   /** GLM refunds one heart per stage, no more. */
   private rhythmRefunded = false
   private readonly passive: PassiveState = createPassiveState()
+  /** The stage boss, when there is one; null on ordinary stages. */
+  private boss: BossRuntimeState | null = null
+  /** True while the boss has the player's gravity inverted. */
+  private gravityFlipped = false
+
+  /** Whether the current boss has gravity inverted; the renderer flips the view. */
+  get gravityInverted(): boolean {
+    return this.gravityFlipped
+  }
   private cleared = false
   private elapsedSeconds = 0
 
@@ -246,6 +267,16 @@ export class World {
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
     this.homingLockLimit = HOMING_LOCK_LIMIT
     equipWeapon(this.player, INITIAL_WEAPON[this.characterId])
+
+    // A stage that names a boss but has no definition is a bug, not a state to
+    // paper over: it would render an empty arena that never clears.
+    if (options.bossId !== undefined) {
+      const definition = bossDefinition(options.bossId)
+      if (definition === undefined) {
+        throw new Error(`unknown boss: ${options.bossId}`)
+      }
+      this.boss = createBossState(definition)
+    }
   }
 
   /** Seconds of simulation elapsed; the clock the combat rules read. */
@@ -315,6 +346,77 @@ export class World {
   }
 
   /** One fixed step: movement, then weapons, then projectiles and damage. */
+  /**
+   * Advances the boss and reports what it did (T3).
+   *
+   * The director owns phases, telegraphs and the gravity flip; this only
+   * translates its result into events and, on death, hands the player the
+   * weapon the boss drops. Keeping that split means a new boss is data, not a
+   * new branch in here.
+   */
+  private stepBossOnce(): void {
+    const boss = this.boss
+    if (boss === null || boss.defeated) return
+
+    const result = stepBoss(boss, this.fixedStepSeconds)
+    if (result.phaseChanged) {
+      this.eventQueue.push({
+        type: 'bossPhaseChanged',
+        bossId: boss.definition.id as BossId,
+        phase: result.newPhase,
+        healthFraction: hpFraction(boss),
+      })
+    }
+    if (result.gravityFlipped) {
+      this.gravityFlipped = boss.gravityFlipped
+    }
+  }
+
+  /** Boss state for the presentation layer; null on an ordinary stage. */
+  get activeBoss(): BossRuntimeState | null {
+    return this.boss
+  }
+
+  /**
+   * Damages the boss (T3).
+   *
+   * Called by the bullet resolver. On death the boss drops the weapon its
+   * definition names - the reward is part of the boss data, so a new boss with
+   * a different drop needs no code change here.
+   */
+  private damageBossBy(amount: number): void {
+    const boss = this.boss
+    if (boss === null || boss.defeated) return
+
+    const phaseBefore = boss.phase
+    const died = damageBoss(boss, amount)
+
+    if (boss.phase !== phaseBefore) {
+      this.eventQueue.push({
+        type: 'bossPhaseChanged',
+        bossId: boss.definition.id as BossId,
+        phase: boss.phase,
+        healthFraction: hpFraction(boss),
+      })
+    }
+
+    if (!died) return
+
+    this.eventQueue.push({
+      type: 'enemyDied',
+      enemyId: boss.definition.id,
+      position: { x: 0, y: 0 },
+      score: 0,
+    })
+
+    const drop = boss.definition.dropsWeapon
+    if (drop !== undefined) {
+      const weaponId = drop as WeaponId
+      this.pickUpWeapon(weaponId)
+      this.eventQueue.push({ type: 'weaponPicked', weaponId, slot: this.player.activeSlot })
+    }
+  }
+
   private stepOnce(provider: InputProvider): void {
     const input = typeof provider === 'function' ? provider(this.stepCount) : provider
     this.elapsedSeconds += this.fixedStepSeconds
@@ -336,6 +438,7 @@ export class World {
     this.steerHomingRounds()
     this.resolveBulletHits()
     this.resolveBlasts()
+    this.stepBossOnce()
     this.damagePlayer()
     this.checkExit()
 
@@ -457,6 +560,9 @@ export class World {
 
         bullet.hitTargets.add(target.id)
         this.applyDamageToTarget(target, bullet.damage, bullet.position)
+        // A boss shares the bullet path with ordinary targets, so a round that
+        // hits it just passes straight through instead of stopping.
+        this.damageBossBy(bullet.damage)
         if (bullet.remainingPierces > 0) {
           bullet.remainingPierces -= 1
         } else {
