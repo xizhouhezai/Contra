@@ -73,7 +73,9 @@ export class StageScene extends Phaser.Scene {
       platforms: this.stage.platforms,
       targets: this.stage.targets,
       exit: this.stage.exit,
-      characterId: this.request.characterId as never,
+      // CharacterSelect always sends one; a direct stage launch may not, and
+      // World has its own default for that case.
+      characterId: this.request.characterId as CharacterId | undefined,
     })
   }
 

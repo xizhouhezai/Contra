@@ -24,6 +24,9 @@ export const PALETTE = {
   hud: '#1a1a1a',
   /** Alert red doubles as the hurt and boss colour. */
   alert: '#d6452c',
+  /** Text on paper: ink for body, muted ink for secondary lines. */
+  ink: '#1a1a1a',
+  inkMuted: '#6b655c',
 } as const
 
 /** Procedural texture keys; M4 loads real sheets alongside these. */
