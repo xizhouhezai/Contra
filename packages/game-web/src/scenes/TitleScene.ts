@@ -56,6 +56,9 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private begin(): void {
-    this.scene.start('StageSelect')
+    // Character first, then the stage: which runner you are decides the weapon
+    // you walk in with, so picking the stage first would mean handing the player
+    // a gun and then asking which character they wanted.
+    this.scene.start('CharacterSelect')
   }
 }
