@@ -144,6 +144,12 @@ export interface WorldOptions {
   readonly targets?: readonly TargetDefinition[]
   /** Stage exit box; reaching it emits one stageCleared event. */
   readonly exit?: Rect | null
+  /** Source stage, when the world was built from a StageDefinition (T-M2-01). */
+  readonly stage?: {
+    readonly id: string
+    readonly exit: Rect
+    readonly bounceWalls?: readonly Rect[]
+  }
   /** Playable character; decides the initial weapon (T-M1-01). */
   readonly characterId?: CharacterId
   /** Starting hearts; defaults to the GDD §3.1 three hearts. */
