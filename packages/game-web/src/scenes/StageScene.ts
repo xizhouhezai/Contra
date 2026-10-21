@@ -149,7 +149,11 @@ export class StageScene extends Phaser.Scene {
     })
 
     this.inputSource = new KeyboardInputSource(window)
-    if (wantsTouchControls(navigator.maxTouchPoints > 0, navigator.maxTouchPoints)) {
+    // Touch controls only on a device that has no mouse. A laptop with a
+    // touchscreen reports maxTouchPoints 10, and showing a virtual stick there
+    // put a "跳/射/弹" cluster in the middle of a desktop screen.
+    const hasMouse = window.matchMedia('(pointer: fine)').matches
+    if (!hasMouse && wantsTouchControls(navigator.maxTouchPoints > 0, navigator.maxTouchPoints)) {
       this.touch = new TouchInputSource()
       this.createTouchControls()
     }
@@ -285,16 +289,46 @@ export class StageScene extends Phaser.Scene {
     this.prevY = spawn.y
     // Real sprite sheet when the art shipped, grey box when it did not.
     const character: CharacterId = (this.request.characterId as CharacterId) ?? 'deepseek'
-    this.playerView = new ActorView(
-      this,
-      characterSprite(character, 'idle'),
-      spawn.x,
-      spawn.y,
-      20,
-      34,
-      48,
-    )
-    this.playerView.sprite.setScale(1.4)
+    // The portrait is the real artwork; the 48px generated sheet is a
+    // placeholder. In-game the portrait is drawn scaled into the collision box,
+    // which leaves the rule layer's 34x48 body untouched - the art follows the
+    // physics, not the other way round.
+    const portraitKey = `portrait-${character}`
+    if (this.textures.exists(portraitKey)) {
+      const source = this.textures.get(portraitKey).getSourceImage()
+      const scale = Math.min(58 / source.height, 42 / source.width)
+      this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
+      this.playerView.sprite.setOrigin(0.5, 1)
+      this.playerView.sprite.setScale(scale)
+
+      // The portrait sheets have a white background. In the select screen that
+      // reads as a framed illustration, which is fine; in-game it reads as a
+      // white rectangle with a person in it, so the sheet is masked to the
+      // character's own bounds.
+      const frame = this.textures.get(portraitKey).getFrameNames()[0]
+      const frameImage = frame === undefined ? undefined : this.textures.get(portraitKey).get(frame)
+      if (frameImage !== undefined && frameImage.cutWidth > 0) {
+        const maskShape = this.make.graphics({}, false)
+        maskShape.fillRect(
+          spawn.x - frameImage.cutWidth * scale * 0.5,
+          spawn.y - frameImage.cutHeight * scale,
+          frameImage.cutWidth * scale,
+          frameImage.cutHeight * scale,
+        )
+        this.playerView.sprite.setMask(maskShape.createGeometryMask())
+      }
+    } else {
+      this.playerView = new ActorView(
+        this,
+        characterSprite(character, 'idle'),
+        spawn.x,
+        spawn.y,
+        20,
+        34,
+        48,
+      )
+      this.playerView.sprite.setScale(1.4)
+    }
 
     for (const target of this.stage.targets) {
       // Target ids are archetype-prefixed (charger-1, flyer-2), so the sheet is

@@ -21,7 +21,18 @@ describe('Render scale', () => {
 
   it('never exceeds the cap', () => {
     expect(renderScale(3840, 2160)).toBe(MAX_RENDER_SCALE)
-    expect(MAX_RENDER_SCALE).toBeLessThanOrEqual(2)
+    // The cap exists to bound the fill cost, not to pin an exact number: 3 was
+    // chosen because a 2560-wide window then needs no upscaling at all, and the
+    // frame rate measured 60fps at 1366, 1920 and 2560.
+    expect(MAX_RENDER_SCALE).toBeGreaterThanOrEqual(2)
+    expect(MAX_RENDER_SCALE).toBeLessThanOrEqual(3)
+  })
+
+  it('covers a 2560-wide window without upscaling', () => {
+    // The bug this guards: a cap of 1.5 left the 1920 window stretched 1.33x and
+    // the 2560 window 1.78x, which is exactly the blur that was reported.
+    const buffer = bufferSize(2560, 1440)
+    expect(buffer.width).toBeGreaterThanOrEqual(2560)
   })
 
   it('caps the buffer instead of following the window without limit', () => {

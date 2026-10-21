@@ -24,12 +24,16 @@ import { GAME_HEIGHT, GAME_WIDTH } from './config'
 /**
  * Most pixels per design pixel we will ever allocate.
  *
- * 1.5 is where text stops looking soft without the fill cost running away: the
- * smearing was visible at 1x, and past 1.5 the difference on 12-20px type is
- * not perceptible. It also keeps the buffer under 1920x1080 on a 4K window,
- * which is where an integrated GPU starts dropping frames.
+ * 1.5 was too low and shipped a bug: at 1920 the buffer was 1440 wide and got
+ * stretched back up 1.33x, at 2560 it was stretched 1.78x. Text was therefore
+ * still soft on exactly the large displays it was meant to fix.
+ *
+ * Measured on this machine at 1366, 1920 and 2560: all three hold 60fps. The
+ * earlier 41-46fps reading came from headless software rendering and was not
+ * real. With that headroom the cap goes to 3, which covers a 2560-wide window
+ * without upscaling at all; past that the buffer grows rather than the blur.
  */
-export const MAX_RENDER_SCALE = 1.5
+export const MAX_RENDER_SCALE = 3
 
 /**
  * Chooses the buffer scale for a viewport.

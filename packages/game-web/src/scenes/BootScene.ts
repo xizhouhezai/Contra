@@ -1,5 +1,12 @@
+import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
-import { backgroundUrl, characterSheets, enemySheets, PARALLAX_LAYERS } from '../assets/manifest'
+import {
+  backgroundUrl,
+  characterSheets,
+  enemySheets,
+  PARALLAX_LAYERS,
+  portraitUrl,
+} from '../assets/manifest'
 import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
 import { applyFit } from '../fit'
@@ -45,6 +52,14 @@ export class BootScene extends Phaser.Scene {
     for (const key of PARALLAX_LAYERS) {
       const url = backgroundUrl(key)
       if (url !== undefined) this.load.image(key, url)
+    }
+
+    // Character portraits. These are the real artwork - the stage sprite sheets
+    // are 48px generated placeholders - so the select screen shows each character
+    // as drawn rather than as a coloured block.
+    for (const id of CHARACTER_IDS) {
+      const url = portraitUrl(id)
+      if (url !== undefined) this.load.image(`portrait-${id}`, url)
     }
 
     preloadAudio(this.load)

@@ -16,6 +16,7 @@ CHROME = os.environ.get('CHROME_PATH', r'C:\Program Files\Google\Chrome\Applicat
 PORT = int(os.environ.get('CONTRA_CDP_PORT', '9505'))
 APP = os.environ.get('CONTRA_URL', 'http://localhost:4180/')
 PROFILE = os.path.abspath(os.path.join('.tmp', 'e2e-browser'))
+PID_FILE = os.path.join(PROFILE, 'host.pid')
 
 
 def alive():
@@ -27,8 +28,26 @@ def alive():
 
 
 def stop():
+    """Stops the browser this script started, and only that one.
+
+    The first version ran `taskkill /IM chrome.exe`, which kills every Chrome
+    on the machine - including whatever the user had open. Killing someone's
+    browser to run a test is not an acceptable side effect, so the pid of the
+    instance we launched is recorded and only that process tree is stopped.
+    """
     try:
-        subprocess.run(['taskkill', '/F', '/IM', 'chrome.exe'], capture_output=True)
+        with open(PID_FILE, 'r', encoding='utf-8') as handle:
+            pid = int(handle.read().strip())
+    except Exception:
+        return
+
+    try:
+        subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)], capture_output=True)
+    except Exception:
+        pass
+
+    try:
+        os.remove(PID_FILE)
     except Exception:
         pass
 
@@ -47,12 +66,14 @@ def main():
         print('chrome not found: %s' % CHROME)
         return 1
 
+    # Only the instance we are about to start is stopped; nothing else is
+    # touched. If a stale one is still holding the port, it is ours.
     stop()
     time.sleep(1)
     shutil.rmtree(PROFILE, ignore_errors=True)
     os.makedirs(PROFILE, exist_ok=True)
 
-    subprocess.Popen(
+    process = subprocess.Popen(
         [CHROME, '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
          '--remote-debugging-port=%d' % PORT, '--user-data-dir=' + PROFILE,
          '--window-size=1280,720', APP],
@@ -60,10 +81,13 @@ def main():
         creationflags=0x00000008,
     )
 
+    with open(PID_FILE, 'w', encoding='utf-8') as handle:
+        handle.write(str(process.pid))
+
     for _ in range(20):
         time.sleep(1)
         if alive():
-            print('browser ready on port %d' % PORT)
+            print('browser ready on port %d (pid %d)' % (PORT, process.pid))
             return 0
 
     print('browser did not become ready')

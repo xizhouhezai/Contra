@@ -32,7 +32,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(GAME_WIDTH / 2, 115, '初始武器 / 被动 / 炸弹各不相同', {
+      .text(GAME_WIDTH / 2, 110, '初始武器 / 被动 / 炸弹各不相同', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,
@@ -44,14 +44,16 @@ export class CharacterSelectScene extends Phaser.Scene {
     // The grid is sized against the space the header and the hint leave behind,
     // not chosen first and then allowed to overlap them.
     const cardWidth = 236
-    const cardHeight = 178
+    // Tall enough for a portrait plus four lines of stats. The text sits to the
+    // right of the art, so the height is driven by the art, not the text.
+    const cardHeight = 196
     const gapX = 16
     const gapY = 14
     const columns = 3
     const totalWidth = columns * cardWidth + (columns - 1) * gapX
     const startX = (GAME_WIDTH - totalWidth) / 2 + cardWidth / 2
     // Header occupies y=56..126; the grid starts below it.
-    const startY = 218
+    const startY = 214
 
     CHARACTER_IDS.forEach((id, index) => {
       const definition = characterDefinition(id)
@@ -65,17 +67,62 @@ export class CharacterSelectScene extends Phaser.Scene {
         this.add.rectangle(0, 0, cardWidth, cardHeight, 0xffffff, 1).setStrokeStyle(2, 0x1a1a1a),
       )
       card.add(
-        this.add.rectangle(
-          0,
-          -cardHeight / 2 + 4,
-          cardWidth,
-          8,
-          Phaser.Display.Color.HexStringToColor(definition.primary).color,
-        ),
+        this.add
+          .rectangle(
+            -cardWidth / 2,
+            -cardHeight / 2,
+            cardWidth,
+            6,
+            Phaser.Display.Color.HexStringToColor(definition.primary).color,
+          )
+          .setOrigin(0, 0),
       )
+
+      // The portrait is the point of this screen: a player picks a character by
+      // recognising them, and six text rows with names on them do not do that.
+      // Falls back to nothing when the art is missing, so the screen still works
+      // without it.
+      const portraitKey = `portrait-${id}`
+      const hasPortrait = this.textures.exists(portraitKey)
+      if (hasPortrait) {
+        const source = this.textures.get(portraitKey).getSourceImage()
+        const boxWidth = cardWidth * 0.46
+        const boxHeight = cardHeight - 20
+
+        // Two shapes of source art ship here: full-body portraits at 506x900 and
+        // one square 160x160 avatar with a white background. Scaling a square to
+        // fit a tall box would shrink it to a stamp, so it is scaled to *cover*
+        // the box and cropped instead - a face fills a portrait frame better than
+        // a letterboxed thumbnail does.
+        const isSquare = Math.abs(source.width - source.height) < 8
+        if (isSquare) {
+          const cover = Math.max(boxWidth / source.width, boxHeight / source.height)
+          const image = this.add
+            .image(-cardWidth * 0.26, 0, portraitKey)
+            .setOrigin(0.5, 0.5)
+            .setScale(cover)
+          const maskShape = this.make.graphics({}, false)
+          maskShape.fillRect(
+            x - cardWidth * 0.26 - boxWidth / 2,
+            centerY - boxHeight / 2,
+            boxWidth,
+            boxHeight,
+          )
+          image.setMask(maskShape.createGeometryMask())
+          card.add(image)
+        } else {
+          const scale = Math.min(boxWidth / source.width, boxHeight / source.height)
+          card.add(
+            this.add
+              .image(-cardWidth * 0.26, -cardHeight / 2 + 10, portraitKey)
+              .setOrigin(0.5, 0)
+              .setScale(scale),
+          )
+        }
+      }
       card.add(
         this.add
-          .text(0, -58, definition.name, {
+          .text(hasPortrait ? cardWidth * 0.24 : 0, -58, definition.name, {
             fontFamily: 'Georgia, serif',
             fontSize: '19px',
             color: PALETTE.ink,
@@ -84,7 +131,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       )
       card.add(
         this.add
-          .text(0, -34, definition.codename, {
+          .text(hasPortrait ? cardWidth * 0.24 : 0, -34, definition.codename, {
             fontFamily: 'Georgia, serif',
             fontSize: '12px',
             color: PALETTE.inkMuted,
@@ -93,7 +140,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       )
       card.add(
         this.add
-          .text(0, -14, definition.role, {
+          .text(hasPortrait ? cardWidth * 0.24 : 0, -14, definition.role, {
             fontFamily: 'Georgia, serif',
             fontSize: '12px',
             color: PALETTE.inkMuted,
@@ -104,6 +151,7 @@ export class CharacterSelectScene extends Phaser.Scene {
         this.add
           .text(
             0,
+            hasPortrait ? cardWidth * 0.24 : 0,
             42,
             [
               `武器 ${definition.initialWeapon}`,
@@ -131,7 +179,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     })
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 18, '方向键切换 · Enter 确认 · Esc 返回', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 12, '方向键切换 · Enter 确认 · Esc 返回', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,

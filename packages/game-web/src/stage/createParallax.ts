@@ -18,7 +18,7 @@ import { backgroundUrl, PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/mani
  */
 
 /** How much of each layer shows through, far to near. */
-const LAYER_ALPHA = [1, 0.55, 0.4, 0.22] as const
+const LAYER_ALPHA = [0.55, 0.4, 0.3, 0.16] as const
 
 export function createParallax(
   scene: Phaser.Scene,
