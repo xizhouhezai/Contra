@@ -12,9 +12,10 @@ export const GAME_HEIGHT = 540
 export const PALETTE = {
   /** Paper, not black: the site is printed, not lit. */
   background: '#f4f1ea',
-  floor: 0x2b2a26,
-  platform: 0x5a5750,
-  player: 0x1f4e8c,
+  // Gameplay silhouettes stay near-black on ink so they read over any backdrop.
+  floor: 0x1a1a1a,
+  platform: 0x1a1a1a,
+  player: 0xd6452c,
   target: 0xd6452c,
   targetDead: 0x9a9088,
   bullet: 0xc8901f,

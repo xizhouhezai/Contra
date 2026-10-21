@@ -8,9 +8,18 @@ import { backgroundUrl, PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/mani
  * per frame - that is what produces depth: the sky barely moves, the foreground
  * nearly matches the world.
  *
- * A layer whose texture is missing is skipped rather than fatal, because the M4
- * art is additive: the game runs on grey boxes with or without it.
+ * Depth and alpha are the two things that keep this from swallowing the game.
+ * The layers sit far below every gameplay object, and each is dimmed toward the
+ * paper background: a backdrop is context, and the moment it competes with the
+ * player silhouette the stage stops being readable.
+ *
+ * A layer whose texture is missing is skipped rather than fatal, because the art
+ * is additive: the game runs on grey boxes with or without it.
  */
+
+/** How much of each layer shows through, far to near. */
+const LAYER_ALPHA = [1, 0.55, 0.4, 0.22] as const
+
 export function createParallax(
   scene: Phaser.Scene,
   worldWidth: number,
@@ -29,6 +38,7 @@ export function createParallax(
       .setOrigin(0, 1)
       .setScrollFactor(0)
       .setDepth(-100 + index)
+      .setAlpha(LAYER_ALPHA[index] ?? 0.3)
 
     if (source.height > 0) tile.tileScaleY = height / source.height
     created.push(tile)
@@ -47,10 +57,13 @@ export function createParallax(
 export function updateParallax(
   layers: readonly Phaser.GameObjects.TileSprite[],
   cameraScrollX: number,
+  cameraScrollY = 0,
 ): void {
   layers.forEach((layer, index) => {
     const key = PARALLAX_LAYERS[index]
     const factor = key === undefined ? 0.3 : (PARALLAX_FACTORS[key] ?? 0.3)
     layer.tilePositionX = cameraScrollX * factor
+    // A vertical stage scrolls the backdrop on y instead.
+    layer.tilePositionY = cameraScrollY * factor
   })
 }
