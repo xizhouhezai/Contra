@@ -86,6 +86,28 @@ async function main() {
   check('游戏已启动', (await evaluate('typeof window.__contraGame')) === 'object')
 
   const PROBE = '(window.__contraStage ? window.__contraStage() : null)'
+  const SCENES =
+    'window.__contraGame.scene.getScenes(true).map(function(s){return s.scene.key}).join(",")'
+
+  /** Sends a real key press, holding it long enough for the game to see it. */
+  async function dial(code, virtualKey, holdMs) {
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      code,
+      key: code,
+      windowsVirtualKeyCode: virtualKey,
+      nativeVirtualKeyCode: virtualKey,
+    })
+    await sleep(holdMs)
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      code,
+      key: code,
+      windowsVirtualKeyCode: virtualKey,
+      nativeVirtualKeyCode: virtualKey,
+    })
+    await sleep(400)
+  }
 
   for (const stageId of STAGES) {
     await evaluate(`window.__contraGame.scene.start('Stage',{stageId:'${stageId}'}); true`)
@@ -100,8 +122,18 @@ async function main() {
     await sleep(400)
   }
 
-  await evaluate("window.__contraGame.scene.start('Stage',{stageId:'stage-01'}); true")
+  // The real player path, driven by key presses rather than by scene.start.
+  // Everything above proves the stages work; only this proves a player can
+  // reach one, which is the thing that was actually broken.
+  await send('Page.reload', {})
+  await sleep(14000)
+  await dial('Enter', 13, 80)
+  await sleep(1200)
+  check('标题 -> 选关', String(await evaluate(SCENES)).includes('StageSelect'))
+  await dial('Enter', 13, 80)
   await sleep(2500)
+  check('选关 -> 关卡', String(await evaluate(SCENES)).includes('Stage'))
+
   const before = await evaluate(PROBE)
   const key = (type) => ({
     type: type,

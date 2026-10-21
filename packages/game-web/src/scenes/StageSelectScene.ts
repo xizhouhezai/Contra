@@ -19,6 +19,20 @@ import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 export class StageSelectScene extends Phaser.Scene {
   private storage = new LocalStorageAdapter()
   private progress!: CampaignProgress
+  /** Cards in campaign order, so arrow keys can walk them. */
+  private cards: {
+    stageId: string
+    index: number
+    unlocked: boolean
+    x: number
+    y: number
+    width: number
+    height: number
+    container: Phaser.GameObjects.Container
+  }[] = []
+  private cursor = 0
+  private highlight: Phaser.GameObjects.Rectangle | null = null
+  private readonly columns = 4
 
   constructor() {
     super('StageSelect')
@@ -27,6 +41,8 @@ export class StageSelectScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(PALETTE.background)
     this.storage = new LocalStorageAdapter()
+    this.cards = []
+    this.cursor = 0
     this.progress = loadProgress(
       this.storage,
       CAMPAIGN_STAGES.map((stage) => stage.id),
@@ -40,7 +56,7 @@ export class StageSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const columns = 4
+    const columns = this.columns
     const cardWidth = 220
     const cardHeight = 130
     const gapX = 20
@@ -91,13 +107,26 @@ export class StageSelectScene extends Phaser.Scene {
           .setOrigin(0.5),
       )
 
+      this.cards.push({
+        stageId: stage.id,
+        index: stage.index,
+        unlocked,
+        x,
+        y,
+        width: cardWidth,
+        height: cardHeight,
+        container: card,
+      })
+
       if (unlocked) {
-        card.setSize(cardWidth, cardHeight)
-        card.setInteractive(
-          new Phaser.Geom.Rectangle(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight),
-          Phaser.Geom.Rectangle.Contains,
-        )
-        card.on('pointerdown', () => this.scene.start('Stage', { stageId: stage.id }))
+        // The hit area goes on the background rectangle, not the container. A
+        // Container's own hit test needs an explicit size and origin, and getting
+        // it subtly wrong produces a card that looks clickable and never fires -
+        // which is exactly the bug this replaced.
+        const hit = this.add
+          .rectangle(x, y, cardWidth, cardHeight, 0xffffff, 0.001)
+          .setInteractive({ useHandCursor: true })
+        hit.on('pointerdown', () => this.scene.start('Stage', { stageId: stage.id }))
       } else {
         card.setAlpha(0.5)
       }
@@ -111,9 +140,71 @@ export class StageSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
+    // Keyboard navigation. The title screen is keyboard-driven, so a player who
+    // pressed Enter to get here expects to keep going with keys rather than
+    // discovering they now need a mouse.
+    this.input.keyboard?.on('keydown-LEFT', () => this.moveCursor(-1, 0))
+    this.input.keyboard?.on('keydown-RIGHT', () => this.moveCursor(1, 0))
+    this.input.keyboard?.on('keydown-UP', () => this.moveCursor(0, -1))
+    this.input.keyboard?.on('keydown-DOWN', () => this.moveCursor(0, 1))
+    this.input.keyboard?.on('keydown-ENTER', () => this.enterSelected())
+    this.input.keyboard?.on('keydown-SPACE', () => this.enterSelected())
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Title'))
+
     this.input.keyboard?.on('keydown-R', () => {
       clearProgress(this.storage)
       this.scene.restart()
     })
+
+    this.focusFirstUnlocked()
+  }
+
+  /** Puts the cursor on the furthest stage the player has unlocked. */
+  private focusFirstUnlocked(): void {
+    const last = this.cards.reduce((best, card, position) => (card.unlocked ? position : best), 0)
+    this.moveCursorTo(last)
+  }
+
+  /**
+   * Moves the cursor one card.
+   *
+   * Rows wrap within the grid, and locked cards are skipped in the direction of
+   * travel rather than being refused outright - pressing right on the last
+   * unlocked stage should do nothing visible rather than appear broken.
+   */
+  private moveCursor(dx: number, dy: number): void {
+    if (this.cards.length === 0) return
+    let next = this.cursor
+    for (let step = 0; step < this.cards.length; step += 1) {
+      const column = next % this.columns
+      const row = Math.floor(next / this.columns)
+      const rows = Math.ceil(this.cards.length / this.columns)
+      const nextColumn = (column + dx + this.columns) % this.columns
+      const nextRow = (row + dy + rows) % rows
+      next = nextRow * this.columns + nextColumn
+      if (next >= this.cards.length) continue
+      if (this.cards[next]?.unlocked === true) break
+    }
+    this.moveCursorTo(next)
+  }
+
+  private moveCursorTo(position: number): void {
+    this.cursor = Math.max(0, Math.min(this.cards.length - 1, position))
+    const card = this.cards[this.cursor]
+    if (card === undefined) return
+
+    if (this.highlight === null) {
+      this.highlight = this.add
+        .rectangle(card.x, card.y, card.width + 8, card.height + 8)
+        .setStrokeStyle(3, 0xd6452c)
+        .setDepth(10)
+    }
+    this.highlight.setPosition(card.x, card.y)
+  }
+
+  private enterSelected(): void {
+    const card = this.cards[this.cursor]
+    if (card === undefined || !card.unlocked) return
+    this.scene.start('Stage', { stageId: card.stageId })
   }
 }
