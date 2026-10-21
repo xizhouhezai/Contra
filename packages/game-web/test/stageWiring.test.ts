@@ -8,9 +8,19 @@ const RUN_RIGHT: InputState = { moveX: 1, moveY: 0, jump: false, fire: true, bom
 /** Drives the world exactly the way StageScene.update does, one 1/60s frame at a time. */
 function play(world: ReturnType<typeof createGrayboxWorld>, input: InputState, frames: number) {
   const seen: CoreEvent[] = []
+  // Every family is collected, not just the two this suite asserts on: the
+  // bridge requires all nine handlers, and a missing one is a type error.
+  const collect = (event: CoreEvent) => seen.push(event)
   const bridge = new CoreEventBridge({
-    shot: (event) => seen.push(event),
-    stageCleared: (event) => seen.push(event),
+    shot: collect,
+    hit: collect,
+    enemyDied: collect,
+    playerHurt: collect,
+    playerDied: collect,
+    weaponPicked: collect,
+    explosion: collect,
+    bossPhaseChanged: collect,
+    stageCleared: collect,
   })
   for (let frame = 0; frame < frames; frame += 1) {
     bridge.consume(world.update(1 / 60, input))
