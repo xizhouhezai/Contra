@@ -15,6 +15,15 @@ export type {
   WorldSnapshot,
 } from './core.js'
 export { World } from './core.js'
+export {
+  ACT_III_STAGES,
+  INTERLUDES,
+  STAGE_09,
+  STAGE_10,
+  STAGE_11,
+  STAGE_12,
+  totalCampaignSeconds,
+} from './data/act3.js'
 export { BOSSES, bossDefinition, CLAUDE_AUDITOR, CLAUDE_REWRITER } from './data/bosses.js'
 export {
   CAMPAIGN_STAGES,
