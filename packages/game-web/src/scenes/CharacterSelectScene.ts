@@ -105,17 +105,18 @@ export class CharacterSelectScene extends Phaser.Scene {
           .setOrigin(0.5),
       )
 
-      card.setSize(cardWidth, 290)
-      card.setInteractive(
-        new Phaser.Geom.Rectangle(-cardWidth / 2, -145, cardWidth, 290),
-        Phaser.Geom.Rectangle.Contains,
-      )
-      card.on('pointerdown', () => this.select(id))
+      // The hit area lives on a real rectangle, not the container: a Container's
+      // own hit test silently fails to fire when its size and origin disagree,
+      // which is the bug that made the stage cards unclickable.
+      const hit = this.add
+        .rectangle(x, centerY, cardWidth, 290, 0xffffff, 0.001)
+        .setInteractive({ useHandCursor: true })
+      hit.on('pointerdown', () => this.select(id))
       this.cards.push(card)
     })
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 55, '点击选择 · 空格确认 · 方向键切换', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 55, '方向键切换 · Enter 确认 · Esc 返回', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,
@@ -123,8 +124,10 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.input.keyboard?.on('keydown-SPACE', () => this.confirm())
+    this.input.keyboard?.on('keydown-ENTER', () => this.confirm())
     this.input.keyboard?.on('keydown-LEFT', () => this.step(-1))
     this.input.keyboard?.on('keydown-RIGHT', () => this.step(1))
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Title'))
 
     this.select(this.selected)
   }
@@ -148,6 +151,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private confirm(): void {
-    this.scene.start('Stage', { characterId: CHARACTERS[this.selected].id })
+    // The choice is carried forward, not applied here: the stage screen picks
+    // which fight, and the stage scene is the only place a World is built.
+    this.scene.start('StageSelect', { characterId: CHARACTERS[this.selected].id })
   }
 }
