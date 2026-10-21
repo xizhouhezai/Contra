@@ -13,6 +13,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "boundary": "node scripts/check-game-core-boundary.mjs",
+    "selfhosted": "node scripts/check-selfhosted.mjs",
     "clean": "pnpm -r run clean",
     "dev": "pnpm --filter @contra/docs run dev",
     "docs:build": "pnpm --filter @contra/docs run build",
