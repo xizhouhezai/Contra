@@ -67,6 +67,14 @@ export {
   PULSE_SHOTS_PER_SECOND,
   TIME_EPSILON,
 } from './data/constants.js'
+export type { DifficultySettings } from './data/difficulty.js'
+export {
+  DEFAULT_DIFFICULTY,
+  DIFFICULTIES,
+  difficultySettings,
+  scaledDamage,
+  scaledScore,
+} from './data/difficulty.js'
 export type { EnemyBehaviour, EnemyDefinition, EnemyState } from './data/enemies.js'
 export {
   absorbsHit,
