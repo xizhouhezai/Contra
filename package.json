@@ -25,7 +25,9 @@
     "test": "pnpm -r run test",
     "test:watch": "pnpm --filter @contra/core run test:watch",
     "typecheck": "pnpm -r run typecheck",
-    "verify": "pnpm run boundary && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+    "verify": "pnpm run boundary && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "check": "node scripts/check-all.mjs",
+    "gate": "pnpm run check"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

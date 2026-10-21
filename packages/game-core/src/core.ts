@@ -4,6 +4,8 @@
  * The rule layer never calls the presentation layer: it emits these events and the
  * presentation layer subscribes to them (docs/game/design/architecture.md §事件驱动).
  */
+
+import { INITIAL_WEAPON } from './data/characters.js'
 import {
   BULLET_HEIGHT,
   BULLET_WIDTH,
@@ -11,11 +13,11 @@ import {
   MAX_STEPS_PER_FRAME,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
-  PULSE_FIRE_INTERVAL_SECONDS,
   TIME_EPSILON,
 } from './data/constants.js'
 import type {
   BossId,
+  CharacterId,
   EntityId,
   InputState,
   PlatformDefinition,
@@ -23,6 +25,7 @@ import type {
   Vec2,
   WeaponId,
 } from './data/types.js'
+import { BEAM_RANGE, explosionRadius, HOMING_LOCK_LIMIT, WEAPONS } from './data/weapons.js'
 import { type Bullet, stepBullet } from './entities/Bullet.js'
 import { createPlayer, type PlayerState, playerRect } from './entities/Player.js'
 import {
@@ -31,10 +34,18 @@ import {
   type TargetDefinition,
   type TargetState,
 } from './entities/Target.js'
-import { overlaps } from './systems/Collision.js'
+import { equipWeapon } from './systems/Arsenal.js'
+import { overlaps, rayBoxDistance } from './systems/Collision.js'
+import { applyHit, canDamage } from './systems/Combat.js'
 import { updateMovement } from './systems/Movement.js'
-import { createWeaponState, updateWeapons, type WeaponState } from './systems/Weapons.js'
-
+import {
+  createWeaponState,
+  type FireOutcome,
+  type LockCandidate,
+  releaseExpiredLocks,
+  updateWeapons,
+  type WeaponState,
+} from './systems/Weapons.js'
 /** A weapon fired; the presentation layer spawns the muzzle flash and the sound. */
 export interface ShotEvent {
   readonly type: 'shot'
@@ -133,6 +144,10 @@ export interface WorldOptions {
   readonly targets?: readonly TargetDefinition[]
   /** Stage exit box; reaching it emits one stageCleared event. */
   readonly exit?: Rect | null
+  /** Playable character; decides the initial weapon (T-M1-01). */
+  readonly characterId?: CharacterId
+  /** Starting hearts; defaults to the GDD §3.1 three hearts. */
+  readonly hearts?: number
   /** Overridable step length; defaults to the GDD 1/60s and is not for rendering. */
   readonly fixedStepSeconds?: number
 }
@@ -159,6 +174,16 @@ export interface WorldSnapshot {
     readonly hp: number
     readonly alive: boolean
   }[]
+  readonly weapon: {
+    readonly slots: readonly (WeaponId | null)[]
+    readonly activeSlot: number
+    readonly spreadAccum: readonly number[]
+    readonly ammoLeft: readonly number[]
+  }
+  readonly combat: {
+    readonly hearts: number
+    readonly invulnerableUntil: number
+  }
   readonly score: number
   readonly cleared: boolean
   readonly steps: number
@@ -179,19 +204,44 @@ export class World {
   readonly exit: Rect | null
   readonly fixedStepSeconds: number
   bullets: Bullet[] = []
+  readonly characterId: CharacterId
   private readonly weapon: WeaponState = createWeaponState()
+  private readonly homingLockLimit: number
   private accumulator = 0
   private eventQueue: CoreEvent[] = []
   private stepCount = 0
   private score = 0
   private cleared = false
+  private elapsedSeconds = 0
 
   constructor(options: WorldOptions) {
-    this.player = createPlayer(options.spawn)
+    this.player = createPlayer(
+      options.spawn,
+      options.hearts === undefined ? {} : { hearts: options.hearts },
+    )
+    this.characterId = options.characterId ?? 'glm'
     this.platforms = options.platforms ?? []
     this.targets = (options.targets ?? []).map(createTarget)
     this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
+    this.homingLockLimit = HOMING_LOCK_LIMIT
+    equipWeapon(this.player, INITIAL_WEAPON[this.characterId])
+  }
+
+  /** Seconds of simulation elapsed; the clock the combat rules read. */
+  get now(): number {
+    return this.elapsedSeconds
+  }
+
+  /** The weapon slot the trigger currently drives. */
+  get activeSlot(): number {
+    return this.player.activeSlot
+  }
+
+  /** Replaces the active weapon slot with a picked-up weapon (T-M1-01). */
+  pickUpWeapon(weaponId: WeaponId): void {
+    const slot = equipWeapon(this.player, weaponId)
+    this.eventQueue.push({ type: 'weaponPicked', weaponId, slot })
   }
 
   /** Accumulated run score; every destroyed target adds its own score. */
@@ -244,75 +294,266 @@ export class World {
     return this.drainEvents()
   }
 
-  /** One fixed step: movement, then weapons, then projectiles. */
+  /** One fixed step: movement, then weapons, then projectiles and damage. */
   private stepOnce(provider: InputProvider): void {
     const input = typeof provider === 'function' ? provider(this.stepCount) : provider
+    this.elapsedSeconds += this.fixedStepSeconds
     updateMovement(this.player, input, this.fixedStepSeconds, this.platforms)
 
+    releaseExpiredLocks(this.weapon, this.liveTargetIds())
     const fired = updateWeapons(
       this.player,
       input,
       this.fixedStepSeconds,
       this.weapon,
-      PULSE_FIRE_INTERVAL_SECONDS,
-      this.bullets,
+      this.lockCandidates(),
+      this.homingLockLimit,
     )
-    if (fired !== null) {
-      this.eventQueue.push({
-        type: 'shot',
-        weaponId: 'pulse',
-        position: { x: fired.position.x, y: fired.position.y },
-        direction: {
-          x: Math.sign(fired.velocity.x),
-          y: Math.sign(fired.velocity.y),
-        },
-      })
-    }
+    this.recordShot(fired)
+    this.resolveBeam(fired)
 
     for (const bullet of this.bullets) stepBullet(bullet, this.fixedStepSeconds)
+    this.steerHomingRounds()
     this.resolveBulletHits()
+    this.resolveBlasts()
+    this.damagePlayer()
     this.checkExit()
 
     this.stepCount += 1
   }
 
-  /** Gray-box target resolution: a bullet that leaves a live target is spent (T-M0-07). */
+  /** Emits the shot event for a trigger pull that produced at least one round. */
+  private recordShot(fired: FireOutcome): void {
+    if (fired.weaponId === null) return
+    if (fired.beam !== null) return
+    this.bullets.push(...fired.bullets)
+    const first = fired.bullets[0]
+    this.eventQueue.push({
+      type: 'shot',
+      weaponId: fired.weaponId,
+      position: first?.position ?? { x: this.player.position.x, y: this.player.position.y },
+      direction:
+        first === undefined
+          ? { x: this.player.facing, y: 0 }
+          : { x: Math.sign(first.velocity.x), y: Math.sign(first.velocity.y) },
+    })
+  }
+
+  /**
+   * Resolves a beam shot against every live target on the line of fire.
+   *
+   * A beam is instant, so it is a ray query rather than a projectile: the first
+   * target on the ray takes one tick of damage (GDD §3.2 · 3/tick).
+   */
+  private resolveBeam(fired: FireOutcome): void {
+    if (fired.beam === null) return
+    if (!canDamage('player', 'enemy')) return
+
+    let nearest: { target: TargetState; distance: number } | null = null
+    for (const target of this.targets) {
+      if (!target.alive) continue
+      const distance = rayBoxDistance(fired.beam.origin, fired.beam.direction, target.box)
+      if (distance === null || distance > BEAM_RANGE) continue
+      if (nearest !== null && distance >= nearest.distance) continue
+      nearest = { target, distance }
+    }
+    if (nearest === null) return
+
+    this.eventQueue.push({
+      type: 'shot',
+      weaponId: 'laser',
+      position: { x: fired.beam.origin.x, y: fired.beam.origin.y },
+      direction: fired.beam.direction,
+    })
+    this.applyDamageToTarget(nearest.target, fired.beam.damage, fired.beam.origin)
+  }
+
+  private liveTargetIds(): EntityId[] {
+    return this.targets.filter((target) => target.alive).map((target) => target.id)
+  }
+
+  private lockCandidates(): LockCandidate[] {
+    return this.targets
+      .filter((target) => target.alive)
+      .map((target) => ({
+        id: target.id,
+        x: target.box.x + target.box.width / 2,
+        y: target.box.y + target.box.height / 2,
+      }))
+  }
+
+  /**
+   * Steers every locked round toward its target (gameplay.md §追踪弹幕).
+   *
+   * The round turns at its weapon's rate and keeps its speed, so a lock changes
+   * the heading without making the round faster or slower.
+   */
+  private steerHomingRounds(): void {
+    const turnRate = WEAPONS.homing.homingTurnRate * this.fixedStepSeconds
+    for (const bullet of this.bullets) {
+      if (bullet.lockedTargetId === null) continue
+      const target = this.targets.find((candidate) => candidate.id === bullet.lockedTargetId)
+      if (target === undefined || !target.alive) {
+        bullet.lockedTargetId = null
+        continue
+      }
+
+      const speed = Math.hypot(bullet.velocity.x, bullet.velocity.y)
+      const desiredX = target.box.x + target.box.width / 2 - bullet.position.x
+      const desiredY = target.box.y + target.box.height / 2 - bullet.position.y
+      if (speed === 0 || (desiredX === 0 && desiredY === 0)) continue
+
+      const current = Math.atan2(bullet.velocity.y, bullet.velocity.x)
+      const wanted = Math.atan2(desiredY, desiredX)
+      const delta = Math.atan2(Math.sin(wanted - current), Math.cos(wanted - current))
+      const heading = current + Math.max(-turnRate, Math.min(turnRate, delta))
+      bullet.velocity.x = Math.cos(heading) * speed
+      bullet.velocity.y = Math.sin(heading) * speed
+    }
+  }
+
+  /** Bullet-vs-target resolution, honouring pierce and the faction rules. */
   private resolveBulletHits(): void {
     if (this.targets.length === 0) return
 
     const survivors: Bullet[] = []
     for (const bullet of this.bullets) {
+      // Thrown weapons never pierce: they detonate in resolveBlasts instead.
+      if (bullet.gravity !== 0 || !canDamage(bullet.owner, 'enemy')) {
+        survivors.push(bullet)
+        continue
+      }
+
       const box = {
         x: bullet.position.x,
         y: bullet.position.y,
         width: BULLET_WIDTH,
         height: BULLET_HEIGHT,
       }
-      const target = this.targets.find(
-        (candidate) => candidate.alive && overlaps(box, candidate.box),
-      )
-      if (target === undefined) {
+      let spent = false
+      for (const target of this.targets) {
+        if (spent || bullet.hitTargets.has(target.id)) continue
+        if (!target.alive || !overlaps(box, target.box)) continue
+
+        bullet.hitTargets.add(target.id)
+        this.applyDamageToTarget(target, bullet.damage, bullet.position)
+        if (bullet.remainingPierces > 0) {
+          bullet.remainingPierces -= 1
+        } else {
+          spent = true
+        }
+      }
+
+      if (!spent) survivors.push(bullet)
+    }
+    this.bullets = survivors
+  }
+
+  /** Applies damage to one target and reports it; scoring lives here and nowhere else. */
+  private applyDamageToTarget(target: TargetState, damage: number, at: Vec2): void {
+    this.eventQueue.push({
+      type: 'hit',
+      targetId: target.id,
+      damage,
+      position: { x: at.x, y: at.y },
+    })
+    if (!damageTarget(target, damage)) return
+
+    this.score += target.score
+    this.eventQueue.push({
+      type: 'enemyDied',
+      enemyId: target.id,
+      position: { x: target.box.x, y: target.box.y },
+      score: target.score,
+    })
+  }
+
+  /**
+   * Thrown weapons detonate on contact (GDD §3.2 · 落地爆炸).
+   *
+   * A round explodes when it reaches a platform or touches a live target; the
+   * blast is then a radius query over live targets from the impact point, so the
+   * ground and a body follow one rule and there is no per-pixel hit test.
+   */
+  private resolveBlasts(): void {
+    const survivors: Bullet[] = []
+    for (const bullet of this.bullets) {
+      const radius = explosionRadius(bullet.weaponId)
+      if (bullet.gravity === 0 || radius === 0) {
+        survivors.push(bullet)
+        continue
+      }
+
+      const box = {
+        x: bullet.position.x,
+        y: bullet.position.y,
+        width: BULLET_WIDTH,
+        height: BULLET_HEIGHT,
+      }
+      const contact =
+        this.platforms.some((platform) => overlaps(box, platform)) ||
+        this.targets.some((target) => target.alive && overlaps(box, target.box))
+      if (!contact) {
         survivors.push(bullet)
         continue
       }
 
       this.eventQueue.push({
-        type: 'hit',
-        targetId: target.id,
-        damage: bullet.damage,
+        type: 'explosion',
         position: { x: bullet.position.x, y: bullet.position.y },
+        radius,
       })
-      if (!damageTarget(target, bullet.damage)) continue
-
-      this.score += target.score
-      this.eventQueue.push({
-        type: 'enemyDied',
-        enemyId: target.id,
-        position: { x: target.box.x, y: target.box.y },
-        score: target.score,
-      })
+      for (const target of this.targets) {
+        if (!target.alive) continue
+        const dx = target.box.x + target.box.width / 2 - bullet.position.x
+        const dy = target.box.y + target.box.height / 2 - bullet.position.y
+        if (Math.hypot(dx, dy) > radius) continue
+        this.applyDamageToTarget(target, bullet.damage, bullet.position)
+      }
     }
     this.bullets = survivors
+  }
+
+  /**
+   * Enemy contact and enemy fire damage the player (T-M1-06).
+   *
+   * A hit is always exactly one heart, and applyHit owns the 1.5s window, so
+   * several contacts inside one step still cost a single heart.
+   */
+  private damagePlayer(): void {
+    if (this.player.hearts <= 0) return
+    if (!canDamage('enemy', 'player')) return
+
+    const box = playerRect(this.player)
+    const touching = this.targets.some((target) => target.alive && overlaps(box, target.box))
+    const shot = this.bullets.some(
+      (bullet) =>
+        bullet.owner === 'enemy' &&
+        overlaps(
+          {
+            x: bullet.position.x,
+            y: bullet.position.y,
+            width: BULLET_WIDTH,
+            height: BULLET_HEIGHT,
+          },
+          box,
+        ),
+    )
+    if (!touching && !shot) return
+
+    const result = applyHit(this.player, this.elapsedSeconds)
+    if (!result.applied) return
+
+    this.eventQueue.push({
+      type: 'playerHurt',
+      heartsLeft: result.heartsLeft,
+      position: { x: this.player.position.x, y: this.player.position.y },
+    })
+    if (!result.died) return
+    this.eventQueue.push({
+      type: 'playerDied',
+      position: { x: this.player.position.x, y: this.player.position.y },
+    })
   }
 
   /** Fires exactly one stageCleared event the first time the player box meets the exit. */
@@ -352,6 +593,16 @@ export class World {
         hp: target.hp,
         alive: target.alive,
       })),
+      weapon: {
+        slots: this.player.weaponSlots.map((slot) => slot?.weaponId ?? null),
+        activeSlot: this.player.activeSlot,
+        spreadAccum: this.player.weaponSlots.map((slot) => slot?.spreadAccum ?? 0),
+        ammoLeft: this.player.weaponSlots.map((slot) => slot?.ammoLeft ?? 0),
+      },
+      combat: {
+        hearts: this.player.hearts,
+        invulnerableUntil: this.player.invulnerableUntil,
+      },
       score: this.score,
       cleared: this.cleared,
       steps: this.stepCount,

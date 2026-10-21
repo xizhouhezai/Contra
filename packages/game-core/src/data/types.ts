@@ -78,3 +78,38 @@ export interface Rect {
 
 /** A collision platform (docs/game/design/data-model.md §关卡数据). */
 export type PlatformDefinition = Rect
+
+/** How a weapon delivers its damage (docs/game/design/data-model.md §武器数据). */
+export type WeaponKind = 'projectile' | 'beam' | 'throwable'
+
+/**
+ * One weapon in the shared four-slot pool (docs/game/design/data-model.md §武器数据).
+ *
+ * Values come from GDD §3.2 武器数值 and are never re-derived in the systems: a
+ * balance pass edits data/weapons.ts alone.
+ */
+export interface WeaponDefinition {
+  readonly id: WeaponId
+  readonly name: string
+  readonly kind: WeaponKind
+  /** Damage per projectile, or per beam tick for `beam`. */
+  readonly damage: number
+  readonly shotsPerSecond: number
+  /** Muzzle speed in px/s. Thrown weapons carry their horizontal launch speed. */
+  readonly projectileSpeed: number
+  /** Projectiles per trigger pull; `0` for beam weapons, which fire no projectile. */
+  readonly projectileCount: number
+  /** Shots before the slot empties; `Number.POSITIVE_INFINITY` for the fallback weapon. */
+  readonly ammo: number
+  /** Total cone in degrees at full spread accumulation; `0` for weapons that never fan. */
+  readonly spreadDeg: number
+  /**
+   * Extra targets a projectile passes through. Prism spends this as "hits 3 targets
+   * at once", pierce as "穿透 1 个" — both are the same pass-through rule.
+   */
+  readonly pierceCount: number
+  readonly homing: boolean
+  /** Steering rate in rad/s; `0` for weapons that never steer. */
+  readonly homingTurnRate: number
+  readonly rarity: 'basic' | 'common' | 'rare' | 'epic'
+}
