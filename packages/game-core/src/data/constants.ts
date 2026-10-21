@@ -51,3 +51,11 @@ export const PULSE_PROJECTILE_SPEED = 420
 
 /** Seconds between two pulse shots. */
 export const PULSE_FIRE_INTERVAL_SECONDS = 1 / PULSE_SHOTS_PER_SECOND
+
+/** Starting hearts on standard difficulty (GDD §3.1). */
+export const PLAYER_HEARTS = 3
+
+/** Seconds of immunity granted after a hit, GDD §3.1 / gameplay.md §生命与伤害. */
+export const INVULNERABLE_SECONDS = 1.5
+/** Hard cap on undrained rule-layer events; the presentation layer drains per frame. */
+export const MAX_QUEUED_EVENTS = 4096
