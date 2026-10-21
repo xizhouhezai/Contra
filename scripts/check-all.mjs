@@ -175,6 +175,22 @@ const GATES = [
  */
 const INSPECTIONS = [
   {
+    label: '自托管',
+    detail: '无第三方 CDN 依赖（REQ-NFR-021 / 006）',
+    run() {
+      try {
+        execFileSync(process.execPath, [join(root, 'scripts', 'check-selfhosted.mjs')], {
+          cwd: root,
+          stdio: 'pipe',
+        })
+        return []
+      } catch (error) {
+        const stdout = error instanceof Error ? String(error.stdout ?? '') : ''
+        return [stdout.trim().split('\n')[0] || '存在外部资源引用']
+      }
+    },
+  },
+  {
     label: '依赖方向',
     detail: 'game-core 不声明任何运行时依赖',
     run() {
