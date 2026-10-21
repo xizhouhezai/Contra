@@ -21,6 +21,7 @@ import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
 import { CoreEventBridge } from '../events/CoreEventBridge'
+import { applyFit } from '../fit'
 import { publishStageProbe } from '../StageProbe'
 import { ActorView, characterSprite, enemySprite } from '../sprites/ActorView'
 import { createParallax, updateParallax } from '../stage/createParallax'
@@ -127,6 +128,7 @@ export class StageScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     const vertical = isVerticalStage(this.stage)
     this.parallax = createParallax(this, this.stage.widthPx)
     this.drawStage()

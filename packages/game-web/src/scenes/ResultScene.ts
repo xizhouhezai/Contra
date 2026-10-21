@@ -1,6 +1,7 @@
 import { gradeRun, type RunResult } from '@contra/game-core'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Result screen: score, accuracy and clear time, plus a letter grade.
@@ -20,6 +21,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
 
     const grade = gradeRun(this.result)

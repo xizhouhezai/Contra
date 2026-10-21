@@ -1,6 +1,7 @@
 import { INTERLUDES } from '@contra/game-core'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Interlude card shown after the act bosses (T-M3-07).
@@ -22,6 +23,7 @@ export class InterludeScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
     const interlude = INTERLUDES[this.text]
 

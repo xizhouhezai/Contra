@@ -1,6 +1,7 @@
 import { CAMPAIGN_STAGES, totalCampaignSeconds } from '@contra/game-core'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /** Campaign clear screen (T-M3-08): shown once stage 12 falls. */
 export class CampaignClearScene extends Phaser.Scene {
@@ -9,6 +10,7 @@ export class CampaignClearScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
 
     this.add

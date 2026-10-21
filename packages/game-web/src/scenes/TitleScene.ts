@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /** Title screen: one key or one click opens the campaign. */
 export class TitleScene extends Phaser.Scene {
@@ -8,6 +9,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
 
     this.add

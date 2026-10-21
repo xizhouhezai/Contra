@@ -133,9 +133,7 @@ async function main() {
 
   await dial('ArrowRight', 39, 80)
   await dial('ArrowRight', 39, 80)
-  const chosen = await evaluate(
-    "window.__contraGame.scene.getScene('CharacterSelect').selected",
-  )
+  const chosen = await evaluate("window.__contraGame.scene.getScene('CharacterSelect').selected")
   check('方向键可切换角色', chosen !== 'deepseek', String(chosen))
 
   await dial('Enter', 13, 80)
