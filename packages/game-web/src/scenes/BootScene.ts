@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { backgroundUrl, characterSheets, enemySheets, PARALLAX_LAYERS } from '../assets/manifest'
+import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
 
 /**
@@ -44,6 +45,8 @@ export class BootScene extends Phaser.Scene {
       const url = backgroundUrl(key)
       if (url !== undefined) this.load.image(key, url)
     }
+
+    preloadAudio(this.load)
   }
 
   create(): void {
