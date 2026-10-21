@@ -129,6 +129,22 @@ export {
   SPREAD_RECOVERY_PER_SECOND,
   spreadOffsetRadians,
 } from './systems/Combat.js'
+export type { AttackSide, EnemyMotion } from './systems/EnemyBehaviour.js'
+export {
+  attackSide,
+  CHARGER_CHARGE_BOOST,
+  CHARGER_SIGHT_PX,
+  canReachFlyer,
+  damageAgainst,
+  FLYER_AMPLITUDE_PX,
+  FLYER_MIN_AIM_OFFSET_PX,
+  FLYER_WEAVE_RATE,
+  inSight,
+  KNOCKBACK_SECONDS,
+  knockBack,
+  stepCharger,
+  stepFlyer,
+} from './systems/EnemyBehaviour.js'
 export {
   bounceOffWalls,
   isOneWay,
