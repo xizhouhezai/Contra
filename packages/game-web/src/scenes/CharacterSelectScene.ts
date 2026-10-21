@@ -1,5 +1,8 @@
 import { CHARACTER_IDS, CHARACTERS, type CharacterId, characterDefinition } from '@contra/game-core'
 import Phaser from 'phaser'
+import { loadChibi } from '../assets/chibi'
+import { type CharacterLook, looksFor, resolveLook } from '../assets/looks'
+import { portraitUrl } from '../assets/manifest'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 import { applyFit } from '../fit'
 
@@ -14,6 +17,11 @@ import { applyFit } from '../fit'
 export class CharacterSelectScene extends Phaser.Scene {
   private selected: CharacterId = CHARACTER_IDS[0] ?? 'deepseek'
   private readonly cards: Phaser.GameObjects.Container[] = []
+  /** The look chosen for each character, so switching back keeps it. */
+  private readonly chosenLooks = new Map<CharacterId, string>()
+  /** The art object currently shown on each card, replaced when the look changes. */
+  private readonly lookImages = new Map<CharacterId, Phaser.GameObjects.Image>()
+  private lookStrip: Phaser.GameObjects.Text | null = null
 
   constructor() {
     super('CharacterSelect')
@@ -32,7 +40,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(GAME_WIDTH / 2, 110, '初始武器 / 被动 / 炸弹各不相同', {
+      .text(GAME_WIDTH / 2, 116, '初始武器 / 被动 / 炸弹各不相同', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,
@@ -53,7 +61,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const totalWidth = columns * cardWidth + (columns - 1) * gapX
     const startX = (GAME_WIDTH - totalWidth) / 2 + cardWidth / 2
     // Header occupies y=56..126; the grid starts below it.
-    const startY = 214
+    const startY = 216
 
     CHARACTER_IDS.forEach((id, index) => {
       const definition = characterDefinition(id)
@@ -84,41 +92,11 @@ export class CharacterSelectScene extends Phaser.Scene {
       // without it.
       const portraitKey = `portrait-${id}`
       const hasPortrait = this.textures.exists(portraitKey)
-      if (hasPortrait) {
-        const source = this.textures.get(portraitKey).getSourceImage()
-        const boxWidth = cardWidth * 0.46
-        const boxHeight = cardHeight - 20
-
-        // Two shapes of source art ship here: full-body portraits at 506x900 and
-        // one square 160x160 avatar with a white background. Scaling a square to
-        // fit a tall box would shrink it to a stamp, so it is scaled to *cover*
-        // the box and cropped instead - a face fills a portrait frame better than
-        // a letterboxed thumbnail does.
-        const isSquare = Math.abs(source.width - source.height) < 8
-        if (isSquare) {
-          const cover = Math.max(boxWidth / source.width, boxHeight / source.height)
-          const image = this.add
-            .image(-cardWidth * 0.26, 0, portraitKey)
-            .setOrigin(0.5, 0.5)
-            .setScale(cover)
-          const maskShape = this.make.graphics({}, false)
-          maskShape.fillRect(
-            x - cardWidth * 0.26 - boxWidth / 2,
-            centerY - boxHeight / 2,
-            boxWidth,
-            boxHeight,
-          )
-          image.setMask(maskShape.createGeometryMask())
-          card.add(image)
-        } else {
-          const scale = Math.min(boxWidth / source.width, boxHeight / source.height)
-          card.add(
-            this.add
-              .image(-cardWidth * 0.26, -cardHeight / 2 + 10, portraitKey)
-              .setOrigin(0.5, 0)
-              .setScale(scale),
-          )
-        }
+      const look = this.currentLook(id)
+      const lookImage = this.addLookImage(look, cardWidth, cardHeight)
+      if (lookImage !== null) {
+        card.add(lookImage)
+        this.lookImages.set(id, lookImage)
       }
       card.add(
         this.add
@@ -178,8 +156,17 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.cards.push(card)
     })
 
+    // Which look is active, and how many there are (REQ-VAR-001).
+    this.lookStrip = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 8, '', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: PALETTE.alert,
+      })
+      .setOrigin(0.5)
+
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 12, '方向键切换 · Enter 确认 · Esc 返回', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 30, '方向键切换 · Q 换形象 · Enter 确认 · Esc 返回', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,
@@ -190,6 +177,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.confirm())
     this.input.keyboard?.on('keydown-LEFT', () => this.step(-1))
     this.input.keyboard?.on('keydown-RIGHT', () => this.step(1))
+    // Q cycles the looks of the selected character (REQ-VAR-001).
+    this.input.keyboard?.on('keydown-Q', () => this.cycleLook(1))
+    this.input.keyboard?.on('keydown-E', () => this.cycleLook(-1))
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Title'))
 
     this.select(this.selected)
@@ -204,6 +194,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       card.setAlpha(candidate === id ? 1 : 0.55)
       card.setScale(candidate === id ? 1.04 : 1)
     })
+    this.refreshLookStrip()
   }
 
   private step(direction: 1 | -1): void {
@@ -213,9 +204,119 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (id !== undefined) this.select(id)
   }
 
+  /** Every look available for a character. */
+  private looksFor(id: CharacterId): CharacterLook[] {
+    return looksFor(id, portraitUrl(id))
+  }
+
+  /** The look currently chosen for a character. */
+  private currentLook(id: CharacterId): CharacterLook {
+    const chosen = this.chosenLooks.get(id)
+    return resolveLook(id, chosen, portraitUrl(id))
+  }
+
+  /**
+   * Draws a look into the card's art area.
+   *
+   * Two shapes of source art ship here: full-body portraits at 506x900 and
+   * square avatars with a white background. The chibi set mixes 202x360,
+   * 360x202 and 360x360. A square scaled to fit a tall box would shrink to a
+   * stamp, so squares are scaled to *cover* the box and cropped; everything else
+   * is scaled to fit.
+   */
+  private addLookImage(
+    look: CharacterLook,
+    cardWidth: number,
+    cardHeight: number,
+  ): Phaser.GameObjects.Image | null {
+    if (!this.textures.exists(look.textureKey)) return null
+
+    const source = this.textures.get(look.textureKey).getSourceImage()
+    // The art area: left portion of the card, inset from every border so the
+    // stroke and the accent bar stay visible.
+    const boxWidth = cardWidth * 0.44
+    const boxHeight = cardHeight - 24
+    const centerX = -cardWidth / 2 + boxWidth / 2 + 8
+    const centerY = 0
+
+    // Scale to *contain*: the whole image fits inside the art area whatever its
+    // aspect ratio. The chibi files are 202x360, 360x202 and 360x360, so an
+    // aspect-independent rule is the only one that cannot overflow.
+    const scale = Math.min(boxWidth / source.width, boxHeight / source.height)
+
+    return this.add.image(centerX, centerY, look.textureKey).setOrigin(0.5, 0.5).setScale(scale)
+  }
+
+  /**
+   * Moves to the next look of the selected character (REQ-VAR-001).
+   *
+   * Only the selected character's set is cycled. Showing all 57 chibi images at
+   * once would need every one of them on screen and would put the whole set in
+   * the first load, which does not fit the budget.
+   */
+  private cycleLook(direction: 1 | -1): void {
+    const looks = this.looksFor(this.selected)
+    if (looks.length <= 1) return
+
+    const current = this.currentLook(this.selected)
+    const index = looks.findIndex((look) => look.id === current.id)
+    const next = looks[(index + direction + looks.length) % looks.length]
+    if (next === undefined) return
+
+    this.chosenLooks.set(this.selected, next.id)
+    this.refreshLookStrip()
+
+    // A chibi image is fetched on demand (REQ-VAR-001): the 57 images are not
+    // in the first load, so the one being switched to has to arrive first.
+    if (next.kind === 'chibi' && !this.textures.exists(next.textureKey)) {
+      const name = next.id.replace('chibi-', '')
+      void loadChibi(this, this.selected, name).then((loaded) => {
+        if (loaded) this.swapLookImage(this.selected, next)
+      })
+      return
+    }
+
+    this.swapLookImage(this.selected, next)
+  }
+
+  /** Replaces the art on a card when the look changes. */
+  private swapLookImage(id: CharacterId, look: CharacterLook): void {
+    const cardIndex = CHARACTER_IDS.indexOf(id)
+    const card = this.cards[cardIndex]
+    if (card === undefined) return
+
+    const old = this.lookImages.get(id)
+    if (old !== undefined) {
+      card.remove(old)
+      old.destroy()
+      this.lookImages.delete(id)
+    }
+
+    const image = this.addLookImage(look, 236, 196)
+    if (image === null) return
+    card.add(image)
+    this.lookImages.set(id, image)
+  }
+
+  /** Shows which look is active and how many there are. */
+  private refreshLookStrip(): void {
+    if (this.lookStrip === null) return
+    const looks = this.looksFor(this.selected)
+    const current = this.currentLook(this.selected)
+    if (looks.length <= 1) {
+      this.lookStrip.setText('')
+      return
+    }
+    const index = looks.findIndex((look) => look.id === current.id)
+    this.lookStrip.setText(`形象 ${current.label}  ${index + 1}/${looks.length}  ·  Q 切换`)
+  }
+
   private confirm(): void {
     // The choice is carried forward, not applied here: the stage screen picks
     // which fight, and the stage scene is the only place a World is built.
-    this.scene.start('StageSelect', { characterId: CHARACTERS[this.selected].id })
+    this.scene.start('StageSelect', {
+      characterId: CHARACTERS[this.selected].id,
+      lookId: this.currentLook(this.selected).id,
+    })
   }
 }

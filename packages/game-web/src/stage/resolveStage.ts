@@ -17,6 +17,8 @@ export const DEFAULT_STAGE_ID = 'stage-01'
 export interface StageRequest {
   readonly stageId?: string
   readonly characterId?: string
+  /** Which look of that character to show (REQ-VAR-001). */
+  readonly lookId?: string
 }
 
 /** Resolves the stage to play, never returning undefined. */

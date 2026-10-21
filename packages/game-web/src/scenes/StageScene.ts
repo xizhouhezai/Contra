@@ -17,6 +17,8 @@ import {
   wantsTouchControls,
 } from '@contra/game-platform'
 import Phaser from 'phaser'
+import { resolveLook } from '../assets/looks'
+import { portraitUrl } from '../assets/manifest'
 import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
@@ -289,11 +291,14 @@ export class StageScene extends Phaser.Scene {
     this.prevY = spawn.y
     // Real sprite sheet when the art shipped, grey box when it did not.
     const character: CharacterId = (this.request.characterId as CharacterId) ?? 'deepseek'
+    // The look the player chose on the select screen (REQ-VAR-001). Falls back
+    // to the painted portrait when the id names an image that is not loaded.
+    const look = resolveLook(character, this.request.lookId, portraitUrl(character))
     // The portrait is the real artwork; the 48px generated sheet is a
     // placeholder. In-game the portrait is drawn scaled into the collision box,
     // which leaves the rule layer's 34x48 body untouched - the art follows the
     // physics, not the other way round.
-    const portraitKey = `portrait-${character}`
+    const portraitKey = look.textureKey
     if (this.textures.exists(portraitKey)) {
       const source = this.textures.get(portraitKey).getSourceImage()
       const scale = Math.min(58 / source.height, 42 / source.width)
