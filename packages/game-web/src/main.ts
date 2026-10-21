@@ -4,7 +4,9 @@ import { BootScene } from './scenes/BootScene'
 import { CampaignClearScene } from './scenes/CampaignClearScene'
 import { CharacterSelectScene } from './scenes/CharacterSelectScene'
 import { InterludeScene } from './scenes/InterludeScene'
+import { PauseScene } from './scenes/PauseScene'
 import { ResultScene } from './scenes/ResultScene'
+import { SettingsScene } from './scenes/SettingsScene'
 import { StageScene } from './scenes/StageScene'
 import { StageSelectScene } from './scenes/StageSelectScene'
 import { TitleScene } from './scenes/TitleScene'
@@ -29,6 +31,8 @@ const config: Phaser.Types.Core.GameConfig = {
     ResultScene,
     InterludeScene,
     CampaignClearScene,
+    SettingsScene,
+    PauseScene,
   ],
 }
 

@@ -135,6 +135,15 @@ export class StageScene extends Phaser.Scene {
 
     // Keyboard always exists; touch is added on top when the device offers it,
     // because a laptop with a touchscreen should keep working on its keyboard.
+    // Esc opens the pause overlay; the stage is paused, not stopped, so
+    // resuming continues from this exact frame.
+    this.input.keyboard?.once('keydown-ESC', () => {
+      // run, not launch: pause() first would leave launch with a sleeping
+      // manager and the overlay never appears.
+      this.scene.run('Pause')
+      this.scene.pause()
+    })
+
     this.inputSource = new KeyboardInputSource(window)
     if (wantsTouchControls(navigator.maxTouchPoints > 0, navigator.maxTouchPoints)) {
       this.touch = new TouchInputSource()
