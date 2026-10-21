@@ -3,6 +3,27 @@
 本项目遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 版本发布规则见 [协作规范](/guide/conventions)。
 
+## [0.8.0] - 2026-10-20
+
+### 新增
+
+- **M4 波次 1**（T-M4-01/02/03）：美术风格指南（配色/尺寸/版权三档风险）；六角色立绘；Claude Q 版 4 张 + GPT 立绘 2 张
+- **M4 波次 2**（T-M4-04/05/06）：六角色 × 4 状态精灵表、10 种敌人精灵、CC0 工业视差背景 4 层、素材清单与按需加载
+- **M4 波次 3**（T-M4-08/09）：6 首 CC0 BGM + 19 个音效（10 武器 + 9 事件）、AudioManager
+- **M4 波次 4**（T-M4-07/10）：Riso 调色板统一、首包体积优化
+
+### 修复
+
+- **StageSelectScene 引用了不存在的 LocalStorage**：实际类名是 `LocalStorageAdapter`。
+  TypeScript 未报错因为 game-web 的 typecheck 走 alias 解析源码，直到本次真正跑 Vite 构建才暴露
+- **首包 17MB 超预算**：其中 9.9MB 是 sourcemap。改为仅在 `CONTRA_SOURCEMAP=1` 时生成，降至 **7.14MB**
+
+### 素材版权
+
+- 音频全部 CC0 可商用（Kenney sci-fi/digital/impact，OpenGameArt chiptune）
+- 背景 CC0（Luis Zuno）
+- 角色/Boss 参考素材为非商用，**发行版须重绘**（详见 art-style.md §1）
+
 ## [0.7.0] - 2026-10-20
 
 ### 新增
