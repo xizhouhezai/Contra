@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { backgroundUrl, characterSheets, enemySheets, PARALLAX_LAYERS } from '../assets/manifest'
 import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Loads every texture, then hands off to the title.
@@ -50,6 +51,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
     this.scene.start('Title')
   }

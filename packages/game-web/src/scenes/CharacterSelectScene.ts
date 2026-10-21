@@ -1,6 +1,7 @@
 import { CHARACTER_IDS, CHARACTERS, type CharacterId, characterDefinition } from '@contra/game-core'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Character select.
@@ -19,6 +20,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
 
     this.add

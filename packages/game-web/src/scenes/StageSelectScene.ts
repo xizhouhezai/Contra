@@ -8,6 +8,7 @@ import {
 import { LocalStorageAdapter } from '@contra/game-platform'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Stage select: eight stages in a 4x2 grid with saved progress.
@@ -45,6 +46,7 @@ export class StageSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
     this.storage = new LocalStorageAdapter()
     this.cards = []

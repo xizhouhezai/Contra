@@ -2,6 +2,7 @@ import { DIFFICULTIES } from '@contra/game-core'
 import { LocalStorageAdapter } from '@contra/game-platform'
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 import {
   DEFAULT_SETTINGS,
   type GameSettings,
@@ -30,6 +31,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
     this.settings = loadSettings(this.storage)
     this.cursor = 0

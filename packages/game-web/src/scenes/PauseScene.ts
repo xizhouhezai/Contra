@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { applyFit } from '../fit'
 
 /**
  * Pause menu (T-M5-03).
@@ -19,6 +20,7 @@ export class PauseScene extends Phaser.Scene {
   }
 
   create(): void {
+    applyFit(this)
     this.cursor = 0
     this.labels = []
 
