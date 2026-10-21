@@ -58,6 +58,7 @@ export {
 } from './data/enemies.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
+export type { StageDefinition } from './data/stageTypes.js'
 export type {
   BossId,
   CharacterId,
@@ -94,6 +95,8 @@ export {
   playerRect,
   WEAPON_SLOT_COUNT,
 } from './entities/Player.js'
+export type { StageProgress } from './stages/StageRunner.js'
+export { findStage, StageRunner } from './stages/StageRunner.js'
 export {
   consumeShot,
   createWeaponSlot,
@@ -126,6 +129,13 @@ export {
   SPREAD_RECOVERY_PER_SECOND,
   spreadOffsetRadians,
 } from './systems/Combat.js'
+export {
+  bounceOffWalls,
+  isOneWay,
+  reflectVelocity,
+  shouldLand,
+  struckFace,
+} from './systems/Mechanics.js'
 export { updateMovement } from './systems/Movement.js'
 export type { Poolable, PoolOptions } from './systems/ObjectPool.js'
 export { ObjectPool } from './systems/ObjectPool.js'
