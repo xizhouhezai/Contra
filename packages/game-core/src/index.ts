@@ -15,7 +15,18 @@ export type {
   WorldSnapshot,
 } from './core.js'
 export { World } from './core.js'
-export { CHARACTER_IDS, INITIAL_WEAPON } from './data/characters.js'
+export type {
+  BombId,
+  CharacterDefinition,
+  PassiveId,
+} from './data/characters.js'
+export {
+  CHARACTER_IDS,
+  CHARACTERS,
+  characterDefinition,
+  INITIAL_WEAPON,
+  PASSIVE_TUNING,
+} from './data/characters.js'
 export {
   BULLET_HEIGHT,
   BULLET_WIDTH,
@@ -82,6 +93,16 @@ export {
   hasUsableWeapon,
   resolveActiveSlot,
 } from './systems/Arsenal.js'
+export type { BombEffect, BombState } from './systems/Bombs.js'
+export {
+  bombActive,
+  bombEffect,
+  canDetonate,
+  createBombState,
+  detonate,
+  INITIAL_BOMBS,
+  updateBomb,
+} from './systems/Bombs.js'
 export { overlaps, rayBoxDistance } from './systems/Collision.js'
 export type { Damageable, DamageResult, Faction } from './systems/Combat.js'
 export {
@@ -96,6 +117,30 @@ export {
   spreadOffsetRadians,
 } from './systems/Combat.js'
 export { updateMovement } from './systems/Movement.js'
+export type { PassiveState } from './systems/Passives.js'
+export {
+  addMemoryMark,
+  createPassiveState,
+  extraHomingLocks,
+  extraPrismTargets,
+  foresightLeadSeconds,
+  homingDamageMultiplier,
+  registerRhythmKill,
+  spreadGainFor,
+} from './systems/Passives.js'
+export type { ScoreState } from './systems/Score.js'
+export {
+  accuracy,
+  COMBO_BONUS_CAP,
+  COMBO_BONUS_PER_STEP,
+  COMBO_WINDOW_SECONDS,
+  comboMultiplier,
+  createScoreState,
+  registerHit,
+  registerKill,
+  registerShot,
+  updateScore,
+} from './systems/Score.js'
 export type { FireOutcome, LockCandidate, WeaponState } from './systems/Weapons.js'
 export {
   AIM_DIRECTIONS,
