@@ -46,6 +46,16 @@ export {
   PULSE_SHOTS_PER_SECOND,
   TIME_EPSILON,
 } from './data/constants.js'
+export type { EnemyBehaviour, EnemyDefinition, EnemyState } from './data/enemies.js'
+export {
+  absorbsHit,
+  canTransition,
+  ENEMIES,
+  ENEMY_IDS,
+  enemyDefinition,
+  TRANSITIONS,
+  transition as transitionEnemyState,
+} from './data/enemies.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
 export type {
@@ -117,6 +127,8 @@ export {
   spreadOffsetRadians,
 } from './systems/Combat.js'
 export { updateMovement } from './systems/Movement.js'
+export type { Poolable, PoolOptions } from './systems/ObjectPool.js'
+export { ObjectPool } from './systems/ObjectPool.js'
 export type { PassiveState } from './systems/Passives.js'
 export {
   addMemoryMark,
@@ -141,6 +153,8 @@ export {
   registerShot,
   updateScore,
 } from './systems/Score.js'
+export type { SpatialEntry } from './systems/SpatialHash.js'
+export { CELL_SIZE, cellRange, SpatialHash } from './systems/SpatialHash.js'
 export type { FireOutcome, LockCandidate, WeaponState } from './systems/Weapons.js'
 export {
   AIM_DIRECTIONS,
