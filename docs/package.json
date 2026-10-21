@@ -1,6 +1,6 @@
 {
   "name": "@contra/docs",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "type": "module",
   "description": "VitePress documentation system for the Contra workspace.",
