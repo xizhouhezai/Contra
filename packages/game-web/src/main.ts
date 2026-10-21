@@ -2,7 +2,9 @@ import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from './config'
 import { BootScene } from './scenes/BootScene'
 import { CharacterSelectScene } from './scenes/CharacterSelectScene'
+import { ResultScene } from './scenes/ResultScene'
 import { StageScene } from './scenes/StageScene'
+import { StageSelectScene } from './scenes/StageSelectScene'
 import { TitleScene } from './scenes/TitleScene'
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -16,7 +18,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, CharacterSelectScene, StageScene],
+  scene: [BootScene, TitleScene, CharacterSelectScene, StageSelectScene, StageScene, ResultScene],
 }
 
 export const game = new Phaser.Game(config)
