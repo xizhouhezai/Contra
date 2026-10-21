@@ -104,6 +104,7 @@ export default defineConfig({
             { text: '模块设计', link: '/game/design/modules' },
             { text: '数据模型', link: '/game/design/data-model' },
             { text: '跨端策略', link: '/game/design/cross-platform' },
+            { text: '美术风格指南', link: '/game/design/art-style' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
