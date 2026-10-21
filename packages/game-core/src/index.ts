@@ -15,6 +15,7 @@ export type {
   WorldSnapshot,
 } from './core.js'
 export { World } from './core.js'
+export { BOSSES, bossDefinition, CLAUDE_AUDITOR, CLAUDE_REWRITER } from './data/bosses.js'
 export type {
   BombId,
   CharacterDefinition,
@@ -95,6 +96,21 @@ export {
   playerRect,
   WEAPON_SLOT_COUNT,
 } from './entities/Player.js'
+export type {
+  BossDefinition,
+  BossMove,
+  BossPhase,
+  BossRuntimeState,
+  BossStepResult,
+} from './stages/BossDirector.js'
+export {
+  createBossState,
+  damageBoss,
+  hpFraction,
+  isTelegraphing,
+  phaseForHp,
+  stepBoss,
+} from './stages/BossDirector.js'
 export type { StageProgress } from './stages/StageRunner.js'
 export { findStage, StageRunner } from './stages/StageRunner.js'
 export {
