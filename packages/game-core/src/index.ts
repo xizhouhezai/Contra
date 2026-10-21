@@ -68,6 +68,7 @@ export {
   TRANSITIONS,
   transition as transitionEnemyState,
 } from './data/enemies.js'
+export { GPT_PETER_PAN, GPT_PHASE_LABELS, gptPhaseFor } from './data/gptBoss.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
 export type { StageDefinition } from './data/stageTypes.js'
@@ -172,6 +173,17 @@ export {
   SPREAD_RECOVERY_PER_SECOND,
   spreadOffsetRadians,
 } from './systems/Combat.js'
+export type { Echo, EchoState } from './systems/Echoes.js'
+export {
+  allEchoesCleared,
+  bodyUntargetable,
+  createEchoState,
+  damageEcho,
+  ECHO_COUNT,
+  echoesRemaining,
+  maybeSplit,
+  SPLIT_THRESHOLD,
+} from './systems/Echoes.js'
 export type { AttackSide, EnemyMotion } from './systems/EnemyBehaviour.js'
 export {
   attackSide,
@@ -195,6 +207,15 @@ export {
   shouldLand,
   struckFace,
 } from './systems/Mechanics.js'
+export type { MirrorState } from './systems/Mirror.js'
+export {
+  createMirrorState,
+  MIRROR_BASE_WEAPON,
+  MIRROR_COPY_SECONDS,
+  mirrorWeapon,
+  observePlayerWeapon,
+  updateMirror,
+} from './systems/Mirror.js'
 export { updateMovement } from './systems/Movement.js'
 export type { Poolable, PoolOptions } from './systems/ObjectPool.js'
 export { ObjectPool } from './systems/ObjectPool.js'
