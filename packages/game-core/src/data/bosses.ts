@@ -8,6 +8,7 @@
  * generic and the bosses are data.
  */
 import type { BossDefinition } from '../stages/BossDirector.js'
+import { GPT_PETER_PAN } from './gptBoss.js'
 
 /**
  * 审计者 - stage 4.
@@ -83,9 +84,18 @@ export const CLAUDE_REWRITER: BossDefinition = {
   ],
 }
 
+/**
+ * Every boss the campaign can spawn.
+ *
+ * The two GPT forms are defined in gptBoss.ts but belong in this registry all
+ * the same: campaign.ts names 'gpt-emergent' for stage 12, and a boss id that
+ * resolves to undefined is a final stage with nothing in it.
+ */
 export const BOSSES: Readonly<Record<string, BossDefinition>> = {
   'claude-auditor': CLAUDE_AUDITOR,
   'claude-rewriter': CLAUDE_REWRITER,
+  'gpt-corpus': GPT_PETER_PAN,
+  'gpt-emergent': GPT_PETER_PAN,
 }
 
 export function bossDefinition(id: string): BossDefinition | undefined {
