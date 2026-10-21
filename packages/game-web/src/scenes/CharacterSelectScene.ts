@@ -37,22 +37,35 @@ export class CharacterSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const cardWidth = 190
-    const gap = 14
-    const total = CHARACTER_IDS.length * cardWidth + (CHARACTER_IDS.length - 1) * gap
-    const startX = (GAME_WIDTH - total) / 2 + cardWidth / 2
-    const centerY = GAME_HEIGHT / 2 + 20
+    // Two rows of three. Six cards in one row need 1210px against a 960px
+    // canvas, which is how the first and last characters ended up off-screen.
+    // The grid is sized against the space the header and the hint leave behind,
+    // not chosen first and then allowed to overlap them.
+    const cardWidth = 236
+    const cardHeight = 178
+    const gapX = 16
+    const gapY = 14
+    const columns = 3
+    const totalWidth = columns * cardWidth + (columns - 1) * gapX
+    const startX = (GAME_WIDTH - totalWidth) / 2 + cardWidth / 2
+    // Header occupies y=56..126; the grid starts below it.
+    const startY = 218
 
     CHARACTER_IDS.forEach((id, index) => {
       const definition = characterDefinition(id)
-      const x = startX + index * (cardWidth + gap)
+      const column = index % columns
+      const row = Math.floor(index / columns)
+      const x = startX + column * (cardWidth + gapX)
+      const centerY = startY + row * (cardHeight + gapY)
       const card = this.add.container(x, centerY)
 
-      card.add(this.add.rectangle(0, 0, cardWidth, 290, 0xffffff, 1).setStrokeStyle(2, 0x1a1a1a))
+      card.add(
+        this.add.rectangle(0, 0, cardWidth, cardHeight, 0xffffff, 1).setStrokeStyle(2, 0x1a1a1a),
+      )
       card.add(
         this.add.rectangle(
           0,
-          -143,
+          -cardHeight / 2 + 4,
           cardWidth,
           8,
           Phaser.Display.Color.HexStringToColor(definition.primary).color,
@@ -60,27 +73,27 @@ export class CharacterSelectScene extends Phaser.Scene {
       )
       card.add(
         this.add
-          .text(0, -108, definition.name, {
+          .text(0, -58, definition.name, {
             fontFamily: 'Georgia, serif',
-            fontSize: '21px',
+            fontSize: '19px',
             color: PALETTE.ink,
           })
           .setOrigin(0.5),
       )
       card.add(
         this.add
-          .text(0, -76, definition.codename, {
+          .text(0, -34, definition.codename, {
             fontFamily: 'Georgia, serif',
-            fontSize: '14px',
+            fontSize: '12px',
             color: PALETTE.inkMuted,
           })
           .setOrigin(0.5),
       )
       card.add(
         this.add
-          .text(0, -46, definition.role, {
+          .text(0, -14, definition.role, {
             fontFamily: 'Georgia, serif',
-            fontSize: '13px',
+            fontSize: '12px',
             color: PALETTE.inkMuted,
           })
           .setOrigin(0.5),
@@ -89,17 +102,17 @@ export class CharacterSelectScene extends Phaser.Scene {
         this.add
           .text(
             0,
-            40,
+            42,
             [
-              `武器  ${definition.initialWeapon}`,
-              `被动  ${definition.passive}`,
-              `炸弹  ${definition.bomb}`,
+              `武器 ${definition.initialWeapon}`,
+              `被动 ${definition.passive}`,
+              `炸弹 ${definition.bomb}`,
             ].join('\n'),
             {
               fontFamily: 'monospace',
-              fontSize: '13px',
+              fontSize: '12px',
               color: PALETTE.ink,
-              lineSpacing: 10,
+              lineSpacing: 9,
             },
           )
           .setOrigin(0.5),
@@ -109,14 +122,14 @@ export class CharacterSelectScene extends Phaser.Scene {
       // own hit test silently fails to fire when its size and origin disagree,
       // which is the bug that made the stage cards unclickable.
       const hit = this.add
-        .rectangle(x, centerY, cardWidth, 290, 0xffffff, 0.001)
+        .rectangle(x, centerY, cardWidth, cardHeight, 0xffffff, 0.001)
         .setInteractive({ useHandCursor: true })
       hit.on('pointerdown', () => this.select(id))
       this.cards.push(card)
     })
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 55, '方向键切换 · Enter 确认 · Esc 返回', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 18, '方向键切换 · Enter 确认 · Esc 返回', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,

@@ -129,10 +129,31 @@ async function main() {
   await sleep(14000)
   await dial('Enter', 13, 80)
   await sleep(1200)
-  check('标题 -> 选关', String(await evaluate(SCENES)).includes('StageSelect'))
+  check('标题 -> 角色选择', String(await evaluate(SCENES)).includes('CharacterSelect'))
+
+  await dial('ArrowRight', 39, 80)
+  await dial('ArrowRight', 39, 80)
+  const chosen = await evaluate(
+    "window.__contraGame.scene.getScene('CharacterSelect').selected",
+  )
+  check('方向键可切换角色', chosen !== 'deepseek', String(chosen))
+
+  await dial('Enter', 13, 80)
+  await sleep(1200)
+  check('角色选择 -> 选关', String(await evaluate(SCENES)).includes('StageSelect'))
+  check(
+    '角色选择被传递到选关',
+    (await evaluate("window.__contraGame.scene.getScene('StageSelect').characterId")) === chosen,
+  )
+
   await dial('Enter', 13, 80)
   await sleep(2500)
   check('选关 -> 关卡', String(await evaluate(SCENES)).includes('Stage'))
+  check(
+    '关卡使用所选角色',
+    (await evaluate("window.__contraGame.scene.getScene('Stage').world.characterId")) === chosen,
+    String(chosen),
+  )
 
   const before = await evaluate(PROBE)
   const key = (type) => ({
