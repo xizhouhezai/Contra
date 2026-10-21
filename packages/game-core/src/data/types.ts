@@ -42,6 +42,19 @@ export type CharacterId = 'deepseek' | 'qwen' | 'doubao' | 'glm' | 'kimi' | 'gem
 /** The four boss forms: Claude and GPT with two forms each. */
 export type BossId = 'claude-auditor' | 'claude-rewriter' | 'gpt-corpus' | 'gpt-emergent'
 
+/** Enemy archetypes, one per behaviour in data/enemies.ts. */
+export type EnemyId =
+  | 'patrol'
+  | 'turret'
+  | 'carrier'
+  | 'charger'
+  | 'flyer'
+  | 'warden'
+  | 'armored'
+  | 'forge'
+  | 'mirror'
+  | 'elite-charger'
+
 /** Stage mechanics introduced across the campaign. */
 export type MechanicId =
   | 'bounce-wall'
