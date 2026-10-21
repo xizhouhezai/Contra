@@ -45,7 +45,7 @@
 
 - 音频全部 CC0 可商用（Kenney sci-fi/digital/impact，OpenGameArt chiptune）
 - 背景 CC0（Luis Zuno）
-- 角色/Boss 参考素材为非商用，**发行版须重绘**（详见 art-style.md §1）
+- 角色/Boss 素材：本项目为**非商业同人作品**，按 CC BY-NC-SA 4.0 直接使用社区素材，不重绘（详见 art-style.md §1）
 
 ## [0.7.0] - 2026-10-20
 
