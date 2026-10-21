@@ -6,6 +6,7 @@ import { CoreEventBridge } from '../events/CoreEventBridge'
 import { publishStageProbe } from '../StageProbe'
 import { ActorView } from '../sprites/ActorView'
 import { createGrayboxWorld } from '../stage/createGrayboxWorld'
+import { createParallax, updateParallax } from '../stage/createParallax'
 
 /**
  * The gray-box stage (T-M0-06 / T-M0-07).
@@ -30,6 +31,7 @@ export class StageScene extends Phaser.Scene {
     stageCleared: (event) => this.showCleared(event.score),
   })
 
+  private parallax: Phaser.GameObjects.TileSprite[] = []
   private inputSource: KeyboardInputSource | null = null
   private playerView: ActorView | null = null
   private readonly targetViews = new Map<string, ActorView>()
@@ -46,6 +48,8 @@ export class StageScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The backdrop goes in first so every platform and actor draws over it.
+    this.parallax = createParallax(this, GRAYBOX_STAGE.widthPx)
     this.drawStage()
     this.createViews()
     this.inputSource = new KeyboardInputSource(window)
@@ -97,6 +101,7 @@ export class StageScene extends Phaser.Scene {
     const events = this.world.update(delta / 1000, source.poll())
     this.bridge.consume(events)
     this.syncViews()
+    updateParallax(this.parallax, this.cameras.main.scrollX)
     this.updateHud()
   }
 

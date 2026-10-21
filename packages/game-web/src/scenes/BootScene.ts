@@ -1,44 +1,53 @@
 import Phaser from 'phaser'
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
-
-/** Box dimensions must match the rule-layer collision boxes in @contra/game-core. */
-const BOXES = [
-  { key: TEXTURES.player, width: 24, height: 40, color: PALETTE.player },
-  { key: TEXTURES.target, width: 32, height: 40, color: PALETTE.target },
-  { key: TEXTURES.bullet, width: 8, height: 8, color: PALETTE.bullet },
-] as const
+import { backgroundUrl, characterSheets, enemySheets, PARALLAX_LAYERS } from '../assets/manifest'
+import { PALETTE } from '../config'
 
 /**
- * Loads the gray-box texture atlas.
+ * Loads every texture, then hands off to the title.
  *
- * M0 ships no image files: every texture is a solid rectangle drawn at boot, so
- * the whole presentation layer stays placeholder art until M4 (milestones.md).
+ * The loader is driven by the manifest rather than a hand-written list: a sheet
+ * that exists on disk is loaded, one that does not is simply absent, and the
+ * scenes fall back to their grey-box rectangle. That keeps the M4 art additive -
+ * the game runs with or without it.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
-    super('BootScene')
+    super('Boot')
   }
 
   preload(): void {
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '载入灰盒资源…', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: PALETTE.hud,
-      })
-      .setOrigin(0.5)
+    const width = this.scale.width
+    const midY = this.scale.height / 2
 
-    for (const box of BOXES) {
-      if (this.textures.exists(box.key)) continue
-      const graphics = this.make.graphics({ x: 0, y: 0 }, false)
-      graphics.fillStyle(box.color, 1)
-      graphics.fillRect(0, 0, box.width, box.height)
-      graphics.generateTexture(box.key, box.width, box.height)
-      graphics.destroy()
+    this.add.rectangle(0, midY, width, 4, 0x1a1a1a).setOrigin(0, 0.5)
+    const bar = this.add.rectangle(0, midY, 0, 8, 0xd6452c).setOrigin(0, 0.5)
+
+    this.load.on('progress', (value: number) => {
+      bar.width = width * value
+    })
+
+    for (const sheet of characterSheets()) {
+      this.load.spritesheet(sheet.key, sheet.url, {
+        frameWidth: sheet.frameWidth,
+        frameHeight: sheet.frameHeight,
+      })
+    }
+
+    for (const sheet of enemySheets()) {
+      this.load.spritesheet(sheet.key, sheet.url, {
+        frameWidth: sheet.frameWidth,
+        frameHeight: sheet.frameHeight,
+      })
+    }
+
+    for (const key of PARALLAX_LAYERS) {
+      const url = backgroundUrl(key)
+      if (url !== undefined) this.load.image(key, url)
     }
   }
 
   create(): void {
-    this.scene.start('TitleScene')
+    this.cameras.main.setBackgroundColor(PALETTE.background)
+    this.scene.start('Title')
   }
 }
