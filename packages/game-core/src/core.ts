@@ -38,6 +38,7 @@ import { equipWeapon } from './systems/Arsenal.js'
 import { overlaps, rayBoxDistance } from './systems/Collision.js'
 import { applyHit, canDamage } from './systems/Combat.js'
 import { updateMovement } from './systems/Movement.js'
+import { createPassiveState, type PassiveState, registerRhythmKill } from './systems/Passives.js'
 import {
   createWeaponState,
   type FireOutcome,
@@ -75,6 +76,12 @@ export interface PlayerHurtEvent {
   readonly type: 'playerHurt'
   readonly heartsLeft: number
   readonly position: Vec2
+}
+
+/** The player regained a heart (GLM's rhythm passive). */
+export interface PlayerHealedEvent {
+  readonly type: 'playerHealed'
+  readonly heartsLeft: number
 }
 
 /** The player's hearts reached zero. */
@@ -116,6 +123,7 @@ export type CoreEvent =
   | HitEvent
   | EnemyDiedEvent
   | PlayerHurtEvent
+  | PlayerHealedEvent
   | PlayerDiedEvent
   | WeaponPickedEvent
   | ExplosionEvent
@@ -217,6 +225,11 @@ export class World {
   private eventQueue: CoreEvent[] = []
   private stepCount = 0
   private score = 0
+  /** Hearts at spawn, the ceiling a refund may restore to. */
+  private readonly startingHearts: number
+  /** GLM refunds one heart per stage, no more. */
+  private rhythmRefunded = false
+  private readonly passive: PassiveState = createPassiveState()
   private cleared = false
   private elapsedSeconds = 0
 
@@ -226,6 +239,7 @@ export class World {
       options.hearts === undefined ? {} : { hearts: options.hearts },
     )
     this.characterId = options.characterId ?? 'glm'
+    this.startingHearts = this.player.hearts
     this.platforms = options.platforms ?? []
     this.targets = (options.targets ?? []).map(createTarget)
     this.exit = options.exit ?? null
@@ -472,6 +486,35 @@ export class World {
       position: { x: target.box.x, y: target.box.y },
       score: target.score,
     })
+    this.applyKillPassive()
+  }
+
+  /**
+   * Character passives that fire on a kill (T2).
+   *
+   * Only GLM's rhythm does; the others are read where they matter - spread
+   * accumulation, homing damage, prism targets - rather than being collected in
+   * one place that would have to know about all six.
+   *
+   * The heart refund is once per stage and capped at the starting maximum:
+   * an unbounded refund would make GLM unkillable in a long stage, which is a
+   * different game.
+   */
+  private applyKillPassive(): void {
+    if (this.characterId !== 'glm') return
+    if (this.rhythmRefunded) return
+
+    const earned = registerRhythmKill(this.passive, 'balanced-rhythm')
+    if (!earned) return
+
+    if (this.player.hearts < this.startingHearts) {
+      this.player.hearts += 1
+      this.rhythmRefunded = true
+      this.eventQueue.push({
+        type: 'playerHealed',
+        heartsLeft: this.player.hearts,
+      })
+    }
   }
 
   /**

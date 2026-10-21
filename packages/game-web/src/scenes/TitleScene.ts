@@ -1,43 +1,61 @@
 import Phaser from 'phaser'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 
-/** Title screen: one key or one click drops into the gray-box stage. */
+/** Title screen: one key or one click opens the campaign. */
 export class TitleScene extends Phaser.Scene {
   constructor() {
-    super('TitleScene')
+    super('Title')
   }
 
   create(): void {
+    this.cameras.main.setBackgroundColor(PALETTE.background)
+
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 48, 'CONTRA', {
-        fontFamily: 'monospace',
-        fontSize: '48px',
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 120, 'CONTRA', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '64px',
         color: PALETTE.hud,
       })
       .setOrigin(0.5)
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 8, 'M0 灰盒 · 跑到右侧终点', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 56, '推理者的最后一役', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '24px',
+        color: PALETTE.alert,
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 8, '十二关 · 六角色 · 三种 Boss 形态', {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: '16px',
         color: PALETTE.hud,
       })
       .setOrigin(0.5)
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 64, '按 Enter / 空格 或点击开始', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 72, '按 Enter / 空格 或点击开始', {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: PALETTE.alert,
       })
       .setOrigin(0.5)
 
-    this.input.keyboard?.once('keydown-ENTER', () => this.startStage())
-    this.input.keyboard?.once('keydown-SPACE', () => this.startStage())
-    this.input.once('pointerdown', () => this.startStage())
+    this.add
+      .text(GAME_WIDTH - 16, GAME_HEIGHT - 14, 'S 设置', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: PALETTE.hud,
+      })
+      .setOrigin(1, 1)
+
+    this.input.keyboard?.once('keydown-ENTER', () => this.begin())
+    this.input.keyboard?.once('keydown-SPACE', () => this.begin())
+    this.input.once('pointerdown', () => this.begin())
   }
 
-  private startStage(): void {
-    this.scene.start('StageScene')
+  private begin(): void {
+    this.scene.start('StageSelect')
   }
 }

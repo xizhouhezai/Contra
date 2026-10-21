@@ -4,6 +4,7 @@ type ShotEvent = Extract<CoreEvent, { type: 'shot' }>
 type HitEvent = Extract<CoreEvent, { type: 'hit' }>
 type EnemyDiedEvent = Extract<CoreEvent, { type: 'enemyDied' }>
 type PlayerHurtEvent = Extract<CoreEvent, { type: 'playerHurt' }>
+type PlayerHealedEvent = Extract<CoreEvent, { type: 'playerHealed' }>
 type PlayerDiedEvent = Extract<CoreEvent, { type: 'playerDied' }>
 type WeaponPickedEvent = Extract<CoreEvent, { type: 'weaponPicked' }>
 type ExplosionEvent = Extract<CoreEvent, { type: 'explosion' }>
@@ -22,6 +23,8 @@ export interface CoreEventHandlers {
   readonly hit: (event: HitEvent) => void
   readonly enemyDied: (event: EnemyDiedEvent) => void
   readonly playerHurt: (event: PlayerHurtEvent) => void
+  /** Optional: only GLM's rhythm passive ever emits this. */
+  readonly playerHealed?: (event: PlayerHealedEvent) => void
   readonly playerDied: (event: PlayerDiedEvent) => void
   readonly weaponPicked: (event: WeaponPickedEvent) => void
   readonly explosion: (event: ExplosionEvent) => void
@@ -57,6 +60,10 @@ export class CoreEventBridge {
           break
         case 'playerHurt':
           this.handlers.playerHurt(event)
+          break
+        case 'playerHealed':
+          // Optional: a game without the rhythm passive simply ignores it.
+          this.handlers.playerHealed?.(event)
           break
         case 'playerDied':
           this.handlers.playerDied(event)
