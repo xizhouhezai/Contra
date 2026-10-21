@@ -191,7 +191,9 @@ export const STAGE_08: StageDefinition = {
   exit: { x: 1720, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Acts I and II, in campaign order. */
+import { ACT_III_STAGES } from './act3.js'
+
+/** All twelve stages, in campaign order (acts I, II and III). */
 export const CAMPAIGN_STAGES: readonly StageDefinition[] = [
   STAGE_01,
   STAGE_02,
@@ -201,4 +203,5 @@ export const CAMPAIGN_STAGES: readonly StageDefinition[] = [
   STAGE_06,
   STAGE_07,
   STAGE_08,
+  ...ACT_III_STAGES,
 ]

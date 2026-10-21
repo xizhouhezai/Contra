@@ -31,21 +31,27 @@ function memoryStorage(): ProgressStorage & { readonly dump: Map<string, string>
 const IDS = CAMPAIGN_STAGES.map((stage) => stage.id)
 
 describe('Campaign stages (T-M2-10 / T-M2-11)', () => {
-  it('defines eight stages covering acts I and II', () => {
-    expect(CAMPAIGN_STAGES).toHaveLength(8)
-    expect(CAMPAIGN_STAGES.filter((s) => s.act === 1)).toHaveLength(4)
-    expect(CAMPAIGN_STAGES.filter((s) => s.act === 2)).toHaveLength(4)
+  it('covers acts I and II with eight stages', () => {
+    // Act III joined the same catalogue in M3, so these assertions guard the
+    // act I/II slice rather than the whole array length.
+    const first = CAMPAIGN_STAGES.filter((s) => s.act !== 3)
+    expect(first).toHaveLength(8)
+    expect(first.filter((s) => s.act === 1)).toHaveLength(4)
+    expect(first.filter((s) => s.act === 2)).toHaveLength(4)
   })
 
-  it('numbers stages 1 through 8 in order', () => {
-    expect(CAMPAIGN_STAGES.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  it('numbers the act I and II stages 1 through 8 in order', () => {
+    expect(CAMPAIGN_STAGES.filter((s) => s.act !== 3).map((s) => s.index)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8,
+    ])
   })
 
   it('puts a boss on stages 4 and 8', () => {
     expect(STAGE_04.bossId).toBe('claude-auditor')
     expect(STAGE_08.bossId).toBe('claude-rewriter')
-    const bossStages = CAMPAIGN_STAGES.filter((s) => s.bossId !== undefined)
-    expect(bossStages).toHaveLength(2)
+    // Acts I and II carry one boss each; act III adds the final fight.
+    const actOneTwoBosses = CAMPAIGN_STAGES.filter((s) => s.bossId !== undefined && s.act !== 3)
+    expect(actOneTwoBosses).toHaveLength(2)
   })
 
   it('teaches all five act I/II mechanics', () => {
@@ -88,7 +94,7 @@ describe('Campaign stages (T-M2-10 / T-M2-11)', () => {
 describe('Progress storage (T-M2-12)', () => {
   it('starts empty with only stage 1 unlocked', () => {
     const progress = emptyProgress(IDS)
-    expect(progress.stages).toHaveLength(8)
+    expect(progress.stages).toHaveLength(CAMPAIGN_STAGES.length)
     expect(progress.unlockedThrough).toBe(1)
     expect(isUnlocked(progress, 1)).toBe(true)
     expect(isUnlocked(progress, 2)).toBe(false)
@@ -136,8 +142,8 @@ describe('Progress storage (T-M2-12)', () => {
       unlockedThrough: 2,
     })
     const loaded = loadProgress(storage, IDS)
-    expect(loaded.stages).toHaveLength(8)
-    expect(loaded.stages[7]?.cleared).toBe(false)
+    expect(loaded.stages).toHaveLength(CAMPAIGN_STAGES.length)
+    expect(loaded.stages[CAMPAIGN_STAGES.length - 1]?.cleared).toBe(false)
   })
 })
 
