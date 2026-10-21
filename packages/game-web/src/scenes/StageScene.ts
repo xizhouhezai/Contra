@@ -26,6 +26,7 @@ import { CoreEventBridge } from '../events/CoreEventBridge'
 import { applyFit } from '../fit'
 import { publishStageProbe } from '../StageProbe'
 import { ActorView, characterSprite, enemySprite } from '../sprites/ActorView'
+import { HURT_SECONDS, motionFor, RECOIL_SECONDS } from '../sprites/motion'
 import { createParallax, updateParallax } from '../stage/createParallax'
 import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../stage/resolveStage'
 
@@ -48,6 +49,8 @@ export class StageScene extends Phaser.Scene {
     shot: (event) => {
       this.showMuzzleFlash(event.position.x, event.position.y)
       this.playEventSound(event)
+      // Recoil is driven by the real shot event, not a timer (REQ-MOT-002).
+      this.secondsSinceShot = 0
     },
     hit: (event) => {
       this.showImpact(event.position.x, event.position.y)
@@ -57,6 +60,8 @@ export class StageScene extends Phaser.Scene {
     playerHurt: (event) => {
       this.showBanner(`受创 · 剩余 ${event.heartsLeft}`)
       this.playEventSound(event)
+      // The shake lasts as long as the hurt reaction, then stops (REQ-MOT-002).
+      this.hurtSeconds = HURT_SECONDS
     },
     playerHealed: (event) => this.showBanner(`回血 · 剩余 ${event.heartsLeft}`),
     playerDied: (event) => {
@@ -88,6 +93,14 @@ export class StageScene extends Phaser.Scene {
   private touch: TouchInputSource | null = null
   private stickKnob: Phaser.GameObjects.Arc | null = null
   private playerView: ActorView | null = null
+  /** Seconds since the last shot, for the recoil (REQ-MOT-001). */
+  private secondsSinceShot = 99
+  /** Seconds left on the hurt reaction (REQ-MOT-002). */
+  private hurtSeconds = 0
+  /** The scale the character art was drawn at, so motion can multiply it. */
+  private playerBaseScale = 1
+  /** Last frame's horizontal offset, so it is applied as a delta not an add. */
+  private lastMotionOffsetX = 0
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
   private hud: Phaser.GameObjects.Text | null = null
@@ -231,8 +244,43 @@ export class StageScene extends Phaser.Scene {
     const events = this.world.update(delta / 1000, this.pollInput(source))
     this.bridge.consume(events)
     this.syncViews()
+    this.applyMotion(delta / 1000)
     updateParallax(this.parallax, this.cameras.main.scrollX)
     this.updateHud()
+  }
+
+  /**
+   * Applies the procedural motion to the player sprite (REQ-MOT-001).
+   *
+   * The offset and the scale come from motionFor, which is pure: this method
+   * only reads the clock and the state, never writes to the World. The rule
+   * layer does not learn that animation exists.
+   */
+  private applyMotion(dt: number): void {
+    const view = this.playerView
+    if (view === null) return
+
+    this.secondsSinceShot += dt
+    this.hurtSeconds = Math.max(0, this.hurtSeconds - dt)
+
+    const input = this.pollInput(this.inputSource as InputSource)
+    const frame = motionFor(
+      this.time.now / 1000,
+      {
+        moveX: input.moveX,
+        firing: this.secondsSinceShot < RECOIL_SECONDS,
+        hurtSeconds: this.hurtSeconds,
+      },
+      this.secondsSinceShot,
+    )
+
+    const sprite = view.sprite as Phaser.GameObjects.Sprite
+    if (typeof sprite.setScale !== 'function') return
+
+    sprite.setScale(this.playerBaseScale * frame.scaleX, this.playerBaseScale * frame.scaleY)
+    sprite.setRotation(frame.rotation)
+    sprite.x += frame.offsetX - this.lastMotionOffsetX
+    this.lastMotionOffsetX = frame.offsetX
   }
 
   /** Persists the clear, then hands off to the result screen. */
@@ -305,6 +353,8 @@ export class StageScene extends Phaser.Scene {
       this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
       this.playerView.sprite.setOrigin(0.5, 1)
       this.playerView.sprite.setScale(scale)
+      // Remembered so the motion can multiply it rather than overwrite it.
+      this.playerBaseScale = scale
 
       // The portrait sheets have a white background. In the select screen that
       // reads as a framed illustration, which is fine; in-game it reads as a
