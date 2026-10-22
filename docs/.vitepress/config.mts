@@ -106,6 +106,7 @@ export default defineConfig({
             { text: '跨端策略', link: '/game/design/cross-platform' },
             { text: '美术风格指南', link: '/game/design/art-style' },
             { text: '素材署名', link: '/game/design/credits' },
+            { text: '形象与骨骼调研', link: '/game/design/animation-research' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },

@@ -27,6 +27,15 @@ export const AIM_DIRECTIONS = [
  * aim decoupled from movement (docs/game/requirements/gameplay.md §瞄准与射击).
  */
 export function aimVector(input: InputState, facing: 1 | -1): Vec2 {
+  // A free aim vector wins when the device provides one (REQ-GUN-002). It is
+  // normalised here rather than trusted: a mouse offset of 300px is a direction,
+  // not a length, and an unnormalised vector would change the shot speed.
+  const free = input.aim
+  if (free !== undefined) {
+    const freeLength = Math.hypot(free.x, free.y)
+    if (freeLength > 1e-6) return { x: free.x / freeLength, y: free.y / freeLength }
+  }
+
   const ax = input.moveX !== 0 ? input.moveX : input.moveY === 0 ? facing : 0
   const ay = input.moveY
   if (ax === 0 && ay === 0) return { x: facing, y: 0 }
