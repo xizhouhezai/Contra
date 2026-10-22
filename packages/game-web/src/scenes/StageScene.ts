@@ -30,6 +30,7 @@ import {
 import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
+import { WEAPON_ICON_SIZE, weaponIconKey } from '../assets/weapons'
 import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
@@ -132,6 +133,12 @@ export class StageScene extends Phaser.Scene {
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
   private hud: Phaser.GameObjects.Text | null = null
+  /** The current weapon's icon, redrawn when the weapon changes. */
+  private weaponIcon: Phaser.GameObjects.Image | null = null
+  /** The weapon the icon currently shows, so it is not redrawn every frame. */
+  private weaponIconFor: string | null = null
+  /** The weapon name label next to the icon. */
+  private weaponLabel: Phaser.GameObjects.Text | null = null
   private banner: Phaser.GameObjects.Text | null = null
   private exitZone: Phaser.GameObjects.Rectangle | null = null
   private prevX = 0
@@ -211,9 +218,43 @@ export class StageScene extends Phaser.Scene {
       this.createTouchControls()
     }
 
+    // HUD positioning.
+    //
+    // setScrollFactor(0) is the usual way to pin a HUD, and in this scene it
+    // draws nothing at all: with the camera zoomed to 2 and bounded to the
+    // stage, a zero-scroll-factor object at (16, 12) is transformed outside the
+    // visible area. Measured directly - three texts, only the one without
+    // scrollFactor appeared.
+    //
+    // These follow the camera's world view instead, repositioned each frame in
+    // updateHud, which keeps them on screen however the camera moves.
     this.hud = this.add
-      .text(16, 12, '', { fontFamily: 'monospace', fontSize: '14px', color: PALETTE.hud })
-      .setScrollFactor(0)
+      .text(16, 12, '', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: PALETTE.hud,
+      })
+      .setDepth(100)
+
+    // Weapon readout, top-left above the debug line.
+    //
+    // Bottom-left was the first attempt and it was invisible: the ground band
+    // is nearly black and PALETTE.hud is a light ink, so the icon had nothing
+    // to separate it from. The top strip is the paper background, which is what
+    // the rest of the HUD already draws against.
+    this.weaponIcon = this.add
+      .image(24, 62, weaponIconKey('pulse'))
+      .setDepth(100)
+      .setScale(40 / WEAPON_ICON_SIZE)
+      .setVisible(false)
+
+    this.weaponLabel = this.add
+      .text(50, 62, '', {
+        fontFamily: 'monospace',
+        fontSize: '15px',
+        color: PALETTE.hud,
+      })
+      .setOrigin(0, 0.5)
       .setDepth(100)
 
     this.banner = this.add
@@ -739,10 +780,52 @@ export class StageScene extends Phaser.Scene {
 
   private updateHud(): void {
     if (this.hud === null) return
+
+    // Anchored to the camera's view, not the world origin.
+    const view = this.cameras.main.worldView
+    const x = view.x + 8
+    const y = view.y + 6
+    this.hud.setPosition(x, y)
+    this.weaponIcon?.setPosition(x + 22, y + 28)
+    this.weaponLabel?.setPosition(x + 46, y + 28)
+
     const fps = this.game.loop.actualFps
     const status = this.world.clearedStage ? 'CLEARED' : 'RUN'
     this.hud.setText(
       `FPS ${fps.toFixed(1)}  ·  ${status}  ·  x=${this.world.player.position.x.toFixed(0)}  ·  score=${this.world.currentScore}`,
     )
+    this.syncWeaponHud()
+  }
+
+  /**
+   * Shows the weapon currently in hand (T-M6-21).
+   *
+   * Read from the rule layer's active slot rather than tracked here, so the
+   * icon cannot disagree with what actually fires. The redraw is skipped while
+   * the id is unchanged - swapping a texture every frame would be wasteful and
+   * would restart the image each time.
+   */
+  private syncWeaponHud(): void {
+    const slots = this.world.player.weaponSlots
+    const active = slots[this.world.player.activeSlot]
+    const weaponId = active?.weaponId ?? null
+    if (weaponId === this.weaponIconFor) return
+    this.weaponIconFor = weaponId
+
+    if (weaponId === null) {
+      this.weaponIcon?.setVisible(false)
+      this.weaponLabel?.setVisible(false)
+      return
+    }
+
+    const key = weaponIconKey(weaponId)
+    if (!this.textures.exists(key)) {
+      this.weaponIcon?.setVisible(false)
+      this.weaponLabel?.setText(weaponId)
+      return
+    }
+
+    this.weaponIcon?.setTexture(key).setVisible(true)
+    this.weaponLabel?.setText(weaponId)
   }
 }

@@ -12,6 +12,7 @@ import {
   portraitUrl,
 } from '../assets/manifest'
 import { STAMP_GRADES, stampKey, stampUrl } from '../assets/stamps'
+import { weaponIconKey, weaponIconUrl, weaponsWithIcons } from '../assets/weapons'
 import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
 import { applyFit } from '../fit'
@@ -98,6 +99,11 @@ export class BootScene extends Phaser.Scene {
     for (const grade of STAMP_GRADES) {
       const url = stampUrl(grade)
       if (url !== undefined) this.load.image(stampKey(grade), url)
+    }
+
+    for (const weaponId of weaponsWithIcons()) {
+      const url = weaponIconUrl(weaponId)
+      if (url !== undefined) this.load.image(weaponIconKey(weaponId), url)
     }
 
     preloadAudio(this.load)
