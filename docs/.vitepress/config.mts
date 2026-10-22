@@ -107,6 +107,7 @@ export default defineConfig({
             { text: '美术风格指南', link: '/game/design/art-style' },
             { text: '素材署名', link: '/game/design/credits' },
             { text: '形象与骨骼调研', link: '/game/design/animation-research' },
+            { text: '动作帧提示词', link: '/game/design/sprite-prompts' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
