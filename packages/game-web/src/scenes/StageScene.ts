@@ -101,6 +101,8 @@ export class StageScene extends Phaser.Scene {
   private playerBaseScale = 1
   /** Last frame's horizontal offset, so it is applied as a delta not an add. */
   private lastMotionOffsetX = 0
+  /** True while the mouse is over the canvas, gating free aim (REQ-GUN-002). */
+  private pointerInside = false
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
   private hud: Phaser.GameObjects.Text | null = null
@@ -156,6 +158,14 @@ export class StageScene extends Phaser.Scene {
     // because a laptop with a touchscreen should keep working on its keyboard.
     // Esc opens the pause overlay; the stage is paused, not stopped, so
     // resuming continues from this exact frame.
+    // Free aim only while the pointer is over the canvas (REQ-GUN-002).
+    this.input.on('pointermove', () => {
+      this.pointerInside = true
+    })
+    this.input.on('pointerout', () => {
+      this.pointerInside = false
+    })
+
     this.input.keyboard?.once('keydown-ESC', () => {
       // run, not launch: pause() first would leave launch with a sleeping
       // manager and the overlay never appears.
@@ -478,16 +488,34 @@ export class StageScene extends Phaser.Scene {
   private pollInput(keyboard: InputSource): InputState {
     const base = keyboard.poll()
     const touch = this.touch?.poll()
-    if (touch === undefined) return base
 
     const clamp = (value: number) => Math.max(-1, Math.min(1, value))
-    return {
-      moveX: clamp(base.moveX + touch.moveX) as InputState['moveX'],
-      moveY: clamp(base.moveY + touch.moveY) as InputState['moveY'],
-      jump: base.jump || touch.jump,
-      fire: base.fire || touch.fire,
-      bomb: base.bomb || touch.bomb,
+    const merged: InputState =
+      touch === undefined
+        ? base
+        : {
+            ...base,
+            moveX: clamp(base.moveX + touch.moveX) as InputState['moveX'],
+            moveY: clamp(base.moveY + touch.moveY) as InputState['moveY'],
+            jump: base.jump || touch.jump,
+            fire: base.fire || touch.fire,
+            bomb: base.bomb || touch.bomb,
+          }
+
+    // Mouse aim (REQ-GUN-002). The pointer's offset from the character is a
+    // direction, and passing it through lets a player shoot between the eight
+    // directions. Only when the pointer is actually over the canvas: a mouse
+    // parked outside the window should not silently aim somewhere.
+    const pointer = this.input.activePointer
+    if (this.pointerInside && this.playerView !== null) {
+      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
+      const origin = this.world.player.position
+      const dx = world.x - origin.x
+      const dy = world.y - origin.y
+      if (Math.hypot(dx, dy) > 8) return { ...merged, aim: { x: dx, y: dy } }
     }
+
+    return merged
   }
 
   /** Plays whatever the event maps to; silent events map to null. */
