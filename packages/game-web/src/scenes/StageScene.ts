@@ -27,6 +27,7 @@ import {
   sheetKey,
   stateFor,
 } from '../assets/animated'
+import { bossArtKey } from '../assets/bosses'
 import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
@@ -181,6 +182,7 @@ export class StageScene extends Phaser.Scene {
     applyFit(this)
     const vertical = isVerticalStage(this.stage)
     this.parallax = createParallax(this, this.stage.widthPx)
+    this.createBossPortrait()
     this.drawStage()
     this.createViews()
     // Audio first so the opening frame already has music.
@@ -795,6 +797,38 @@ export class StageScene extends Phaser.Scene {
       `FPS ${fps.toFixed(1)}  ·  ${status}  ·  x=${this.world.player.position.x.toFixed(0)}  ·  score=${this.world.currentScore}`,
     )
     this.syncWeaponHud()
+  }
+
+  /**
+   * Places the boss portrait for a stage that has a boss (T-M6-22).
+   *
+   * It sits behind the play area and follows the camera horizontally, so the
+   * fight happens in front of the character it is about. A stage without a boss
+   * never creates one, and a boss without a portrait is skipped rather than
+   * leaving an empty frame.
+   */
+  private createBossPortrait(): void {
+    const bossId = this.stage.bossId
+    if (bossId === undefined) return
+
+    const key = bossArtKey(bossId)
+    if (!this.textures.exists(key)) return
+
+    const source = this.textures.get(key).getSourceImage()
+    const view = this.cameras.main.worldView
+
+    // Anchored at the ground line, not at the bottom of the view: the floor is
+    // a solid band across the lower third, and a portrait anchored to the view
+    // had its legs hidden behind it and its head cut by the top.
+    //
+    // Sized to 62% of the visible height so the character reads as backdrop -
+    // present, but clearly not something the player collides with.
+    const height = GAME_HEIGHT * 0.62
+    this.bossPortrait = this.add
+      .image(view.x + GAME_WIDTH * 0.72, view.y + GAME_HEIGHT * 0.78, key)
+      .setOrigin(0.5, 1)
+      .setDepth(-50)
+      .setScale(height / source.height)
   }
 
   /**
