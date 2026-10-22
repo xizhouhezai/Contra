@@ -12,10 +12,16 @@
 
 import type { CharacterId } from '@contra/game-core'
 
+import { avatarsAvailable } from './avatars'
 import { chibiModules } from './chibi'
 
+const AVATAR_LABEL = '立绘头像'
+const avatarModule: Record<string, true> = Object.fromEntries(
+  avatarsAvailable().map((id) => [id, true as const]),
+)
+
 /** How a look is presented. */
-export type LookKind = 'portrait' | 'chibi'
+export type LookKind = 'avatar' | 'portrait' | 'chibi'
 
 export interface CharacterLook {
   /** Stable id used in saves and in the texture key. */
@@ -41,6 +47,18 @@ const CHIBI_LABEL = 'Q 萌'
 export function looksFor(character: CharacterId, portraitUrl?: string): CharacterLook[] {
   const out: CharacterLook[] = []
 
+  // The square avatar leads: it is drawn for a small card, so it reads better
+  // than a full-body illustration squeezed into the same space.
+  if (avatarModule[character] !== undefined) {
+    out.push({
+      id: 'avatar',
+      kind: 'avatar',
+      label: AVATAR_LABEL,
+      source: `${character}.webp`,
+      textureKey: `avatar-${character}`,
+    })
+  }
+
   if (portraitUrl !== undefined) {
     out.push({
       id: 'portrait',
@@ -65,7 +83,7 @@ export function looksFor(character: CharacterId, portraitUrl?: string): Characte
 }
 
 /** The look id used when nothing was chosen. */
-export const DEFAULT_LOOK = 'portrait'
+export const DEFAULT_LOOK = 'avatar'
 
 /**
  * The look to fall back to.
