@@ -462,135 +462,34 @@ two-color print, grain, no gradients, solid white background
 
 ---
 
-# 十一、地形素材（2026-10 追加，优先级最高）
+# 十一、地形素材
 
-> **背景**：玩家反馈「障碍物、地都太假了，背景也太单调了」。
-> 当前地面与平台是**纯色矩形**（PALETTE.platform 一个色块），
-> 背景是 4 层朴素工业图，敌人、角色是精细插画 —— 两者严重脱节。
+> **已并入 [场景生成提示词](/game/design/scene-prompts)** ——
+> 那一篇按关卡组织，把该关需要的背景、地面、平台、障碍物、装饰、
+> BGM 和弹道提示词放在一起，可整段交给生图 agent。
 
-## 11.1 地面瓦片（最缺）
+本节保留通用地形素材的规格，供查阅：
 
-游戏世界是 **960×540**，地面平台高度 **60px**（GROUND_H）。
+### 地面瓦片
 
-```text
-seamless horizontal ground tile, industrial metal walkway, side view,
-60 pixels tall, top edge is a walkable surface with rivets and plate seams,
-weathered steel with rust streaks, dark teal palette,
-flat cel shading, clean lineart, no text, no watermark,
-seamless tiling left to right, pixel-perfect
-```
+尺寸 256×64，内容区 60px，**必须无缝横铺**。三套：
+`ground-cold`（幕 I 冷青）、`ground-teal`（幕 II 青碧）、`ground-grey`（幕 III 灰白）。
 
-| 项 | 要求 |
+### 平台九宫格
+
+尺寸 96×96（每格 32×32），四角四边可独立重复，中间可拉伸。
+**平台厚度只有 16px**，贴图必须体现薄板感。
+
+### 障碍物
+
+| 类型 | 尺寸 |
 | --- | --- |
-| 输出尺寸 | **256×64**（宽必须可无缝平铺，高 64 留 4px 余量） |
-| 内容区 | 顶部 60px 是地面，底部 4px 可裁 |
-| **无缝要求** | 左右边缘必须能对接，这是最关键的验收项 |
+| 弹跳墙 | 24×200（宽高比 1:8，必须细长） |
+| 矮台阶 | 120×40 |
+| 出口门 | 40×120 |
 
-### 变体（每关一套配色）
+### 装饰件
 
-| 关卡 | 配色 | 提示词追加 |
-| --- | --- | --- |
-| 1 码头晨雾 / 2 锈铁回廊 / 3 悬空栈道 | 冷青 + 晨雾 | cold teal, faint mist |
-| 5 冷却管廊 / 6 阵列机房 / 7 熔炉区 | 青碧 + 暖橙 | teal with warm orange accents |
-| 9 坍塌档案库 / 10 镜像回廊 / 11 垂直井 | 灰蓝 + 暗紫 | grey-blue with muted purple |
+`deco-light`、`deco-chain`、`deco-monitor`、`deco-panel`、`deco-steam`。
 
-## 11.2 平台瓦片（可跳跃的台子）
-
-关卡里的平台是 **120×40**、**24×200**（窄柱）等尺寸，需要能自由伸缩的九宫格素材。
-
-```text
-modular platform tile set, industrial metal ledge, side view,
-top surface with anti-slip texture and rivets, side faces with vertical seams,
-bottom face with support brackets, dark teal weathered steel,
-flat cel shading, clean lineart, no text, no watermark,
-game tileset, transparent background, 3x3 slicing friendly
-```
-
-| 项 | 要求 |
-| --- | --- |
-| 输出尺寸 | **96×96**（每格 32×32，九宫格） |
-| 关键 | **四角与四边必须能独立重复**，中间可拉伸 |
-
-## 11.3 障碍物 / 掩体
-
-```text
-industrial obstacle prop, {TYPE}, side view, chunky readable silhouette,
-dark teal metal with rust and warning stripes, flat cel shading, clean lineart,
-no text, no watermark, solid pure white background, centered
-```
-
-| 类型 | {TYPE} | 游戏内尺寸 |
-| --- | --- | --- |
-| 窄柱 | tall narrow steel pillar with cable conduits | 24×200 |
-| 低台阶 | low concrete step block with metal edge trim | 120×40 |
-| 弹跳墙 | wall panel with reflective energy surface and warning chevrons | 24×200 |
-| 集装箱 | stacked shipping container, weathered, dented | 可复用 |
-| 管道组 | cluster of vertical pipes with valves | 装饰 |
-
-## 11.4 背景（4 层，重做）
-
-现有背景**太单调**：只有建筑轮廓，没有细节层次。
-
-```text
-industrial cyberpunk cityscape, {LAYER}, side-scrolling game background,
-rich detail, multiple depth planes within this layer,
-limited palette of dark teal and warm ochre, no characters, no text,
-seamless horizontal tiling, flat cel shading, high detail
-```
-
-| 层 | {LAYER} | 要求 |
-| --- | --- | --- |
-| 天空 | stormy sky with heavy clouds, distant lightning, god rays | 1920×1080 |
-| 远景 | distant megastructures and smokestacks, hazy, low contrast | 1920×1080 |
-| 中景 | factory complex with lit windows, pipes, cranes, walkways | 1920×1080 |
-| 前景 | foreground girders, hanging cables, steam vents, high contrast dark | 1920×1080 |
-
-**关键改进点**（针对「太单调」）：
-
-1. **每一层内部要有 2~3 个深度面**（比如中景有远近两排建筑）
-2. **加入光源**：窗口灯光、警示灯、蒸汽
-3. **增加纹理密度**：不要大片纯色
-
-## 11.5 装饰件（打破单调）
-
-```text
-small industrial prop, {PROP}, side view, flat cel shading, clean lineart,
-no text, no watermark, solid pure white background, centered
-```
-
-| {PROP} | 用途 |
-| --- | --- |
-| wall-mounted warning light, red, glowing | 点缀 |
-| steam vent with rising vapor | 动效素材 |
-| hanging chain with hook | 前景 |
-| control panel with blinking indicators | 装饰 |
-| broken monitor with static | 装饰 |
-
-## 11.6 验收标准（地形专项）
-
-| 项 | 标准 |
-| --- | --- |
-| **无缝平铺** | 地面/背景左右拼接后看不出接缝（**最重要**） |
-| 尺寸 | 严格按上表，地面必须 60px 内容高 |
-| 配色 | 与现有角色插画同属平涂赛璐璐，不用写实照片 |
-| 透明 | 平台/障碍物必须透明背景 |
-| 水印 | 无 |
-
-## 11.7 交付路径
-
-```
-docs/game/requirements/assets/
-  terrain/
-    ground-cold.webp        256x64   无缝
-    ground-teal.webp        256x64   无缝
-    ground-grey.webp        256x64   无缝
-    platform-9slice.webp    96x96    九宫格
-  props/
-    pillar.webp / step.webp / bouncewall.webp / container.webp / pipes.webp
-    deco-light.webp / deco-steam.webp / deco-chain.webp / deco-panel.webp
-  backgrounds-v2/
-    sky.webp / far.webp / mid.webp / near.webp   各 1920x1080
-```
-
-图给我后我写脚本接入：地面改为 TileSprite 平铺，平台改九宫格拉伸，
-障碍物按关卡几何自动摆放。
+---
