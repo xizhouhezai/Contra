@@ -11,9 +11,14 @@ import type { StageDefinition } from './stageTypes.js'
 const GROUND_H = 60
 const FLOOR_TOP = 400
 
-/** Shorthand for a target that stands on the floor. */
-function groundTarget(id: string, x: number, hp = 30, score = 50) {
-  return { id, x, y: FLOOR_TOP - 40, width: 32, height: 40, hp, score }
+/**
+ * Shorthand for a target that stands on the floor.
+ *
+ * The archetype defaults to the patrolling drone, which is what act 1 uses
+ * everywhere; a stage that wants something else passes it explicitly.
+ */
+function groundTarget(id: string, x: number, hp = 30, score = 50, archetype = 'patrol') {
+  return { id, x, y: FLOOR_TOP - 40, width: 32, height: 40, hp, score, archetype }
 }
 
 /** Stage 1 - 码头晨雾. Teaches move, jump, aim, shoot. */

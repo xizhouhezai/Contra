@@ -27,6 +27,7 @@ import {
   sheetKey,
   stateFor,
 } from '../assets/animated'
+import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
 import { AudioManager } from '../audio/AudioManager'
@@ -511,11 +512,29 @@ export class StageScene extends Phaser.Scene {
     }
 
     for (const target of this.stage.targets) {
-      // Target ids are archetype-prefixed (charger-1, flyer-2), so the sheet is
-      // chosen from the prefix and falls back to the patrol sheet.
-      const archetype = target.id.split('-')[0] ?? 'patrol'
-      const view = new ActorView(this, enemySprite(archetype), target.x, target.y, 15, 32, 32)
-      view.sprite.setScale(1.2)
+      // The archetype is declared by the stage data, not parsed out of the id:
+      // ids run t1, t2, t3 in act 1 and mirror-1 in act 3, so splitting on '-'
+      // picked the wrong enemy or none at all. A target with no archetype is a
+      // plain destructible box and keeps the placeholder.
+      const archetype = target.archetype
+
+      // Generated art when it exists, the procedural placeholder otherwise. The
+      // sprite is scaled to the target's own collision box, so a drone and a
+      // charger are drawn at the size the rules actually give them rather than
+      // at one size that fits neither.
+      const artKey = archetype === undefined ? undefined : enemyFrameKey(archetype, 'idle')
+      const hasArt = artKey !== undefined && this.textures.exists(artKey)
+      const texture = hasArt && artKey !== undefined ? artKey : enemySprite(archetype ?? 'patrol')
+      const view = new ActorView(this, texture, target.x, target.y, 15, 32, 32)
+
+      if (hasArt) {
+        // Stage targets carry their size flat (x/y/width/height), not in a box -
+        // that shape only exists on the rule-layer state.
+        view.sprite.setOrigin(0.5, 1)
+        view.sprite.setScale(target.height / ENEMY_FRAME_SIZE)
+      } else {
+        view.sprite.setScale(1.2)
+      }
       this.targetViews.set(target.id, view)
     }
   }

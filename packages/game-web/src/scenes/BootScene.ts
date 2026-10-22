@@ -2,6 +2,7 @@ import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
 import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
 import { sheetUrl } from '../assets/animatedSheets'
+import { preloadEnemies } from '../assets/enemies'
 import {
   backgroundUrl,
   characterSheets,
@@ -82,6 +83,9 @@ export class BootScene extends Phaser.Scene {
         })
       }
     }
+
+    // Generated enemy art: ten archetypes, idle and hit.
+    preloadEnemies(this.load)
 
     preloadAudio(this.load)
   }
