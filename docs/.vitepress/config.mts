@@ -109,6 +109,7 @@ export default defineConfig({
             { text: '形象与骨骼调研', link: '/game/design/animation-research' },
             { text: '动作帧提示词', link: '/game/design/sprite-prompts' },
             { text: '美术资源提示词', link: '/game/design/art-prompt-catalogue' },
+            { text: '场景与音效规划', link: '/game/design/scene-plan' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
