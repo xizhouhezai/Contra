@@ -146,6 +146,8 @@ export class StageScene extends Phaser.Scene {
   private keyHints: Phaser.GameObjects.Text | null = null
   /** When the stage started, so the reminder can time itself out. */
   private readonly createdAtMs = Date.now()
+  /** Paper-toned backing plate behind the HUD text, redrawn with the camera. */
+  private hudPlate: Phaser.GameObjects.Rectangle | null = null
   private banner: Phaser.GameObjects.Text | null = null
   private exitZone: Phaser.GameObjects.Rectangle | null = null
   private prevX = 0
@@ -236,6 +238,20 @@ export class StageScene extends Phaser.Scene {
     //
     // These follow the camera's world view instead, repositioned each frame in
     // updateHud, which keeps them on screen however the camera moves.
+    // A backing plate behind the HUD.
+    //
+    // The HUD is ink-coloured, which works on the paper background this game is
+    // built around - but the parallax layers are dark teal, and dark ink on dark
+    // teal is unreadable. Rather than pick a text colour that survives every
+    // backdrop (there isn't one: the layers range from near-white sky to
+    // near-black foreground), the HUD gets its own surface, like a printed
+    // caption over a photograph.
+    this.hudPlate = this.add
+      .rectangle(0, 0, 10, 10, 0xf4f1ea, 0.86)
+      .setOrigin(0, 0)
+      .setDepth(99)
+      .setStrokeStyle(1, 0x1a1a1a, 0.25)
+
     this.hud = this.add
       .text(16, 12, '', {
         fontFamily: 'monospace',
@@ -610,7 +626,11 @@ export class StageScene extends Phaser.Scene {
     for (const target of this.world.targets) {
       const view = this.targetViews.get(target.id)
       if (view === undefined) continue
-      view.sync(target.box.x, target.box.y)
+      // Same correction the player needed: the rule layer's y is the top of the
+      // box, the sprite is anchored at its bottom-centre. Passing y straight
+      // through left every enemy standing 40px above the floor - the box height
+      // again, and it read as enemies hovering rather than standing.
+      view.sync(target.box.x + target.box.width / 2, target.box.y + target.box.height)
       view.setVisible(target.alive)
       view.setTint(target.alive ? null : PALETTE.targetDead)
     }
@@ -804,6 +824,19 @@ export class StageScene extends Phaser.Scene {
     const view = this.cameras.main.worldView
     const x = view.x + 8
     const y = view.y + 6
+
+    // The plate sizes itself to the widest line so it never outgrows the content
+    // or leaves a text hanging over its edge.
+    if (this.hudPlate !== null) {
+      const widest = Math.max(
+        this.hud.width,
+        this.weaponLabel?.width ?? 0,
+        this.keyHints?.width ?? 0,
+      )
+      const bottom = this.keyHints !== null ? y + 72 : y + 32
+      this.hudPlate.setPosition(x, y - 6)
+      this.hudPlate.setSize(Math.max(120, widest + 24), bottom - (y - 6))
+    }
     this.hud.setPosition(x, y)
     this.weaponIcon?.setPosition(x + 22, y + 28)
     this.weaponLabel?.setPosition(x + 46, y + 28)
