@@ -1,5 +1,6 @@
 import { gradeRun, type RunResult } from '@contra/game-core'
 import Phaser from 'phaser'
+import { stampFor, stampKey } from '../assets/stamps'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 import { applyFit } from '../fit'
 
@@ -34,13 +35,33 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    this.add
-      .text(GAME_WIDTH / 2, 240, grade, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '110px',
-        color: PALETTE.alert,
-      })
-      .setOrigin(0.5)
+    // The stamp says the grade better than a letter does - it carries the
+    // riso texture and the pass/fail weight. The letter is kept underneath as a
+    // fallback for the case where the image is missing, so a build without the
+    // stamps still reports the result rather than showing an empty card.
+    const stampGrade = stampFor(grade)
+    const key = stampKey(stampGrade)
+    const stampDrawn = this.textures.exists(key)
+
+    if (stampDrawn) {
+      const source = this.textures.get(key).getSourceImage()
+      const size = 190
+      // Centred horizontally. The stamp art has a ragged saw-tooth edge that
+      // reaches further on one side, so the origin is nudged to keep the
+      // printed circle on the page's centre line rather than the canvas's.
+      this.add
+        .image(GAME_WIDTH / 2, 258, key)
+        .setOrigin(0.5)
+        .setScale(size / source.width)
+    } else {
+      this.add
+        .text(GAME_WIDTH / 2, 240, grade, {
+          fontFamily: 'Georgia, serif',
+          fontSize: '110px',
+          color: PALETTE.alert,
+        })
+        .setOrigin(0.5)
+    }
 
     const rows = [
       ['分数', String(this.result.score)],
@@ -67,7 +88,7 @@ export class ResultScene extends Phaser.Scene {
     })
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 80, '空格返回关卡选择', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 24, '空格返回关卡选择', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: PALETTE.inkMuted,
