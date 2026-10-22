@@ -17,6 +17,17 @@ import {
   wantsTouchControls,
 } from '@contra/game-platform'
 import Phaser from 'phaser'
+import {
+  ANIMATION_CLIPS,
+  type AnimationClip,
+  type AnimationState,
+  CLIP_FRAME_RATE,
+  clipLoops,
+  FRAME_SIZE,
+  sheetKey,
+  stateFor,
+} from '../assets/animated'
+import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
 import { AudioManager } from '../audio/AudioManager'
@@ -40,6 +51,19 @@ import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../
  * Which stage it plays comes from the init data, not from a constant, so all
  * twelve stages run through this one scene (docs/game/design/modules.md).
  */
+/**
+ * How tall the character is drawn, in world pixels.
+ *
+ * Deliberately larger than the collision box (24x40). The world view is 540
+ * tall, so a body-sized sprite read as a speck; 90px puts the character at
+ * roughly one sixth of the screen height, which is where a side-scrolling
+ * platformer normally sits.
+ *
+ * This is presentation only. The box stays 24x40 so the physics - gravity,
+ * jump arc, and the 24px pillars the player has to fit through - are
+ * unchanged, and so is every existing test.
+ */
+const DISPLAY_HEIGHT = 90
 export class StageScene extends Phaser.Scene {
   private world!: World
   private stage!: StageDefinition
@@ -103,6 +127,8 @@ export class StageScene extends Phaser.Scene {
   private lastMotionOffsetX = 0
   /** True while the mouse is over the canvas, gating free aim (REQ-GUN-002). */
   private pointerInside = false
+  /** The character being played, resolved once in create(). */
+  private character: CharacterId = 'deepseek'
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
   private hud: Phaser.GameObjects.Text | null = null
@@ -158,6 +184,8 @@ export class StageScene extends Phaser.Scene {
     // because a laptop with a touchscreen should keep working on its keyboard.
     // Esc opens the pause overlay; the stage is paused, not stopped, so
     // resuming continues from this exact frame.
+    this.registerAnimations(this.character)
+
     // Free aim only while the pointer is over the canvas (REQ-GUN-002).
     this.input.on('pointermove', () => {
       this.pointerInside = true
@@ -260,6 +288,57 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * Registers the free character's animation clips.
+   *
+   * Phaser anims are global and keyed by name, so creating one twice throws.
+   * The guard is what lets a stage be entered, left and re-entered.
+   */
+  private registerAnimations(character: CharacterId): void {
+    for (const clip of ANIMATION_CLIPS) {
+      const key = sheetKey(character, clip)
+      if (this.anims.exists(key)) continue
+      if (!this.textures.exists(key)) continue
+
+      // The frame count comes from the texture, not a table: pack-sprites.py
+      // writes a different number of frames per clip and the code should not
+      // hold a second copy of that number that can disagree with the image.
+      const total = this.textures.get(key).frameTotal
+      if (total <= 1) continue
+
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(key, { start: 0, end: total - 1 }),
+        frameRate: CLIP_FRAME_RATE[clip],
+        repeat: 0,
+      })
+    }
+  }
+
+  /**
+   * Plays the clip the gameplay state calls for (REQ-GUN-001).
+   *
+   * The animation is driven by the same state the rules already compute - not by
+   * a timer and not by its own state machine - so the character cannot be shown
+   * attacking when no shot was fired.
+   */
+  private syncAnimation(state: AnimationState): void {
+    const view = this.playerView
+    if (view === null) return
+
+    const anim = view.sprite as Phaser.GameObjects.Sprite
+    if (typeof anim.play !== 'function') return
+
+    // 'die' has no authored frames; the hurt clip held to its last frame is
+    // the closest thing, and a character with zero hearts is not moving anyway.
+    const clip: AnimationClip = state === 'die' ? 'hurt' : state
+    const key = sheetKey(this.character, clip)
+    if (!this.anims.exists(key)) return
+    if (anim.anims.currentAnim?.key === key && anim.anims.isPlaying) return
+
+    anim.play({ key, repeat: clipLoops(clip) ? -1 : 0 })
+  }
+
+  /**
    * Applies the procedural motion to the player sprite (REQ-MOT-001).
    *
    * The offset and the scale come from motionFor, which is pure: this method
@@ -274,6 +353,20 @@ export class StageScene extends Phaser.Scene {
     this.hurtSeconds = Math.max(0, this.hurtSeconds - dt)
 
     const input = this.pollInput(this.inputSource as InputSource)
+
+    // The clip follows the same state the rules compute (REQ-GUN-001).
+    this.syncAnimation(
+      stateFor({
+        moveX: input.moveX,
+        // The trigger being held, not the recoil window: recoil lasts 0.12s and
+        // would make the attack frame flash for a single frame.
+        firing: input.fire,
+        inAir: !this.world.player.onGround,
+        hurt: this.hurtSeconds > 0,
+        hearts: this.world.player.hearts,
+      }),
+    )
+
     const frame = motionFor(
       this.time.now / 1000,
       {
@@ -349,6 +442,7 @@ export class StageScene extends Phaser.Scene {
     this.prevY = spawn.y
     // Real sprite sheet when the art shipped, grey box when it did not.
     const character: CharacterId = (this.request.characterId as CharacterId) ?? 'deepseek'
+    this.character = character
     // The look the player chose on the select screen (REQ-VAR-001). Falls back
     // to the painted portrait when the id names an image that is not loaded.
     const look = resolveLook(character, this.request.lookId, portraitUrl(character))
@@ -356,10 +450,32 @@ export class StageScene extends Phaser.Scene {
     // placeholder. In-game the portrait is drawn scaled into the collision box,
     // which leaves the rule layer's 34x48 body untouched - the art follows the
     // physics, not the other way round.
-    const portraitKey = look.textureKey
+    // A character that has animation frames is drawn as an animated sprite; the
+    // others are a single illustration. The clip is picked from the same state
+    // the rules compute, so the character attacks exactly when a shot fires.
+    // A character with generated frames is drawn as an animated sprite; the
+    // portrait is the fallback for one that has none. This is what decides
+    // whether the player walks and shoots or slides around as a still image.
+    const idleKey = sheetKey(character, 'idle')
+    const useAnimated = this.textures.exists(idleKey)
+
+    const portraitKey = useAnimated ? idleKey : look.textureKey
     if (this.textures.exists(portraitKey)) {
-      const source = this.textures.get(portraitKey).getSourceImage()
-      const scale = Math.min(58 / source.height, 42 / source.width)
+      const source = useAnimated
+        ? { width: FRAME_SIZE, height: FRAME_SIZE }
+        : this.textures.get(portraitKey).getSourceImage()
+      // The art is drawn taller than the collision box on purpose.
+      //
+      // The rule layer's body is 24x40 and the world is 960x540. Drawn at body
+      // size the character was 48px in a 540px tall view, which read as a
+      // distant speck rather than the thing you are controlling. The sprite is
+      // therefore drawn at DISPLAY_HEIGHT and anchored at the feet, so it looks
+      // right without touching the physics: the box stays 24x40, and the level
+      // geometry - which includes 24px pillars the player squeezes past - is
+      // unaffected.
+      const scale = useAnimated
+        ? DISPLAY_HEIGHT / source.height
+        : Math.min(58 / source.height, 42 / source.width)
       this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
       this.playerView.sprite.setOrigin(0.5, 1)
       this.playerView.sprite.setScale(scale)
@@ -396,11 +512,29 @@ export class StageScene extends Phaser.Scene {
     }
 
     for (const target of this.stage.targets) {
-      // Target ids are archetype-prefixed (charger-1, flyer-2), so the sheet is
-      // chosen from the prefix and falls back to the patrol sheet.
-      const archetype = target.id.split('-')[0] ?? 'patrol'
-      const view = new ActorView(this, enemySprite(archetype), target.x, target.y, 15, 32, 32)
-      view.sprite.setScale(1.2)
+      // The archetype is declared by the stage data, not parsed out of the id:
+      // ids run t1, t2, t3 in act 1 and mirror-1 in act 3, so splitting on '-'
+      // picked the wrong enemy or none at all. A target with no archetype is a
+      // plain destructible box and keeps the placeholder.
+      const archetype = target.archetype
+
+      // Generated art when it exists, the procedural placeholder otherwise. The
+      // sprite is scaled to the target's own collision box, so a drone and a
+      // charger are drawn at the size the rules actually give them rather than
+      // at one size that fits neither.
+      const artKey = archetype === undefined ? undefined : enemyFrameKey(archetype, 'idle')
+      const hasArt = artKey !== undefined && this.textures.exists(artKey)
+      const texture = hasArt && artKey !== undefined ? artKey : enemySprite(archetype ?? 'patrol')
+      const view = new ActorView(this, texture, target.x, target.y, 15, 32, 32)
+
+      if (hasArt) {
+        // Stage targets carry their size flat (x/y/width/height), not in a box -
+        // that shape only exists on the rule-layer state.
+        view.sprite.setOrigin(0.5, 1)
+        view.sprite.setScale(target.height / ENEMY_FRAME_SIZE)
+      } else {
+        view.sprite.setScale(1.2)
+      }
       this.targetViews.set(target.id, view)
     }
   }

@@ -1,5 +1,8 @@
 import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
+import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
+import { sheetUrl } from '../assets/animatedSheets'
+import { preloadEnemies } from '../assets/enemies'
 import {
   backgroundUrl,
   characterSheets,
@@ -67,6 +70,22 @@ export class BootScene extends Phaser.Scene {
     // players will never look at. They are fetched on demand: the look switcher
     // loads a character's set when the player opens it, and the stage loads the
     // one that was chosen.
+
+    // The free animated character (CC BY 4.0). These are the only sheets in the
+    // project with real animation frames rather than a single illustration.
+    for (const character of CHARACTER_IDS) {
+      for (const clip of ANIMATION_CLIPS) {
+        const url = sheetUrl(character, clip)
+        if (url === undefined) continue
+        this.load.spritesheet(sheetKey(character, clip), url, {
+          frameWidth: FRAME_SIZE,
+          frameHeight: FRAME_SIZE,
+        })
+      }
+    }
+
+    // Generated enemy art: ten archetypes, idle and hit.
+    preloadEnemies(this.load)
 
     preloadAudio(this.load)
   }

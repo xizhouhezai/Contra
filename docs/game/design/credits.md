@@ -62,3 +62,34 @@ description: 本项目使用的全部外部素材的作者与许可证
 本文件实现：CC BY-NC-SA 4.0 的署名义务
 
 相关：[美术风格指南](/game/design/art-style) · [角色视觉参考](/game/requirements/character-references)
+
+## 免费动画角色（CC BY 4.0）
+
+项目需要真实动画帧时下载的素材。这是仓库里**唯一**有完整动作序列的角色。
+
+| 项 | 值 |
+| --- | --- |
+| 素材 | Free Greek Character II 2D Animation |
+| 作者 | **Krinwolf.com - Tony Puglieso** |
+| 许可证 | **CC BY 4.0**（可商用，需署名） |
+| 来源 | https://opengameart.org/content/free-greek-character-ii-2d-animation |
+| 存放 | `docs/game/requirements/assets/free-animated/` |
+
+### 包含的动作
+
+| 动作 | 帧数 | 单帧尺寸 |
+| --- | --- | --- |
+| Idle | 18 | 362×586 |
+| Walk | 12 | 423×577 |
+| Attack | 8 | 1026×597 |
+| Jump-Start | 11 | 455×759 |
+| Die | 12 | 781×873 |
+
+原包用 DragonBones 5.6.3 制作，含 `.dbproj` 工程文件（已一并归档）。
+但 `.dbproj` 是 DragonBones 私有二进制格式，**无法在代码中解析**，
+必须用其编辑器打开。因此项目实际使用的是导出好的 PNG 序列帧，
+并已打包为精灵表。
+
+> **重要限制**：这是持剑的希腊战士，**不是六个 AI 娘角色之一**。
+> 它的作用是验证动画管线可行——证明角色可以真正攻击而不只是滑动。
+> 若要换成 AI 娘，需要重画这套动作帧，不是改代码。

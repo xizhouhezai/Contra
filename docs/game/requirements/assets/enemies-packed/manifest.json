@@ -1,0 +1,42 @@
+{
+  "armored": {
+    "hit-00": "armored-hit-00.webp",
+    "idle-00": "armored-idle-00.webp"
+  },
+  "carrier": {
+    "hit-00": "carrier-hit-00.webp",
+    "idle-00": "carrier-idle-00.webp"
+  },
+  "charger": {
+    "hit-00": "charger-hit-00.webp",
+    "idle-00": "charger-idle-00.webp"
+  },
+  "elite-charger": {
+    "hit-00": "elite-charger-hit-00.webp",
+    "idle-00": "elite-charger-idle-00.webp"
+  },
+  "flyer": {
+    "hit-00": "flyer-hit-00.webp",
+    "idle-00": "flyer-idle-00.webp"
+  },
+  "forge": {
+    "hit-00": "forge-hit-00.webp",
+    "idle-00": "forge-idle-00.webp"
+  },
+  "mirror": {
+    "hit-00": "mirror-hit-00.webp",
+    "idle-00": "mirror-idle-00.webp"
+  },
+  "patrol": {
+    "hit-00": "patrol-hit-00.webp",
+    "idle-00": "patrol-idle-00.webp"
+  },
+  "turret": {
+    "hit-00": "turret-hit-00.webp",
+    "idle-00": "turret-idle-00.webp"
+  },
+  "warden": {
+    "hit-00": "warden-hit-00.webp",
+    "idle-00": "warden-idle-00.webp"
+  }
+}

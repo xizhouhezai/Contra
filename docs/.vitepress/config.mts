@@ -107,6 +107,8 @@ export default defineConfig({
             { text: '美术风格指南', link: '/game/design/art-style' },
             { text: '素材署名', link: '/game/design/credits' },
             { text: '形象与骨骼调研', link: '/game/design/animation-research' },
+            { text: '动作帧提示词', link: '/game/design/sprite-prompts' },
+            { text: '美术资源提示词', link: '/game/design/art-prompt-catalogue' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
@@ -116,6 +118,7 @@ export default defineConfig({
           items: [
             { text: '里程碑', link: '/game/tasks/milestones' },
             { text: '任务拆解', link: '/game/tasks/backlog' },
+            { text: 'M6 · 形象与动作帧', link: '/game/tasks/m6-variants-motion' },
             { text: '非功能核对', link: '/game/tasks/nfr-checklist' },
             { text: '部署说明', link: '/game/tasks/deployment' },
           ],

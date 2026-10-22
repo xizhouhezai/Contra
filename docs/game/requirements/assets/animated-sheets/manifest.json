@@ -1,0 +1,152 @@
+{
+  "deepseek": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "deepseek-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "deepseek-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "deepseek-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "deepseek-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "deepseek-hurt.webp"
+      }
+    }
+  },
+  "doubao": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "doubao-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "doubao-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "doubao-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "doubao-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "doubao-hurt.webp"
+      }
+    }
+  },
+  "gemini": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "gemini-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "gemini-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "gemini-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "gemini-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "gemini-hurt.webp"
+      }
+    }
+  },
+  "glm": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "glm-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "glm-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "glm-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "glm-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "glm-hurt.webp"
+      }
+    }
+  },
+  "kimi": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "kimi-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "kimi-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "kimi-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "kimi-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "kimi-hurt.webp"
+      }
+    }
+  },
+  "qwen": {
+    "frame": 256,
+    "clips": {
+      "idle": {
+        "frames": 3,
+        "file": "qwen-idle.webp"
+      },
+      "walk": {
+        "frames": 4,
+        "file": "qwen-walk.webp"
+      },
+      "attack": {
+        "frames": 4,
+        "file": "qwen-attack.webp"
+      },
+      "jump": {
+        "frames": 2,
+        "file": "qwen-jump.webp"
+      },
+      "hurt": {
+        "frames": 1,
+        "file": "qwen-hurt.webp"
+      }
+    }
+  }
+}
