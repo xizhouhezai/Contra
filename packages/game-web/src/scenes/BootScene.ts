@@ -1,5 +1,7 @@
 import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
+import { ANIMATED_CLIPS } from '../assets/animated'
+import { animatedUrl } from '../assets/animatedSheets'
 import {
   backgroundUrl,
   characterSheets,
@@ -67,6 +69,17 @@ export class BootScene extends Phaser.Scene {
     // players will never look at. They are fetched on demand: the look switcher
     // loads a character's set when the player opens it, and the stage loads the
     // one that was chosen.
+
+    // The free animated character (CC BY 4.0). These are the only sheets in the
+    // project with real animation frames rather than a single illustration.
+    for (const clip of ANIMATED_CLIPS) {
+      const url = animatedUrl(clip.key)
+      if (url === undefined) continue
+      this.load.spritesheet(clip.key, url, {
+        frameWidth: clip.frameWidth,
+        frameHeight: clip.frameHeight,
+      })
+    }
 
     preloadAudio(this.load)
   }

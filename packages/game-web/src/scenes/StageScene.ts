@@ -17,6 +17,13 @@ import {
   wantsTouchControls,
 } from '@contra/game-platform'
 import Phaser from 'phaser'
+import {
+  ANIMATED_CLIPS,
+  type AnimationState,
+  clipKeyFor,
+  clipLoops,
+  stateFor,
+} from '../assets/animated'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
 import { AudioManager } from '../audio/AudioManager'
@@ -158,6 +165,8 @@ export class StageScene extends Phaser.Scene {
     // because a laptop with a touchscreen should keep working on its keyboard.
     // Esc opens the pause overlay; the stage is paused, not stopped, so
     // resuming continues from this exact frame.
+    this.registerAnimations()
+
     // Free aim only while the pointer is over the canvas (REQ-GUN-002).
     this.input.on('pointermove', () => {
       this.pointerInside = true
@@ -260,6 +269,49 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * Registers the free character's animation clips.
+   *
+   * Phaser anims are global and keyed by name, so creating one twice throws.
+   * The guard is what lets a stage be entered, left and re-entered.
+   */
+  private registerAnimations(): void {
+    for (const clip of ANIMATED_CLIPS) {
+      if (this.anims.exists(clip.key)) continue
+      if (!this.textures.exists(clip.key)) continue
+      this.anims.create({
+        key: clip.key,
+        frames: this.anims.generateFrameNumbers(clip.key, {
+          start: 0,
+          end: clip.frames - 1,
+        }),
+        frameRate: clip.frameRate,
+        repeat: 0,
+      })
+    }
+  }
+
+  /**
+   * Plays the clip the gameplay state calls for (REQ-GUN-001).
+   *
+   * The animation is driven by the same state the rules already compute - not by
+   * a timer and not by its own state machine - so the character cannot be shown
+   * attacking when no shot was fired.
+   */
+  private syncAnimation(state: AnimationState): void {
+    const view = this.playerView
+    if (view === null) return
+
+    const anim = view.sprite as Phaser.GameObjects.Sprite
+    if (typeof anim.play !== 'function') return
+
+    const key = clipKeyFor(state)
+    if (!this.anims.exists(key)) return
+    if (anim.anims.currentAnim?.key === key && anim.anims.isPlaying) return
+
+    anim.play({ key, repeat: clipLoops(state) ? -1 : 0 })
+  }
+
+  /**
    * Applies the procedural motion to the player sprite (REQ-MOT-001).
    *
    * The offset and the scale come from motionFor, which is pure: this method
@@ -274,6 +326,19 @@ export class StageScene extends Phaser.Scene {
     this.hurtSeconds = Math.max(0, this.hurtSeconds - dt)
 
     const input = this.pollInput(this.inputSource as InputSource)
+
+    // The clip follows the same state the rules compute (REQ-GUN-001).
+    this.syncAnimation(
+      stateFor({
+        moveX: input.moveX,
+        // The trigger being held, not the recoil window: recoil lasts 0.12s and
+        // would make the attack frame flash for a single frame.
+        firing: input.fire,
+        inAir: !this.world.player.onGround,
+        hearts: this.world.player.hearts,
+      }),
+    )
+
     const frame = motionFor(
       this.time.now / 1000,
       {
@@ -356,9 +421,22 @@ export class StageScene extends Phaser.Scene {
     // placeholder. In-game the portrait is drawn scaled into the collision box,
     // which leaves the rule layer's 34x48 body untouched - the art follows the
     // physics, not the other way round.
-    const portraitKey = look.textureKey
+    // A character that has animation frames is drawn as an animated sprite; the
+    // others are a single illustration. The clip is picked from the same state
+    // the rules compute, so the character attacks exactly when a shot fires.
+    const animatedClip = ANIMATED_CLIPS[0]
+    const useAnimated =
+      animatedClip !== undefined &&
+      this.textures.exists(animatedClip.key) &&
+      this.textures.get(animatedClip.key).frameTotal > 1
+
+    const portraitKey =
+      useAnimated && animatedClip !== undefined ? animatedClip.key : look.textureKey
     if (this.textures.exists(portraitKey)) {
-      const source = this.textures.get(portraitKey).getSourceImage()
+      const source =
+        useAnimated && animatedClip !== undefined
+          ? { width: animatedClip.frameWidth, height: animatedClip.frameHeight }
+          : this.textures.get(portraitKey).getSourceImage()
       const scale = Math.min(58 / source.height, 42 / source.width)
       this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
       this.playerView.sprite.setOrigin(0.5, 1)
