@@ -1,127 +1,252 @@
 ---
-title: 动作帧生成提示词
-description: 用生图 agent 生成 DeepSeek 娘动作序列帧的提示词与验收标准
+title: 生图提示词总集
+description: 本项目的全部生图需求、提示词与验收标准
 ---
 
-# 动作帧生成提示词
+# 生图提示词总集
 
-> 用途：在**可生图的 agent** 里生成 DeepSeek 娘的动作帧，替换临时使用的希腊战士素材
-> 追溯：REQ-GUN-001 · [形象与骨骼调研](/game/design/animation-research)
+> 用途：在**可生图的 agent** 中生成项目所需素材
+> 关联：[动作帧提示词](/game/design/sprite-prompts) · [素材署名](/game/design/credits)
 
-## 为什么需要这份文档
-
-免费 API（Pollinations）能出图，但有两个硬伤：
-
-1. **限流 45 秒/张**，且分辨率固定 512×768，做不了精细控制；
-2. **跨动作一致性差** —— 换姿势时发型、配色、服饰细节会漂移。
-
-所以改由能生图的 agent 产出。下面的提示词针对「一致性」这个核心难点设计。
-
-## 角色设定（必须逐条写进提示词）
-
-| 项 | 设定 |
-| --- | --- |
-| 发色 | 深蓝（接近 #2b5fa8），长发过腰 |
-| 头饰 | 白色女仆头饰（frilled white maid headdress） |
-| 服饰 | 蓝色连衣裙 + 白色围裙 |
-| 特征 | **呆毛（ahoge）**、**鲸鱼头鳍**、**鲸尾**、围裙上的鲸鱼印花 |
-| 体型 | Q 版，约 2 头身 |
-| 风格 | 平涂赛璐璐，干净线稿，无渐变阴影 |
-
-## 提示词模板
+## 0. 通用规范（所有提示词共用）
 
 ```
-chibi anime girl, 2-head-tall proportions, long deep blue hair past waist,
-single ahoge on top, small whale fin on head, whale tail, white frilled maid
-headdress, blue dress with white apron, small whale print on apron,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no shadow on ground,
+chibi anime style, flat cel shading, clean lineart, no gradients,
+solid pure white background, centered, full body visible
+```
+
+**负向词**（若 agent 支持）：
+
+```
+blurry, watermark, signature, text, logo, extra limbs, deformed hands,
+realistic photo, 3d render, gradient background, drop shadow, cropped
+```
+
+**为什么强调 flat cel shading**：现有素材是平涂赛璐璐，
+带渐变或 3D 渲染的图放进去会像贴错图。
+
+**为什么强调 pure white background**：需要抠图。纯白最好处理，
+复杂背景抠不干净。
+
+---
+
+## 1. 六角色的动作帧（最高优先级）
+
+### 1.1 DeepSeek · 蓝色大肥鱼
+
+**设定**：深蓝长发过腰、呆毛、鲸鱼头鳍、鲸尾、白女仆头饰、蓝裙白围裙、围裙鲸鱼印花
+
+```
+chibi anime girl, exactly 2-head-tall proportions, long deep blue hair past waist,
+single ahoge on top, small whale fin on head, whale tail, white frilled maid headdress,
+blue dress with white apron, small whale print on apron,
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
 solid pure white background, game sprite, centered
 ```
 
-把 `{POSE}` 替换成下表的姿势。**其余部分一字不改**，这是保持一致性的关键。
-
-## 五个动作的 POSE 片段
-
-| 动作 | 帧数 | `{POSE}` 填写 | 要点 |
-| --- | --- | --- | --- |
-| Idle | 3（循环） | `standing idle, arms relaxed at sides, slight breathing pose` | 脚并拢，重心居中 |
-| Walk | 4（循环） | `walking forward, left leg forward, right arm forward` | 侧身，双腿分开 |
-| Attack | 4 | `attacking, swinging a sword horizontally in front, dynamic lunge pose` | **最关键**，见下方说明 |
-| Jump | 2 | `jumping upward, knees bent, arms raised` | 离地，无地面接触 |
-| Hurt | 1 | `staggering back, head tilted, one arm up defensively` | 仅一帧 |
-
-## Attack 的关键提示
-
-需求是「拿枪动作不同」，但现有武器是**光弹**，没有枪械模型。两种处理：
-
-**方案 1（推荐）**：让角色**手持一把抽象能量炮**，与光弹世界观一致：
-
-```
-attacking, holding a glowing energy cannon with both hands, aiming forward,
-recoil pose, body leaning back slightly
-```
-
-**方案 2**：空手释放能量，靠体态表达动作：
-
-```
-attacking, thrusting both palms forward, energy gathering at hands, dynamic lunge
-```
-
-不要把武器画成枪械或刀剑 —— 游戏里武器是光弹，画出实体枪会和实际子弹脱节。
-
-## 技术规格
-
-| 项 | 要求 | 原因 |
+| 动作 | 帧数 | `{POSE}` |
 | --- | --- | --- |
-| 分辨率 | 每帧 **512×512** | 游戏内显示约 40×58px，512 足够且不浪费 |
-| 背景 | **纯白 #FFFFFF** | 需抠图，纯白最容易 |
-| 角色高度 | 占画面 **80%** | 留出摆动余量，多帧拼接时不裁切 |
-| 朝向 | **一律面朝右** | 代码里左右翻转复用，不用生成两套 |
-| 格式 | PNG | 需透明通道 |
+| Idle | 3 | `standing idle, arms relaxed at sides` |
+| Walk | 4 | `walking forward, left leg forward, right arm forward` |
+| Attack | 4 | `holding a glowing energy cannon with both hands, aiming forward, recoil pose` |
+| Jump | 2 | `jumping upward, knees bent, arms raised` |
+| Hurt | 1 | `staggering back, head tilted, one arm up defensively` |
 
-## 一致性检查清单
+### 1.2 Qwen · 千问
 
-生成后**逐条核对**，任何一条不符合就重生成该帧：
+**设定**：淡紫蓝发、编发、折扇、蓝白旗袍、六角花徽章
 
-- [ ] 发色与上一帧完全一致（不是「接近」，是同一色值）
-- [ ] 呆毛、头鳍、鲸尾三个特征都在
-- [ ] 围裙的鲸鱼印花没丢
-- [ ] 头身比一致（都是 2 头身，不能有的 1.5 有的 3）
+```
+chibi anime girl, exactly 2-head-tall proportions, pale lavender-blue hair in braids,
+holding a folding fan, blue-and-white qipao dress, hexagonal flower emblem on chest,
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
+solid pure white background, game sprite, centered
+```
+
+Attack 姿势换成持扇释放能量：`fanning the folding fan forward, energy arc from the fan`
+
+### 1.3 豆包 · DouBao
+
+**设定**：深棕短发、圆润 Q 版、大眼、亲和神情（官方 3D 形象，但游戏内用 2D 化）
+
+```
+chibi anime girl, exactly 2-head-tall proportions, short dark brown bob hair,
+large round eyes, friendly expression, simple casual outfit {COLOR},
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
+solid pure white background, game sprite, centered
+```
+
+`{COLOR}` 填 `in orange and white`（对应现有配色）。
+
+### 1.4 GLM · 哥林姆
+
+**设定**：黑发猫耳、铃铛、黑白女仆装、Z 铭牌、书本
+
+```
+chibi anime girl, exactly 2-head-tall proportions, long black hair with cat ears,
+small bell on collar, black-and-white maid dress, Z badge on chest, holding a book,
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
+solid pure white background, game sprite, centered
+```
+
+### 1.5 Kimi · 月读
+
+**设定**：银白长发、月牙发饰、K 徽章、星空披风
+
+```
+chibi anime girl, exactly 2-head-tall proportions, long silver-white hair,
+crescent moon hair ornament, K badge, starry night cape,
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
+solid pure white background, game sprite, centered
+```
+
+### 1.6 Gemini · 双子
+
+**设定**：蓝紫渐变发、猫耳、四色星芒、白短裙、渐变飘带
+
+```
+chibi anime girl, exactly 2-head-tall proportions, blue-purple gradient long hair,
+cat ears, four-color starburst ornament, white short skirt, gradient ribbons,
+{POSE}, side view facing right, feet visible, flat cel shading, clean lineart,
+solid pure white background, game sprite, centered
+```
+
+---
+
+## 2. 敌人（10 种）
+
+统一模板，替换 `{TYPE}`：
+
+```
+small game enemy sprite, {TYPE}, menacing but cute, chibi proportions,
+side view facing left, flat cel shading, clean lineart,
+solid pure white background, centered, game sprite
+```
+
+| 类型 | `{TYPE}` |
+| --- | --- |
+| 巡逻兵 | `small floating robot drone with one glowing eye` |
+| 炮台 | `stationary turret with two barrels and a red core` |
+| 运载者 | `floating carrier with a container on its back` |
+| 冲锋者 | `armored quadruped charging forward with horns` |
+| 飞行者 | `winged creature with sharp talons` |
+| 守卫 | `heavy armored guard with a shield` |
+| 装甲兵 | `armored soldier with plated chest` |
+| 锻造者 | `mechanical forge unit with a hammer arm` |
+| 镜像 | `mirror copy of the player, translucent and glitchy` |
+| 精英冲锋者 | `elite charger, larger and with glowing horns` |
+
+---
+
+## 3. 背景（工业风视差层）
+
+现有 4 层 CC0 背景可用，若要重做：
+
+```
+industrial cyberpunk cityscape, {LAYER}, pixel art style,
+limited palette of dark teal and warm ochre, no characters, seamless horizontal tiling
+```
+
+| 层 | `{LAYER}` |
+| --- | --- |
+| 天空 | `distant sky with clouds, no buildings` |
+| 远景建筑 | `far background silhouette buildings, low detail` |
+| 中景建筑 | `midground factory buildings with windows` |
+| 前景 | `foreground pipes and girders, high detail, dark` |
+
+---
+
+## 4. 界面素材
+
+### 4.1 角色头像（HUD 用）
+
+```
+chibi anime character portrait, {CHARACTER_DESCRIPTION}, head and shoulders,
+flat cel shading, clean lineart, solid pure white background, square composition
+```
+
+### 4.2 Boss 立绘
+
+```
+anime villain portrait, {BOSS_DESCRIPTION}, dramatic pose, half body,
+flat cel shading, clean lineart, solid pure white background
+```
+
+| Boss | 描述 |
+| --- | --- |
+| Claude 审计者 | `silver-white long hair, orange flower ornament, maid outfit, orange eyes` |
+| Claude 改写者 | 同上，配色转红：`same character, crimson red accents, rule patterns` |
+| GPT 语料 | `blonde twin tails, demon horns and wings, black-gold long dress, X emblem` |
+| GPT 涌现 | 同上，暗化：`same character, darkened, dissolving outline` |
+
+---
+
+## 5. 验收标准
+
+### 一致性检查（最关键）
+
+同一角色的所有帧逐条核对：
+
+- [ ] 发色**同一色值**（不是接近）
+- [ ] 头身比一致（都是 2 头身）
+- [ ] 标志性配件都在（呆毛/头鳍/鲸尾、折扇、猫耳等）
 - [ ] 线稿粗细一致
-- [ ] 角色高度占画面比例一致（80%）
 - [ ] 全部面朝右
+- [ ] 角色高度占画面 80%
 
-**最容易出问题的是头身比和发色**：换动作时模型倾向于把角色画「成熟」一点。
-如果出现，在提示词里加强：`very important: exactly 2-head-tall chibi proportions, small body, large head`。
-
-## 交付方式
-
-把生成的图按这个结构放入仓库：
+**最容易崩的是头身比**：换动作时模型倾向把角色画「成熟」。
+出现就加强：
 
 ```
-docs/game/requirements/assets/animated/deepseek/
-  idle-00.png  idle-01.png  idle-02.png
-  walk-00.png  walk-01.png  walk-02.png  walk-03.png
-  attack-00.png  attack-01.png  attack-02.png  attack-03.png
-  jump-00.png  jump-01.png
-  hurt-00.png
+very important: exactly 2-head-tall chibi proportions, small body, large head
 ```
 
-我会写脚本把它们打包成精灵表，接进现有的动画管线 —— 
-代码侧已经就绪（`packages/game-web/src/assets/animated.ts`），只等图。
+### 技术规格
 
-## 备选：先用 Q 版图库里的现成形象
+| 项 | 要求 |
+| --- | --- |
+| 分辨率 | 动作帧 512×512 |
+| 背景 | 纯白 #FFFFFF |
+| 格式 | PNG（需透明通道时后处理抠图） |
+| 朝向 | 一律面朝右 |
 
-仓库里已有 57 张梗图（`assets/official/meme-deepseek/`），
-其中部分是同一角色的不同表情。如果生图一致性始终不达标，
-可以退而求其次：**用这些表情图做「状态切换」而非「动作动画」** ——
-站立时是一张，开火时换成表情更凶的一张，受伤时换成哭脸。
+---
 
-这不需要新素材，代码量约 40 行，效果不如真动画但比静止贴图强。
+## 6. 交付与接入
 
-## 追溯
+放到这个结构：
+
+```
+docs/game/requirements/assets/animated/
+  deepseek/idle-00.png ...
+  qwen/idle-00.png ...
+  ...
+```
+
+代码侧已就绪：
+
+| 文件 | 作用 |
+| --- | --- |
+| `assets/animated.ts` | 动画帧表与状态映射 |
+| `assets/animatedSheets.ts` | 贴图加载 |
+| `scripts/pack-sprites.py` | 打包成精灵表（待写） |
+
+图到位后我会打包并替换掉当前的希腊战士。
+
+---
+
+## 7. 备选：不生成也能改善
+
+如果生图一致性始终不达标，有两条退路：
+
+**退路 A**：用已有 57 张梗图做**表情状态切换**（站立/开火/受伤各一张），
+约 40 行代码，不需要新素材，效果不如真动画但强于静止贴图。
+
+**退路 B**：保留程序化动效（呼吸/后坐/倾斜），这是当前已实现并验证的，
+角色已经会动，只是没有逐帧动作。
+
+## 8. 追溯
 
 本文件实现：REQ-GUN-001 的素材产出规范
 
-相关：[形象与骨骼调研](/game/design/animation-research) · [素材署名](/game/design/credits) · [角色规格](/game/requirements/characters)
+相关：[动作帧提示词](/game/design/sprite-prompts) · [形象与骨骼调研](/game/design/animation-research) · [角色规格](/game/requirements/characters)
