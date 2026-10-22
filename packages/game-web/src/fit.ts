@@ -79,6 +79,25 @@ export function applyFit(scene: Phaser.Scene): void {
 }
 
 /**
+ * The world point that sits at the top-left of the camera's visible area.
+ *
+ * Needed by anything pinned to the camera with scrollFactor 0 - the HUD, the
+ * banner, the touch controls. Those objects are positioned in world units, and
+ * applyFit zooms the camera so it covers GAME_WIDTH x GAME_HEIGHT of world, so
+ * world (0, 0) is not the top-left of what the player sees: it is wherever the
+ * camera happens to be scrolled to. Adding this offset puts a HUD element at
+ * the corner of the screen regardless of zoom or letterboxing.
+ */
+export function hudOrigin(scene: Phaser.Scene): { x: number; y: number } {
+  const camera = scene.cameras.main
+  const zoom = camera.zoom === 0 ? 1 : camera.zoom
+  return {
+    x: camera.scrollX + camera.x / zoom,
+    y: camera.scrollY + camera.y / zoom,
+  }
+}
+
+/**
  * Crops the letterbox away, so the visible area is exactly the game.
  *
  * Without this a 4:3 window shows empty background above and below the viewport
