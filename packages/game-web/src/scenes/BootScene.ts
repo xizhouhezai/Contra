@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
 import { sheetUrl } from '../assets/animatedSheets'
 import { avatarKey, avatarUrl } from '../assets/avatars'
+import { bossArtKey, bossArtUrl, bossFormsWithArt } from '../assets/bosses'
 import { preloadEnemies } from '../assets/enemies'
 import {
   backgroundUrl,
@@ -104,6 +105,11 @@ export class BootScene extends Phaser.Scene {
     for (const weaponId of weaponsWithIcons()) {
       const url = weaponIconUrl(weaponId)
       if (url !== undefined) this.load.image(weaponIconKey(weaponId), url)
+    }
+
+    for (const bossId of bossFormsWithArt()) {
+      const url = bossArtUrl(bossId)
+      if (url !== undefined) this.load.image(bossArtKey(bossId), url)
     }
 
     preloadAudio(this.load)
