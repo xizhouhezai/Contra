@@ -380,6 +380,103 @@ T-<里程碑>-<序号>  任务标题
 - **验收**：公开可访问；资源自托管无第三方 CDN 依赖
 
 
+## M6 · 形象变体与真实动作帧
+
+**依赖**：M5　**详细记录**：[M6 里程碑](/game/tasks/m6-variants-motion)
+
+M4 交付时角色仍是静态立绘、敌人是程序色块 —— 玩法能跑，画面不成立。
+M6 补这一块，不改玩法规则。
+
+### M6.1 形象变体
+
+- `[x]` **T-M6-01** 建立形象目录（立绘 + 57 张 Q 萌梗图索引）
+  - **实现**：`assets/looks.ts`（`looksFor` / `resolveLook`）+ `assets/chibi.ts`
+  - **验收**：每个角色至少一个形象；未知 id 回落而非抛错
+
+- `[x]` **T-M6-02** 选角界面按 Q 循环切换形象
+  - **实现**：`CharacterSelectScene` 的 `cycleLook`，形象条显示「形象 Q 萌 2/21」
+  - **验收**：DeepSeek 21 套形象可切换（浏览器实测）
+
+- `[x]` **T-M6-03** 形象选择传递到关卡场景
+  - **实现**：`StageSelectScene.init` 接收 `lookId`，`StageRequest` 透传
+  - **验收**：选中的形象在关卡内实际显示
+
+- `[x]` **T-M6-04** 梗图按需加载
+  - **实现**：`import.meta.glob` 非 eager + `loadChibi`
+  - **验收**：首包 3.15MB，未因 57 张梗图超预算
+
+### M6.2 程序化动效
+
+- `[x]` **T-M6-05** 纯函数动效模块
+  - **实现**：`sprites/motion.ts`（`motionFor` / `breathScale` / `recoilOffset` / `hurtOffset`）
+  - **验收**：14 个测试；呼吸 scale 恒 ≥ 1（否则角色下沉）
+
+- `[x]` **T-M6-06** 由真实事件驱动
+  - **实现**：`shot` 事件置 `secondsSinceShot = 0`；`playerHurt` 置 `hurtSeconds`
+  - **验收**：动画不会与规则层脱节
+
+- `[x]` **T-M6-07** 移动时停止呼吸、加入倾斜
+  - **实现**：`motionFor` 中 `moveX !== 0` 时 `scaleY = 1`
+  - **验收**：浏览器实测移动时旋转 0.06rad、缩放固定
+
+### M6.3 自由瞄准
+
+- `[x]` **T-M6-08** InputState 增加可选 aim 向量
+  - **实现**：`data/types.ts` 加 `readonly aim?: {x, y}`
+  - **验收**：7 个测试；缺省时行为与旧版逐字节一致
+
+- `[x]` **T-M6-09** 保留八方向行为
+  - **实现**：`aimVector` 优先读 aim，否则按 moveX/moveY
+  - **验收**：输入为 -1/0/1 时仍只产生 8 个角度
+
+- `[x]` **T-M6-10** 鼠标偏移转瞄准
+  - **实现**：`StageScene.pollInput` 取指针世界坐标与角色差值
+  - **验收**：实测瞄准角 -21.3°，非 45° 倍数
+
+### M6.4 动作帧
+
+- `[x]` **T-M6-11** 六角色 84 帧动作图
+  - **范围**：每人 idle 3 / walk 4 / attack 4 / jump 2 / hurt 1
+  - **验收**：512×512 RGBA 真透明，无水印
+
+- `[x]` **T-M6-12** 打包脚本
+  - **实现**：`scripts/pack-sprites.py`，统一缩放 0.562、底部对齐
+  - **验收**：30 张精灵表 1.43MB；消除 7%~16% 的帧间高度浮动
+
+- `[x]` **T-M6-13** 动画状态机
+  - **实现**：`assets/animated.ts` 的 `stateFor` / `clipKeyFor`
+  - **验收**：14 个测试；hurt 优先级高于 firing
+
+- `[x]` **T-M6-14** 动画由规则状态驱动
+  - **实现**：`syncAnimation` 读 `world.player` 状态
+  - **验收**：浏览器实测待机/移动/开火三态切换正确
+
+### M6.5 敌人美术
+
+- `[x]` **T-M6-15** 10 种敌人 × 2 帧
+  - **范围**：patrol / turret / carrier / charger / flyer / warden / armored / forge / mirror / elite-charger
+  - **验收**：512×512 RGBA，无占位图残留
+
+- `[x]` **T-M6-16** 裁剪留白并打包
+  - **实现**：`scripts/pack-enemies.py`，512 → 128 方框
+  - **验收**：打包后 146KB；解决「按 512 画布缩放只剩几像素」
+
+- `[x]` **T-M6-17** TargetDefinition 增加 archetype
+  - **实现**：`entities/Target.ts` 加可选 `archetype`
+  - **验收**：关卡数据显式声明，不再依赖 id 命名约定
+
+- `[x]` **T-M6-18** 渲染层按 archetype 选图
+  - **实现**：`StageScene` 读 `target.archetype`
+  - **验收**：浏览器实测 act I 三个目标均为 enemyArt-patrol-idle
+
+### M6.6 待完成（M6.1 后续）
+
+- `[ ]` **T-M6-19** 接入 HUD 头像（6 个素材已生成）
+- `[ ]` **T-M6-20** 接入通关印章（4 个素材已生成）
+- `[ ]` **T-M6-21** 接入武器图标（10 个素材已生成）
+- `[ ]` **T-M6-22** 接入 Boss 立绘（4 个已生成，需先处理白底透明）
+
+
 ## 任务统计
 
 | 里程碑 | 任务数 |
@@ -390,7 +487,10 @@ T-<里程碑>-<序号>  任务标题
 | M3 | 8 |
 | M4 | 10 |
 | M5 | 8 |
-| **合计** | **58** |
+| M6 | 22 |
+| **合计** | **80** |
+
+其中 M6 的 18 项已完成、4 项待接入（T-M6-19 ~ 22）。
 
 ## 追溯
 

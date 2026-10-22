@@ -118,6 +118,7 @@ export default defineConfig({
           items: [
             { text: '里程碑', link: '/game/tasks/milestones' },
             { text: '任务拆解', link: '/game/tasks/backlog' },
+            { text: 'M6 · 形象与动作帧', link: '/game/tasks/m6-variants-motion' },
             { text: '非功能核对', link: '/game/tasks/nfr-checklist' },
             { text: '部署说明', link: '/game/tasks/deployment' },
           ],
