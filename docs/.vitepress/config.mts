@@ -110,6 +110,7 @@ export default defineConfig({
             { text: '动作帧提示词', link: '/game/design/sprite-prompts' },
             { text: '美术资源提示词', link: '/game/design/art-prompt-catalogue' },
             { text: '场景与音效规划', link: '/game/design/scene-plan' },
+            { text: '敌人攻击设计', link: '/game/design/enemy-attack' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
