@@ -14,10 +14,13 @@ import { DEFAULT_LOOK, looksFor, resolveLook } from '../src/assets/looks'
 const PORTRAIT = 'https://example.invalid/portrait.webp'
 
 describe('Look catalogue (REQ-VAR-001)', () => {
-  it('offers the portrait first when the character has one', () => {
+  it('offers the avatar first, because a square portrait reads on a small card', () => {
+    // The full-body illustration is still available, just not first: it is
+    // wider than the card and had to be scaled down to fit.
     const looks = looksFor('deepseek', PORTRAIT)
-    expect(looks[0]?.kind).toBe('portrait')
+    expect(looks[0]?.kind).toBe('avatar')
     expect(looks[0]?.id).toBe(DEFAULT_LOOK)
+    expect(looks.some((look) => look.kind === 'portrait')).toBe(true)
   })
 
   it('offers no portrait when the character has no art', () => {
@@ -56,7 +59,7 @@ describe('Look fallback (REQ-VAR-001)', () => {
     // A save can point at an image that was renamed or removed.
     const look = resolveLook('deepseek', 'chibi-does-not-exist', PORTRAIT)
     expect(look).toBeDefined()
-    expect(look.kind).toBe('portrait')
+    expect(look.id).toBe(DEFAULT_LOOK)
   })
 
   it('falls back when the character has no art at all', () => {

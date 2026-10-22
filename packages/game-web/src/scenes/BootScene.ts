@@ -2,6 +2,7 @@ import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
 import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
 import { sheetUrl } from '../assets/animatedSheets'
+import { avatarKey, avatarUrl } from '../assets/avatars'
 import { preloadEnemies } from '../assets/enemies'
 import {
   backgroundUrl,
@@ -86,6 +87,12 @@ export class BootScene extends Phaser.Scene {
 
     // Generated enemy art: ten archetypes, idle and hit.
     preloadEnemies(this.load)
+
+    // Character avatars: square portraits used by the select screen and HUD.
+    for (const character of CHARACTER_IDS) {
+      const url = avatarUrl(character)
+      if (url !== undefined) this.load.image(avatarKey(character), url)
+    }
 
     preloadAudio(this.load)
   }
