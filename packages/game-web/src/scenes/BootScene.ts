@@ -1,7 +1,7 @@
 import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
-import { ANIMATED_CLIPS } from '../assets/animated'
-import { animatedUrl } from '../assets/animatedSheets'
+import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
+import { sheetUrl } from '../assets/animatedSheets'
 import {
   backgroundUrl,
   characterSheets,
@@ -72,13 +72,15 @@ export class BootScene extends Phaser.Scene {
 
     // The free animated character (CC BY 4.0). These are the only sheets in the
     // project with real animation frames rather than a single illustration.
-    for (const clip of ANIMATED_CLIPS) {
-      const url = animatedUrl(clip.key)
-      if (url === undefined) continue
-      this.load.spritesheet(clip.key, url, {
-        frameWidth: clip.frameWidth,
-        frameHeight: clip.frameHeight,
-      })
+    for (const character of CHARACTER_IDS) {
+      for (const clip of ANIMATION_CLIPS) {
+        const url = sheetUrl(character, clip)
+        if (url === undefined) continue
+        this.load.spritesheet(sheetKey(character, clip), url, {
+          frameWidth: FRAME_SIZE,
+          frameHeight: FRAME_SIZE,
+        })
+      }
     }
 
     preloadAudio(this.load)

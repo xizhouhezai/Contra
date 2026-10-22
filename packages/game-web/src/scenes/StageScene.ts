@@ -18,10 +18,13 @@ import {
 } from '@contra/game-platform'
 import Phaser from 'phaser'
 import {
-  ANIMATED_CLIPS,
+  ANIMATION_CLIPS,
+  type AnimationClip,
   type AnimationState,
-  clipKeyFor,
+  CLIP_FRAME_RATE,
   clipLoops,
+  FRAME_SIZE,
+  sheetKey,
   stateFor,
 } from '../assets/animated'
 import { resolveLook } from '../assets/looks'
@@ -110,6 +113,8 @@ export class StageScene extends Phaser.Scene {
   private lastMotionOffsetX = 0
   /** True while the mouse is over the canvas, gating free aim (REQ-GUN-002). */
   private pointerInside = false
+  /** The character being played, resolved once in create(). */
+  private character: CharacterId = 'deepseek'
   private readonly targetViews = new Map<string, ActorView>()
   private readonly bulletViews = new Map<string, ActorView>()
   private hud: Phaser.GameObjects.Text | null = null
@@ -165,7 +170,7 @@ export class StageScene extends Phaser.Scene {
     // because a laptop with a touchscreen should keep working on its keyboard.
     // Esc opens the pause overlay; the stage is paused, not stopped, so
     // resuming continues from this exact frame.
-    this.registerAnimations()
+    this.registerAnimations(this.character)
 
     // Free aim only while the pointer is over the canvas (REQ-GUN-002).
     this.input.on('pointermove', () => {
@@ -274,17 +279,22 @@ export class StageScene extends Phaser.Scene {
    * Phaser anims are global and keyed by name, so creating one twice throws.
    * The guard is what lets a stage be entered, left and re-entered.
    */
-  private registerAnimations(): void {
-    for (const clip of ANIMATED_CLIPS) {
-      if (this.anims.exists(clip.key)) continue
-      if (!this.textures.exists(clip.key)) continue
+  private registerAnimations(character: CharacterId): void {
+    for (const clip of ANIMATION_CLIPS) {
+      const key = sheetKey(character, clip)
+      if (this.anims.exists(key)) continue
+      if (!this.textures.exists(key)) continue
+
+      // The frame count comes from the texture, not a table: pack-sprites.py
+      // writes a different number of frames per clip and the code should not
+      // hold a second copy of that number that can disagree with the image.
+      const total = this.textures.get(key).frameTotal
+      if (total <= 1) continue
+
       this.anims.create({
-        key: clip.key,
-        frames: this.anims.generateFrameNumbers(clip.key, {
-          start: 0,
-          end: clip.frames - 1,
-        }),
-        frameRate: clip.frameRate,
+        key,
+        frames: this.anims.generateFrameNumbers(key, { start: 0, end: total - 1 }),
+        frameRate: CLIP_FRAME_RATE[clip],
         repeat: 0,
       })
     }
@@ -304,11 +314,14 @@ export class StageScene extends Phaser.Scene {
     const anim = view.sprite as Phaser.GameObjects.Sprite
     if (typeof anim.play !== 'function') return
 
-    const key = clipKeyFor(state)
+    // 'die' has no authored frames; the hurt clip held to its last frame is
+    // the closest thing, and a character with zero hearts is not moving anyway.
+    const clip: AnimationClip = state === 'die' ? 'hurt' : state
+    const key = sheetKey(this.character, clip)
     if (!this.anims.exists(key)) return
     if (anim.anims.currentAnim?.key === key && anim.anims.isPlaying) return
 
-    anim.play({ key, repeat: clipLoops(state) ? -1 : 0 })
+    anim.play({ key, repeat: clipLoops(clip) ? -1 : 0 })
   }
 
   /**
@@ -335,6 +348,7 @@ export class StageScene extends Phaser.Scene {
         // would make the attack frame flash for a single frame.
         firing: input.fire,
         inAir: !this.world.player.onGround,
+        hurt: this.hurtSeconds > 0,
         hearts: this.world.player.hearts,
       }),
     )
@@ -414,6 +428,7 @@ export class StageScene extends Phaser.Scene {
     this.prevY = spawn.y
     // Real sprite sheet when the art shipped, grey box when it did not.
     const character: CharacterId = (this.request.characterId as CharacterId) ?? 'deepseek'
+    this.character = character
     // The look the player chose on the select screen (REQ-VAR-001). Falls back
     // to the painted portrait when the id names an image that is not loaded.
     const look = resolveLook(character, this.request.lookId, portraitUrl(character))
@@ -424,20 +439,23 @@ export class StageScene extends Phaser.Scene {
     // A character that has animation frames is drawn as an animated sprite; the
     // others are a single illustration. The clip is picked from the same state
     // the rules compute, so the character attacks exactly when a shot fires.
-    const animatedClip = ANIMATED_CLIPS[0]
-    const useAnimated =
-      animatedClip !== undefined &&
-      this.textures.exists(animatedClip.key) &&
-      this.textures.get(animatedClip.key).frameTotal > 1
+    // A character with generated frames is drawn as an animated sprite; the
+    // portrait is the fallback for one that has none. This is what decides
+    // whether the player walks and shoots or slides around as a still image.
+    const idleKey = sheetKey(character, 'idle')
+    const useAnimated = this.textures.exists(idleKey)
 
-    const portraitKey =
-      useAnimated && animatedClip !== undefined ? animatedClip.key : look.textureKey
+    const portraitKey = useAnimated ? idleKey : look.textureKey
     if (this.textures.exists(portraitKey)) {
-      const source =
-        useAnimated && animatedClip !== undefined
-          ? { width: animatedClip.frameWidth, height: animatedClip.frameHeight }
-          : this.textures.get(portraitKey).getSourceImage()
-      const scale = Math.min(58 / source.height, 42 / source.width)
+      const source = useAnimated
+        ? { width: FRAME_SIZE, height: FRAME_SIZE }
+        : this.textures.get(portraitKey).getSourceImage()
+      // The rule layer's body is 34x48. The art is scaled to that, not to a
+      // number that happens to look right: a character drawn at 42px wide was
+      // visibly smaller than the box it collides in.
+      const scale = useAnimated
+        ? 48 / source.height
+        : Math.min(58 / source.height, 42 / source.width)
       this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
       this.playerView.sprite.setOrigin(0.5, 1)
       this.playerView.sprite.setScale(scale)

@@ -9,6 +9,20 @@ description: 项目全部待生成美术资源的提示词、规格与验收标�
 > 生成后按对应规格检查，符合的放入指定路径。
 > 关联：[动作帧提示词](/game/design/sprite-prompts) · [素材署名](/game/design/credits)
 
+## 进度总览
+
+| 资源 | 数量 | 状态 |
+| --- | --- | --- |
+| 六角色动作帧 | 84 帧 | ✅ **已完成并接入游戏** |
+| 敌人 × 10 | 20 帧 | ⬜ 待生成（**当前最缺**） |
+| Boss × 4 形态 | 8 帧 | ⬜ 待生成 |
+| 武器图标 × 10 | 10 | ⬜ 待生成 |
+| HUD 头像 × 6 | 6 | ⬜ 待生成 |
+| 背景 × 4 层 | 4 | ⬜ 待生成 |
+| 通关印章 × 4 | 4 | ⬜ 待生成 |
+
+**下一步优先做敌人** —— 游戏里敌人现在还是黑色方块。
+
 ## 0. 全局规则（每个提示词都已内置，无需重复）
 
 **统一画风**：平涂赛璐璐、干净线稿、无渐变、无 3D 渲染。
@@ -85,113 +99,104 @@ realistic photo, 3d render, gradient background, drop shadow, cropped, jpeg arti
 在提示词里补充它的具体细节（发色色值、裙长、装饰位置）。
 ---
 
-# 一、角色动作帧（最高优先级）
+# 一、角色动作帧 —— ✅ 已完成
 
-六个可玩角色，每人 5 个动作共 14 帧。**先做 DeepSeek 一套验证管线，再批量做其余五个。**
+**六角色全部生成完毕，已接入游戏，不需要再生成。**
 
-## 1.1 DeepSeek · 蓝色大肥鱼
+| 角色 | 帧数 | 精灵表 | 状态 |
+| --- | --- | --- | --- |
+| DeepSeek 蓝色大肥鱼 | 14 | 5 张 | ✅ 已接入，待机/移动/开火验证通过 |
+| Qwen 千问 | 14 | 5 张 | ✅ 已接入 |
+| 豆包 DouBao | 14 | 5 张 | ✅ 已接入 |
+| GLM 哥林姆 | 14 | 5 张 | ✅ 已接入 |
+| Kimi 月读 | 14 | 5 张 | ✅ 已接入 |
+| Gemini 双子 | 14 | 5 张 | ✅ 已接入 |
 
-**识别特征**（缺一不可）：深蓝长发过腰、呆毛、鲸鱼头鳍、鲸尾、白女仆头饰、蓝裙白围裙、围裙鲸鱼印花
+**原始帧**：`assets/animated/<角色>/`（512×512 PNG，真透明，无水印）
+**精灵表**：`assets/animated-sheets/`（256×256 帧，30 张，共 1.43MB）
+**打包脚本**：`scripts/pack-sprites.py`
 
-**参考图**：`assets/zipzippipe/deepseek-whale-maid.webp`（立绘）+ `assets/official/meme-deepseek/007.webp`（Q 版）
+### 已解决的一致性问题
 
-```
-chibi anime girl, exactly 2-head-tall proportions, long deep blue hair past waist,
-single ahoge on top, small whale fin on head, whale tail, white frilled maid headdress,
-blue dress with white apron, small whale print on apron,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
+| 项 | 结果 |
+| --- | --- |
+| 透明度 | ✅ 真透明通道（alpha 有实际取值，非全 255） |
+| 水印 | ✅ 无（上一批每张都有「Qoder AI 生成」） |
+| 高度浮动 | 原始 7%~16% → 打包后统一 0.562 缩放，底部对齐 |
+| 角色占画面 | 原始 76%（低于要求 90%）→ 打包时按 90% 归一化 |
 
-| 编号 | 动作 | `{POSE}` |
-| --- | --- | --- |
-| `idle-00` | 待机 A | `standing idle, arms relaxed at sides` |
-| `idle-01` | 待机 B | `standing idle, arms relaxed, head slightly tilted` |
-| `walk-00` | 行 A | `walking forward, left leg forward, right arm forward` |
-| `walk-01` | 行 B | `walking forward, right leg forward, left arm forward` |
-| `attack-00` | 攻 A | `holding a glowing energy cannon with both hands, aiming forward` |
-| `attack-01` | 攻 B | `holding energy cannon, firing, body recoiling backward` |
-| `jump-00` | 跳 A | `jumping upward, knees bent, arms raised` |
-| `jump-01` | 跳 B | `falling, legs extended downward, arms out` |
-| `hurt-00` | 受伤 | `staggering back, head tilted, one arm up defensively` |
+### 保留原提示词的原因
 
-## 1.2 Qwen · 千问
+下面六节**保留但不再执行**。保留的理由：
 
-**特征**：淡紫蓝发、编发、折扇、蓝白旗袍、六角花徽章
+1. 如果以后要**重做某个角色的某个动作**，这是现成的规格说明；
+2. 如果要**新增第七个角色**，可照此模板填特征；
+3. 记下了每个角色的**识别特征清单**，是验收画风的依据。
 
-**参考图**：`assets/official/meme-qwen/2222.webp` + `assets/portraits/qwen.webp`
+### 六角色当前的参考图（做 HUD 头像、立绘、新增角色时用）
 
-```
-chibi anime girl, exactly 2-head-tall proportions, pale lavender-blue hair in braids,
-blue-and-white qipao dress, hexagonal flower emblem on chest,
-holding a folding fan, {POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
+| 角色 | 参考路径 |
+| --- | --- |
+| DeepSeek | `assets/zipzippipe/deepseek-whale-maid.webp` + `assets/official/meme-deepseek/007.webp` |
+| Qwen | `assets/official/meme-qwen/2222.webp` + `assets/portraits/qwen.webp` |
+| 豆包 | `assets/official/meme-doubao/2168.webp` + `assets/portraits/doubao.webp` |
+| GLM | `assets/zipzippipe/glm-zhipu-maidservant.webp` + `assets/official/meme-glm/2173.webp` |
+| Kimi | `assets/zipzippipe/kimi-starlight-k.webp` + `assets/official/meme-kimi/2205.webp` |
+| Gemini | `assets/official/meme-gemini/2171.webp` + `assets/portraits/gemini.webp` |
 
-Attack 姿势：`fanning the folding fan forward, energy arc sweeping from the fan`
-
-## 1.3 豆包 · DouBao
-
-**特征**：深棕短发、圆润 Q 版、大眼、亲和神情、橙白配色
-
-**参考图**：`assets/official/meme-doubao/2168.webp` + `assets/portraits/doubao.webp`（官方 3D 形象）
-
-```
-chibi anime girl, exactly 2-head-tall proportions, short dark brown bob hair,
-large round eyes, friendly expression, casual orange and white outfit,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
-
-## 1.4 GLM · 哥林姆
-
-**特征**：黑发猫耳、铃铛、黑白女仆装、Z 铭牌、手持书
-
-**参考图**：`assets/zipzippipe/glm-zhipu-maidservant.webp` + `assets/official/meme-glm/2173.webp`
-
-```
-chibi anime girl, exactly 2-head-tall proportions, long black hair with cat ears,
-small bell on collar, black-and-white maid dress, Z badge on chest, holding a book,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
-
-## 1.5 Kimi · 月读
-
-**特征**：银白长发、月牙发饰、K 徽章、星空披风
-
-**参考图**：`assets/zipzippipe/kimi-starlight-k.webp` + `assets/official/meme-kimi/2205.webp`
-
-```
-chibi anime girl, exactly 2-head-tall proportions, long silver-white hair,
-crescent moon hair ornament, K badge, starry night cape,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
-
-## 1.6 Gemini · 双子
-
-**特征**：蓝紫渐变发、猫耳、四色星芒、白短裙、渐变飘带
-
-**参考图**：`assets/official/meme-gemini/2171.webp` + `assets/portraits/gemini.webp`
-
-```
-chibi anime girl, exactly 2-head-tall proportions, blue-purple gradient long hair,
-cat ears, four-color starburst ornament, white short skirt, gradient ribbons,
-{POSE}, side view facing right, full body, feet visible,
-flat cel shading, clean lineart, no gradients, no text, no watermark,
-solid pure white background, character occupies 90% of frame height, centered
-```
-
-**注意**：Gemini 的「渐变发」与全局「no gradients」冲突，
-这里指的是**头发本身有色彩过渡**，但仍用平涂手法表达（分色块而非平滑渐变）。
+> 若要重做，**直接把已生成的帧喂给 agent 当参考**，比用原始立绘更准 ——
+> 已生成的帧本身就是 2 头身、平涂、透明背景，风格已经对齐了游戏。
 
 ---
+
+# 附录：六角色动作帧的原始提示词（已完成，仅备查）
+
+> ⚠️ 以下内容已执行完毕，**不要重复生成**。
+> 保留作为「如何为某个角色生成动作帧」的模板。
+
+## 通用模板
+
+```
+chibi anime girl, exactly 2-head-tall proportions, {IDENTIFYING FEATURES},
+{POSE}, side view facing right, full body, feet visible,
+flat cel shading, clean lineart, no gradients, no text, no watermark,
+solid pure white background, character occupies 90% of frame height, centered
+```
+
+把 `{POSE}` 依次替换为：
+
+| 编号 | `{POSE}` |
+| --- | --- |
+| `idle-00` | `standing idle, arms relaxed at sides` |
+| `idle-01` | `standing idle, arms relaxed, head slightly tilted` |
+| `idle-02` | `standing idle, slight breathing pose` |
+| `walk-00` | `walking forward, left leg forward, right arm forward` |
+| `walk-01` | `walking forward, right leg forward, left arm forward` |
+| `walk-02` | `walking forward, mid stride, arms swinging` |
+| `walk-03` | `walking forward, leg extended, body leaning` |
+| `attack-00` | `holding a glowing energy cannon with both hands, aiming forward` |
+| `attack-01` | `holding energy cannon, firing, body recoiling backward` |
+| `attack-02` | `firing energy cannon, muzzle flash, dynamic stance` |
+| `attack-03` | `firing energy cannon, wide stance, intense expression` |
+| `jump-00` | `jumping upward, knees bent, arms raised` |
+| `jump-01` | `falling, legs extended downward, arms out` |
+| `hurt-00` | `staggering back, head tilted, one arm up defensively` |
+
+## 各角色的 `{IDENTIFYING FEATURES}`
+
+| 角色 | 填入 |
+| --- | --- |
+| DeepSeek | `long deep blue hair past waist, single ahoge on top, small whale fin on head, whale tail, white frilled maid headdress, blue dress with white apron, small whale print on apron` |
+| Qwen | `pale lavender-blue hair in braids, blue-and-white qipao dress, hexagonal flower emblem on chest, holding a folding fan` |
+| 豆包 | `short dark brown bob hair, large round eyes, friendly expression, casual orange and white outfit` |
+| GLM | `long black hair with cat ears, small bell on collar, black-and-white maid dress, Z badge on chest, holding a book` |
+| Kimi | `long silver-white hair, crescent moon hair ornament, K badge, starry night cape` |
+| Gemini | `blue-purple gradient long hair, cat ears, four-color starburst ornament, white short skirt, gradient ribbons` |
+
+**Qwen 的 Attack 姿势**换成：`fanning the folding fan forward, energy arc sweeping from the fan`
+（她是扇子不是炮）。
+
+**Gemini 注意**：「渐变发」用平涂分色块表达，不用平滑渐变，否则与全局画风冲突。
 
 # 二、敌人（10 种）
 
@@ -414,19 +419,19 @@ two-color print, grain, no gradients, solid white background
 
 # 九、优先级与批量策略
 
-| 优先级 | 内容 | 数量 | 说明 |
+| 优先级 | 内容 | 数量 | 状态 |
 | --- | --- | --- | --- |
-| **P0** | DeepSeek 全套动作帧 | 9 | 先验证管线，一张不合格就改提示词 |
-| **P1** | 其余 5 角色动作帧 | 45 | P0 验证通过后批量 |
-| **P2** | 10 种敌人各 2 帧 | 20 | |
-| **P3** | 4 个 Boss 各 2 帧 | 8 | |
-| **P4** | 10 个武器图标 | 10 | |
-| **P5** | 6 个 HUD 头像 | 6 | |
-| **P6** | 4 层背景 | 4 | |
-| **P7** | 4 个通关印章 | 4 | |
+| ~~P0~~ | ~~DeepSeek 全套动作帧~~ | ~~9~~ | ✅ **已完成** |
+| ~~P1~~ | ~~其余 5 角色动作帧~~ | ~~45~~ | ✅ **已完成**（实得 75 帧，超出计划） |
+| **P2** | 10 种敌人各 2 帧 | 20 | ⬜ 待生成 |
+| **P3** | 4 个 Boss 各 2 帧 | 8 | ⬜ 待生成 |
+| **P4** | 10 个武器图标 | 10 | ⬜ 待生成 |
+| **P5** | 6 个 HUD 头像 | 6 | ⬜ 待生成 |
+| **P6** | 4 层背景 | 4 | ⬜ 待生成 |
+| **P7** | 4 个通关印章 | 4 | ⬜ 待生成 |
 
-**建议先做 P0 的 9 张**。管线验证通过（抠图干净、动画能播）之后再批量。
-否则 45 张批量生成后发现有系统性问题，返工成本会很高。
+**已完成 P0 与 P1 共 84 帧**，管线验证通过（透明、无水印、动画能播）。
+接下来从 **P2 敌人**开始 —— 那是当前游戏里最缺的：敌人还是程序生成的几何色块。
 
 ---
 

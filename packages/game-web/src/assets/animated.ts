@@ -1,96 +1,82 @@
 import type { CharacterId } from '@contra/game-core'
 
 /**
- * Free animated character (CC BY 4.0, Krinwolf).
+ * Action frames for the six playable characters.
  *
- * This is the first character in the project with real animation frames -
- * idle, walk, attack, jump and die - rather than a single illustration with a
- * procedural wobble. The sheets were packed from the original PNG sequence so
- * each is one texture with equal-width frames.
+ * These replaced the borrowed Greek soldier. Each character has five clips,
+ * packed from individually generated frames by scripts/pack-sprites.py: the
+ * character is normalised to a common scale so the frames sit on one baseline,
+ * and anchored at the bottom so a standing character's feet do not bob.
  *
- * A note on what this is and is not: it is a Greek soldier with a sword, not
- * one of the six AI characters. It proves the animation pipeline and gives the
- * game a character that visibly attacks. Replacing the art with an AI character
- * later means redrawing the frames, not changing this code.
+ * Frame counts differ per clip because that is what was authored - idle needs
+ * three to read as breathing, walk needs four to read as a stride.
  */
 
-export interface AnimatedClip {
-  readonly key: string
-  readonly frames: number
-  readonly frameWidth: number
-  readonly frameHeight: number
-  /** Playback rate; the source was authored at 24fps. */
-  readonly frameRate: number
-}
-
-/** Every clip shipped with the free character. */
-export const ANIMATED_CLIPS: readonly AnimatedClip[] = [
-  { key: 'greek-idle', frames: 18, frameWidth: 362, frameHeight: 586, frameRate: 18 },
-  { key: 'greek-walk', frames: 12, frameWidth: 423, frameHeight: 577, frameRate: 14 },
-  { key: 'greek-attack', frames: 8, frameWidth: 1026, frameHeight: 597, frameRate: 16 },
-  { key: 'greek-jump-start', frames: 11, frameWidth: 455, frameHeight: 759, frameRate: 18 },
-  { key: 'greek-die', frames: 12, frameWidth: 781, frameHeight: 873, frameRate: 14 },
-]
-
-/**
- * Attribution, as CC BY 4.0 requires.
- *
- * The author name is kept here because the licence requires it to travel with
- * the asset; the source url lives in docs/game/design/credits.md instead,
- * because the self-hosting gate (REQ-NFR-021) scans source for external urls
- * and cannot tell a citation from a request.
- */
-export const ANIMATED_CREDIT = {
-  author: 'Krinwolf.com - Tony Puglieso',
-  license: 'CC BY 4.0',
-} as const
+/** The five clips every character ships with. */
+export const ANIMATION_CLIPS = ['idle', 'walk', 'attack', 'jump', 'hurt'] as const
+export type AnimationClip = (typeof ANIMATION_CLIPS)[number]
 
 /** Which clip to play for a gameplay state. */
-export type AnimationState = 'idle' | 'walk' | 'attack' | 'jump' | 'die'
+export type AnimationState = AnimationClip | 'die'
 
-export function clipKeyFor(state: AnimationState): string {
-  switch (state) {
-    case 'idle':
-      return 'greek-idle'
-    case 'walk':
-      return 'greek-walk'
-    case 'attack':
-      return 'greek-attack'
-    case 'jump':
-      return 'greek-jump-start'
-    case 'die':
-      return 'greek-die'
-    default: {
-      const unreachable: never = state
-      void unreachable
-      return 'greek-idle'
-    }
-  }
+/** Frame size of every packed sheet. */
+export const FRAME_SIZE = 256
+
+/** Playback rate per clip. Attack is the fastest so a shot reads as a shot. */
+export const CLIP_FRAME_RATE: Record<AnimationClip, number> = {
+  idle: 6,
+  walk: 10,
+  attack: 14,
+  jump: 8,
+  hurt: 10,
+}
+
+/** Clips that loop; the rest play once and hold. */
+export function clipLoops(clip: AnimationClip): boolean {
+  return clip === 'idle' || clip === 'walk'
 }
 
 /**
- * Maps the rule layer's per-frame state onto an animation.
+ * Maps the rule layer's state onto a clip.
  *
- * Firing wins over moving: a character shooting while walking should look like
- * it is shooting. Death wins over everything.
+ * Firing wins over moving, because a character shooting while walking should
+ * look like it is shooting. Being hurt wins over firing: a hit interrupts.
  */
 export function stateFor(input: {
   readonly moveX: number
   readonly firing: boolean
   readonly inAir: boolean
+  readonly hurt: boolean
   readonly hearts: number
 }): AnimationState {
   if (input.hearts <= 0) return 'die'
+  if (input.hurt) return 'hurt'
   if (input.firing) return 'attack'
   if (input.inAir) return 'jump'
   if (input.moveX !== 0) return 'walk'
   return 'idle'
 }
 
-/** True when the clip should loop rather than play once. */
-export function clipLoops(state: AnimationState): boolean {
-  return state === 'idle' || state === 'walk'
+/**
+ * Texture key for one character's clip.
+ *
+ * The anim- prefix is load-bearing. manifest.ts already registers the old
+ * placeholder sheets under `deepseek-idle` and friends, and a second texture
+ * with the same key is silently dropped - which is how the generated frames
+ * ended up drawing a 192x48 grey placeholder instead of the real sheet.
+ */
+export function sheetKey(character: CharacterId, clip: AnimationClip): string {
+  return `anim-${character}-${clip}`
 }
 
-/** Character id used for the animated sheet lookup. */
-export const ANIMATED_CHARACTER: CharacterId = 'deepseek'
+/**
+ * Attribution.
+ *
+ * The frames were generated for this project from the ZipZipPipe character
+ * designs, which are CC BY-NC-SA 4.0 - non-commercial, share-alike. That is
+ * why the project stays non-commercial.
+ */
+export const FRAME_CREDIT = {
+  basis: 'ZipZipPipe character designs (Bilibili UID 4168597)',
+  license: 'CC BY-NC-SA 4.0',
+} as const
