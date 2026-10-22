@@ -50,6 +50,19 @@ import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../
  * Which stage it plays comes from the init data, not from a constant, so all
  * twelve stages run through this one scene (docs/game/design/modules.md).
  */
+/**
+ * How tall the character is drawn, in world pixels.
+ *
+ * Deliberately larger than the collision box (24x40). The world view is 540
+ * tall, so a body-sized sprite read as a speck; 90px puts the character at
+ * roughly one sixth of the screen height, which is where a side-scrolling
+ * platformer normally sits.
+ *
+ * This is presentation only. The box stays 24x40 so the physics - gravity,
+ * jump arc, and the 24px pillars the player has to fit through - are
+ * unchanged, and so is every existing test.
+ */
+const DISPLAY_HEIGHT = 90
 export class StageScene extends Phaser.Scene {
   private world!: World
   private stage!: StageDefinition
@@ -450,11 +463,17 @@ export class StageScene extends Phaser.Scene {
       const source = useAnimated
         ? { width: FRAME_SIZE, height: FRAME_SIZE }
         : this.textures.get(portraitKey).getSourceImage()
-      // The rule layer's body is 34x48. The art is scaled to that, not to a
-      // number that happens to look right: a character drawn at 42px wide was
-      // visibly smaller than the box it collides in.
+      // The art is drawn taller than the collision box on purpose.
+      //
+      // The rule layer's body is 24x40 and the world is 960x540. Drawn at body
+      // size the character was 48px in a 540px tall view, which read as a
+      // distant speck rather than the thing you are controlling. The sprite is
+      // therefore drawn at DISPLAY_HEIGHT and anchored at the feet, so it looks
+      // right without touching the physics: the box stays 24x40, and the level
+      // geometry - which includes 24px pillars the player squeezes past - is
+      // unaffected.
       const scale = useAnimated
-        ? 48 / source.height
+        ? DISPLAY_HEIGHT / source.height
         : Math.min(58 / source.height, 42 / source.width)
       this.playerView = new ActorView(this, portraitKey, spawn.x, spawn.y, 20, 34, 48)
       this.playerView.sprite.setOrigin(0.5, 1)

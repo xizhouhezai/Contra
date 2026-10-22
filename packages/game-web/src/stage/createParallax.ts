@@ -17,8 +17,23 @@ import { backgroundUrl, PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/mani
  * is additive: the game runs on grey boxes with or without it.
  */
 
-/** How much of each layer shows through, far to near. */
-const LAYER_ALPHA = [0.55, 0.4, 0.3, 0.16] as const
+/**
+ * How much of each layer shows through, far to near.
+ *
+ * Tuned against measurements, not by eye. Two attempts are on record because
+ * the first one went the wrong way.
+ *
+ * At the original 0.55/0.40/0.30/0.16 the backdrop sampled RGB 107,139,119 and
+ * the player 103,134,121 - four levels apart on paper, which is invisible.
+ * Dropping the alphas to 0.30/0.22/0.16/0.10 made it worse: less layer means
+ * more paper, and paper (244,241,234) is lighter than the character's blue.
+ *
+ * Raising them instead pushes the backdrop toward its own dark palette. The
+ * backdrop is now firmly behind the player in value, which is what lets a
+ * blue-and-white silhouette read at a glance. Opacity is doing the opposite of
+ * what it looks like it should do, and that is why it was measured.
+ */
+const LAYER_ALPHA = [0.72, 0.58, 0.44, 0.3] as const
 
 export function createParallax(
   scene: Phaser.Scene,
