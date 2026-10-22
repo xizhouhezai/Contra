@@ -2,6 +2,8 @@ import {
   type CharacterId,
   type InputState,
   loadProgress,
+  PLAYER_HEIGHT,
+  PLAYER_WIDTH,
   recordClear,
   type StageDefinition,
   saveProgress,
@@ -140,6 +142,10 @@ export class StageScene extends Phaser.Scene {
   private weaponIconFor: string | null = null
   /** The weapon name label next to the icon. */
   private weaponLabel: Phaser.GameObjects.Text | null = null
+  /** Controls reminder, shown for the first few seconds of a stage. */
+  private keyHints: Phaser.GameObjects.Text | null = null
+  /** When the stage started, so the reminder can time itself out. */
+  private readonly createdAtMs = Date.now()
   private banner: Phaser.GameObjects.Text | null = null
   private exitZone: Phaser.GameObjects.Rectangle | null = null
   private prevX = 0
@@ -249,6 +255,15 @@ export class StageScene extends Phaser.Scene {
       .setDepth(100)
       .setScale(40 / WEAPON_ICON_SIZE)
       .setVisible(false)
+
+    this.keyHints = this.add
+      .text(0, 0, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: PALETTE.inkMuted,
+        align: 'left',
+      })
+      .setDepth(100)
 
     this.weaponLabel = this.add
       .text(50, 62, '', {
@@ -525,22 +540,16 @@ export class StageScene extends Phaser.Scene {
       // Remembered so the motion can multiply it rather than overwrite it.
       this.playerBaseScale = scale
 
-      // The portrait sheets have a white background. In the select screen that
-      // reads as a framed illustration, which is fine; in-game it reads as a
-      // white rectangle with a person in it, so the sheet is masked to the
-      // character's own bounds.
-      const frame = this.textures.get(portraitKey).getFrameNames()[0]
-      const frameImage = frame === undefined ? undefined : this.textures.get(portraitKey).get(frame)
-      if (frameImage !== undefined && frameImage.cutWidth > 0) {
-        const maskShape = this.make.graphics({}, false)
-        maskShape.fillRect(
-          spawn.x - frameImage.cutWidth * scale * 0.5,
-          spawn.y - frameImage.cutHeight * scale,
-          frameImage.cutWidth * scale,
-          frameImage.cutHeight * scale,
-        )
-        this.playerView.sprite.setMask(maskShape.createGeometryMask())
-      }
+      // No mask. This sprite used to be clipped to a rectangle drawn at the spawn
+      // point, because the painted portraits were opaque illustrations with a
+      // white background that had to be cropped to the character's bounds.
+      //
+      // The action frames are real RGBA with a transparent background, so there
+      // is nothing to crop - and the mask was actively harmful: it is anchored
+      // in world space, so once the player walked away from the spawn point the
+      // mask no longer covered the sprite and the character was clipped out of
+      // existence while still reporting visible, in the right place, on the
+      // ground.
     } else {
       this.playerView = new ActorView(
         this,
@@ -585,9 +594,17 @@ export class StageScene extends Phaser.Scene {
   private syncViews(): void {
     const alpha = Math.min(1, this.world.pendingTime / this.world.fixedStepSeconds)
     const player = this.world.player.position
+    // The rule layer's position is the top-left of the 24x40 collision box; the
+    // sprite is anchored at its own bottom-centre. Passing y straight through
+    // drew the character's feet 40px above the floor - exactly the box height -
+    // and the gap was visible as the character standing in the air.
+    //
+    // The sprite is also wider than the box: it is drawn at DISPLAY_HEIGHT with
+    // the frame's aspect ratio, so it is centred on the box rather than aligned
+    // to its left edge.
     this.playerView?.sync(
-      Phaser.Math.Linear(this.prevX, player.x, alpha),
-      Phaser.Math.Linear(this.prevY, player.y, alpha),
+      Phaser.Math.Linear(this.prevX, player.x, alpha) + PLAYER_WIDTH / 2,
+      Phaser.Math.Linear(this.prevY, player.y, alpha) + PLAYER_HEIGHT,
     )
 
     for (const target of this.world.targets) {
@@ -790,6 +807,23 @@ export class StageScene extends Phaser.Scene {
     this.hud.setPosition(x, y)
     this.weaponIcon?.setPosition(x + 22, y + 28)
     this.weaponLabel?.setPosition(x + 46, y + 28)
+    this.keyHints?.setPosition(x + 8, y + 52)
+
+    // Shown for the first eight seconds, then removed: a permanent cheat-sheet
+    // is clutter, but a stage with no on-screen controls leaves a new player
+    // guessing which key jumps. Faded rather than cut so it does not blink out.
+    if (this.keyHints !== null) {
+      const shownFor = (this.time.now - this.createdAtMs) / 1000
+      if (shownFor > 10) {
+        this.keyHints.destroy()
+        this.keyHints = null
+      } else if (shownFor > 8) {
+        this.keyHints.setAlpha(Math.max(0, 1 - (shownFor - 8) / 2))
+        this.keyHints.setText(this.controlsText())
+      } else {
+        this.keyHints.setText(this.controlsText())
+      }
+    }
 
     const fps = this.game.loop.actualFps
     const status = this.world.clearedStage ? 'CLEARED' : 'RUN'
@@ -797,6 +831,11 @@ export class StageScene extends Phaser.Scene {
       `FPS ${fps.toFixed(1)}  ·  ${status}  ·  x=${this.world.player.position.x.toFixed(0)}  ·  score=${this.world.currentScore}`,
     )
     this.syncWeaponHud()
+  }
+
+  /** The controls reminder, spelled from the actual bindings. */
+  private controlsText(): string {
+    return '← → 移动 · ↑ ↓ 瞄准 · Space 跳 · J 射击 · K 炸弹 · Esc 暂停'
   }
 
   /**
