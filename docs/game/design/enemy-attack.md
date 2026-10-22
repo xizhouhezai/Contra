@@ -207,8 +207,192 @@ if (result.resolved !== null) {
 | 帧率 | 60fps 不下降（弹幕是主要性能风险点） |
 | 测试 | 规则层测试覆盖「敌人开火 → 玩家掉心」全链路 |
 
-## 8. 追溯
+## 8. 战斗表现素材（敌人与 Boss 攻击必需）
 
-本文件实现：需求「敌人与 Boss 需要武器和技能」
+> **这一节是补漏**：原设计只写了敌人「有什么技能」，
+> 却没写「攻击时画面上出现什么」。没有这部分，
+> 玩家看到的就是敌人凭空消失子弹凭空出现。
 
-相关：[敌人与 Boss 数据](/game/design/data-model) · [GDD 战斗系统](/game/requirements/gdd) · [M6 里程碑](/game/tasks/m6-variants-motion)
+### 8.1 敌人武器（需要新画武器的敌人）
+
+**只有 5 种敌人需要武器**，其余 5 种的武器已画在精灵里：
+
+| 敌人 | 精灵现状 | 攻击方式 | 是否需要武器素材 |
+| --- | --- | --- | --- |
+| **巡逻兵** patrol | 无人机，**无武器** | 直射瞄准 | ✅ **需要** |
+| **运载虫** carrier | 背负货箱，**无武器** | 追踪弹 | ✅ **需要** |
+| **守卫者** warden | 持盾，**无攻击武器** | 扇形散射 | ✅ **需要** |
+| **镜像体** mirror | 人形，**无武器** | 复制玩家弹 | ✅ **需要** |
+| **固定炮台** turret | 双管炮台，**已有炮管** | 三发散射 | ⚠️ 仅需炮口闪光 |
+| 冲锋兵 charger | 四足兽 | 冲撞 | ❌ 不需要 |
+| 飞行体 flyer | 飞龙，有爪 | 抛掷 | ❌ 用爪 |
+| 重甲兵 armored | 机械兵 | 正面免疫 | ❌ 不需要 |
+| 锻造者 forge | 锤臂机械 | 地刺 | ❌ 用锤 |
+| 精英冲锋兵 elite | 精英冲撞兽 | 冲撞+三连射 | ⚠️ 仅需炮口闪光 |
+
+### 8.2 敌人武器提示词
+
+```text
+small weapon prop for a game enemy, {WEAPON}, side view, mounted on the enemy,
+chunky readable silhouette, dark teal metal with rust and glowing accent,
+flat cel shading, clean lineart, no text, no watermark,
+solid pure white background, centered
+```
+
+| 配套敌人 | {WEAPON} | 尺寸 |
+| --- | --- | --- |
+| patrol | compact energy pulse gun with a glowing blue muzzle | 24×16 |
+| carrier | missile launcher pod with a purple lens | 28×20 |
+| warden | heavy industrial scatter cannon, five barrel muzzle | 40×24 |
+| mirror | human energy caster, hand-held glowing emitter | 20×24 |
+
+> **第 11 关的「镜像体」用玩家武器的外观**：发射玩家当前武器的弹道，
+> 弹道本身已有 10 张素材，不需另画。
+
+### 8.3 炮口闪光（5 种敌人共用）
+
+```text
+energy weapon muzzle flash, {FLASH}, side view, bright glowing burst,
+flat cel shading, clean lineart, no text, no watermark,
+solid pure white background, centered
+```
+
+| 文件 | {FLASH} | 颜色 | 用于 |
+| --- | --- | --- | --- |
+| `muzzle-blue.webp` | sharp blue-white cross flash | `#4a9eff` | patrol |
+| `muzzle-purple.webp` | purple flare with inner ring | `#a78bfa` | carrier |
+| `muzzle-orange.webp` | wide orange cone burst | `#ff9f1c` | warden、turret、elite |
+| `muzzle-white.webp` | hot white star | `#e8e4dc` | 通用 |
+
+**尺寸 32×32**。
+
+### 8.4 预警提示（关键）
+
+**没有预警的攻击不做。** 这类素材是「公平性」的载体。
+
+```text
+telegraph warning indicator, {WARNING}, side view, semi transparent glow,
+flat cel shading, clean lineart, no text, no watermark,
+solid pure white background, centered
+```
+
+| 文件 | {WARNING} | 尺寸 | 用途 |
+| --- | --- | --- | --- |
+| `aim-line.webp` | thin horizontal energy line with bright tip | 64×4 | 瞄准线（水平拉伸） |
+| `ground-warn.webp` | horizontal glowing strip along the ground | 64×16 | 地面预警带 |
+| `charge-aura.webp` | pulsing ring of energy, charging up | 48×48 | 冲锋兵蓄力 |
+| `charge-spark.webp` | bright impact point on the ceiling | 32×32 | 锻造者地刺起点 |
+
+**颜色统一用 `#d6452c`（朱红）**，与 Riso 风格的警示色一致。
+
+### 8.5 命中与爆炸特效
+
+```text
+impact effect sprite, {EFFECT}, side view, flat cel shading, clean lineart,
+no text, no watermark, solid pure white background, centered
+```
+
+| 文件 | {EFFECT} | 尺寸 | 用途 |
+| --- | --- | --- | --- |
+| `impact-small.webp` | small bright spark burst | 32×32 | 脉冲、连射命中 |
+| `impact-med.webp` | medium explosion with debris | 64×64 | 散弹、榴弹命中 |
+| `impact-big.webp` | large fiery blast with shockwave ring | 128×128 | 集束弹命中 |
+| `impact-pierce.webp` | piercing slash mark, bright white streak | 48×48 | 穿甲弹命中 |
+| `impact-laser.webp` | glowing light spot, soft edge | 48×48 | 激光、棱弹命中 |
+
+### 8.6 Boss 招式特效
+
+每个 Boss 招式需要一个**专属特效**，让玩家一眼知道要躲什么。
+
+```text
+boss attack effect, {BOSS_EFFECT}, side view, flat cel shading, clean lineart,
+no text, no watermark, solid pure white background, centered
+```
+
+| 文件 | {BOSS_EFFECT} | 尺寸 | 对应招式 |
+| --- | --- | --- | --- |
+| `boss-beam.webp` | horizontal energy beam, white core with red edges | 128×32 | audit-beam 横扫光束 |
+| `boss-chain.webp` | chain link projectile with glowing lock | 48×48 | clause-chain 条款锁链 |
+| `boss-sweep.webp` | wide fan-shaped shockwave | 128×128 | rewrite-sweep 全屏扫射 |
+| `boss-lance.webp` | piercing data spear, sharp and thin | 96×32 | redline-lance 数据流穿刺 |
+| `boss-swarm.webp` | cluster of small orbs spreading out | 96×96 | corpus-swarm 弹幕群 |
+| `boss-vines.webp` | spreading root-like tendrils on the ground | 128×64 | harvest-vines 地藤 |
+| `boss-burst.webp` | shattering particle burst, magenta and white | 128×128 | emergence-burst 崩解 |
+| `boss-scythe.webp` | huge crescent slash arc | 160×160 | reaper-scythe 巨镰 |
+
+### 8.7 敌人子弹（按攻击类型）
+
+敌人子弹与玩家子弹**分开**，因为形状不同（敌人更粗、更慢、更易读）。
+
+```text
+enemy projectile sprite, {ENEMY_BULLET}, side view, glowing, threatening shape,
+flat cel shading, clean lineart, no text, no watermark,
+solid pure white background, 64x64, centered
+```
+
+| 文件 | {ENEMY_BULLET} | 颜色 | 用于 |
+| --- | --- | --- | --- |
+| `enemy-pulse.webp` | slow glowing orb, simple and readable | 蓝 | patrol |
+| `enemy-pellet.webp` | short fat pellet, shotgun slug | 橙 | turret、warden |
+| `enemy-homing.webp` | missile with a curved smoke trail | 紫 | carrier |
+| `enemy-lobbed.webp` | round grenade-like sphere | 褐 | flyer |
+| `enemy-mirror.webp` | plain neutral orb, copies player shape | 白 | mirror |
+| `enemy-spike.webp` | ground spike erupting upward | 朱红 | forge |
+| `enemy-heavy.webp` | large heavy projectile for the elite | 深灰 | elite-charger |
+
+### 8.8 素材总量
+
+| 类别 | 数量 |
+| --- | --- |
+| 敌人武器 | 4 |
+| 炮口闪光 | 4 |
+| 预警提示 | 4 |
+| 命中特效 | 5 |
+| Boss 招式特效 | 8 |
+| 敌人子弹 | 7 |
+| **合计** | **32** |
+
+### 8.9 交付路径
+
+```text
+docs/game/requirements/assets/
+  enemy-weapons/   pulse-gun.webp launcher-pod.webp scatter-cannon.webp caster.webp
+  effects/         muzzle-blue.webp muzzle-purple.webp muzzle-orange.webp muzzle-white.webp
+                   aim-line.webp ground-warn.webp charge-aura.webp charge-spark.webp
+                   impact-small.webp impact-med.webp impact-big.webp
+                   impact-pierce.webp impact-laser.webp
+  boss-effects/    boss-beam.webp boss-chain.webp boss-sweep.webp boss-lance.webp
+                   boss-swarm.webp boss-vines.webp boss-burst.webp boss-scythe.webp
+  projectiles/     enemy-pulse.webp enemy-pellet.webp enemy-homing.webp
+                   enemy-lobbed.webp enemy-mirror.webp enemy-spike.webp enemy-heavy.webp
+```
+
+### 8.10 验收标准
+
+| 项 | 标准 |
+| --- | --- |
+| **预告可见** | 每次攻击前 ≥0.5s，画面上**看得见**预告（**最重要**） |
+| 武器对位 | 武器挂在敌人身上的位置合理，不悬空 |
+| 特效尺寸 | 严格按上表 |
+| 透明 | 全部透明背景 |
+| 画风统一 | 与角色、敌人精灵同属平涂赛璐璐 |
+| 水印 | 无 |
+| 方向 | 一律朝右（代码翻转复用） |
+
+### 8.11 分阶段
+
+| 阶段 | 内容 | 数量 | 理由 |
+| --- | --- | --- | --- |
+| **A** | 敌人子弹 7 + 炮口闪光 4 | 11 | 攻击能看见的前提 |
+| **B** | 预警提示 4 | 4 | **公平性保障，最优先** |
+| **C** | 命中特效 5 + Boss 特效 8 | 13 | 打击感 |
+| **D** | 敌人武器 4 | 4 | 可最后做，武器缺失也能攻击 |
+
+> **B 阶段优先级最高**：没有预警，即使有子弹和武器，
+> 玩家依然会觉得被偷袭。
+
+## 9. 追溯
+
+本文件实现：需求「敌人与 Boss 需要武器和技能」与「技能所需的美术资源」
+
+相关：[敌人与 Boss 数据](/game/design/data-model) · [GDD 战斗系统](/game/requirements/gdd) · [场景生成提示词](/game/design/scene-prompts) · [M6 里程碑](/game/tasks/m6-variants-motion)
