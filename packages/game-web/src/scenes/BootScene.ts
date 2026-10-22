@@ -11,6 +11,7 @@ import {
   PARALLAX_LAYERS,
   portraitUrl,
 } from '../assets/manifest'
+import { STAMP_GRADES, stampKey, stampUrl } from '../assets/stamps'
 import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
 import { applyFit } from '../fit'
@@ -92,6 +93,11 @@ export class BootScene extends Phaser.Scene {
     for (const character of CHARACTER_IDS) {
       const url = avatarUrl(character)
       if (url !== undefined) this.load.image(avatarKey(character), url)
+    }
+
+    for (const grade of STAMP_GRADES) {
+      const url = stampUrl(grade)
+      if (url !== undefined) this.load.image(stampKey(grade), url)
     }
 
     preloadAudio(this.load)
