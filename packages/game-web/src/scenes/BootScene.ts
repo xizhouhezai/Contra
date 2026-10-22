@@ -62,6 +62,12 @@ export class BootScene extends Phaser.Scene {
       if (url !== undefined) this.load.image(`portrait-${id}`, url)
     }
 
+    // Chibi looks (REQ-VAR-001) are NOT preloaded. All 57 of them add 1.5MB
+    // and push the first load past the 8MB budget (REQ-NFR-003), for images most
+    // players will never look at. They are fetched on demand: the look switcher
+    // loads a character's set when the player opens it, and the stage loads the
+    // one that was chosen.
+
     preloadAudio(this.load)
   }
 

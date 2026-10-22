@@ -79,6 +79,16 @@ export interface InputState {
   readonly jump: boolean
   readonly fire: boolean
   readonly bomb: boolean
+  /**
+   * Free aim vector (REQ-GUN-002).
+   *
+   * Optional so every existing caller keeps working: when absent the aim is
+   * derived from moveX/moveY exactly as before, which is the eight-direction
+   * behaviour the twelve stages were balanced against. When present it wins,
+   * and its components may be any value in -1..1 - that is what lets a mouse or
+   * a right stick point between the eight directions.
+   */
+  readonly aim?: { readonly x: number; readonly y: number }
 }
 
 /** Axis-aligned box in world space, top-left origin, y pointing down. */

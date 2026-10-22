@@ -36,13 +36,16 @@ export class StageSelectScene extends Phaser.Scene {
   private readonly columns = 4
   /** Carried from the character screen through to the stage scene. */
   private characterId: string | undefined
+  /** The chosen look, carried the same way (REQ-VAR-001). */
+  private lookId: string | undefined
 
   constructor() {
     super('StageSelect')
   }
 
-  init(data: { characterId?: string }): void {
+  init(data: { characterId?: string; lookId?: string }): void {
     this.characterId = data?.characterId
+    this.lookId = data?.lookId
   }
 
   create(): void {
@@ -218,6 +221,10 @@ export class StageSelectScene extends Phaser.Scene {
 
   /** Starts a stage, passing along whoever was chosen on the previous screen. */
   private enterStage(stageId: string): void {
-    this.scene.start('Stage', { stageId, characterId: this.characterId })
+    this.scene.start('Stage', {
+      stageId,
+      characterId: this.characterId,
+      lookId: this.lookId,
+    })
   }
 }
