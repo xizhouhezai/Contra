@@ -1,5 +1,6 @@
 import type { TargetDefinition } from '../entities/Target.js'
-import type { BossId, MechanicId, PlatformDefinition, Rect, Vec2 } from './types.js'
+import type { TerrainPlatform } from '../systems/Terrain.js'
+import type { BossId, MechanicId, Rect, Vec2 } from './types.js'
 
 /**
  * A stage, as data.
@@ -20,7 +21,15 @@ export interface StageDefinition {
   readonly widthPx: number
   readonly heightPx: number
   readonly spawn: Vec2
-  readonly platforms: readonly PlatformDefinition[]
+  /**
+   * Collision platforms.
+   *
+   * TerrainPlatform rather than the bare Rect alias: a platform may oscillate or
+   * be breakable, and those two fields are what the stage mechanics read. They
+   * were unreachable while the type was Rect - a stage could not declare a moving
+   * plank even with the rule layer able to carry one.
+   */
+  readonly platforms: readonly TerrainPlatform[]
   /** Walls that reflect bullets (mechanic: bounce-wall). */
   readonly bounceWalls: readonly Rect[]
   readonly targets: readonly TargetDefinition[]

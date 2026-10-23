@@ -279,6 +279,12 @@ export class StageScene extends Phaser.Scene {
       // it the World defaults to act 1, so acts 2 and 3 would stay capped at one
       // shooter and the later stages would feel easier than the first.
       act: this.stage.act,
+      // The stage definition carries what the mechanics need: the bounce walls,
+      // the scroll mode and the moving platforms. Without it the World sees an
+      // empty stage and every authored mechanic silently does nothing - the unit
+      // tests build a World with the stage attached and never noticed, because
+      // they bypass this call site entirely.
+      stage: this.stage,
       // Boss stages name their boss in the stage data (T3). Only boss stages
       // have one, so the key is spread in rather than passed as undefined.
       ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
