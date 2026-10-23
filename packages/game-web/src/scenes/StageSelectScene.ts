@@ -34,6 +34,10 @@ export class StageSelectScene extends Phaser.Scene {
   private cursor = 0
   private highlight: Phaser.GameObjects.Rectangle | null = null
   private readonly columns = 4
+  /** Card borders, kept so the cursor can be drawn rather than hinted. */
+  private readonly borders = new Map<string, Phaser.GameObjects.Rectangle>()
+  /** Offset ink shadow shown only under the cursor. */
+  private readonly shadows = new Map<string, Phaser.GameObjects.Rectangle>()
   /** Carried from the character screen through to the stage scene. */
   private characterId: string | undefined
   /** The chosen look, carried the same way (REQ-VAR-001). */
@@ -68,12 +72,24 @@ export class StageSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     const columns = this.columns
-    const cardWidth = 220
-    const cardHeight = 130
-    const gapX = 20
-    const gapY = 24
-    const startX = (GAME_WIDTH - (columns * cardWidth + (columns - 1) * gapX)) / 2 + cardWidth / 2
-    const startY = 220
+
+    // The grid is laid out from the space that is actually free, not from a card
+    // size chosen first. Twelve stages make three rows of four, and the previous
+    // numbers put the third row at 463..593 against a 540px canvas: the bottom
+    // half of every stage 9-12 was cut off, and the reset hint printed straight
+    // through it.
+    //
+    // Header ends at 92. The hint needs one line at 516. That leaves 400px for
+    // three rows, so each row is 110 tall with an 18px gap: 3 * 110 + 2 * 18 =
+    // 366, starting at 116 and ending at 482.
+    const cardWidth = 210
+    const cardHeight = 110
+    const gapX = 18
+    const gapY = 18
+    const totalWidth = columns * cardWidth + (columns - 1) * gapX
+    const startX = (GAME_WIDTH - totalWidth) / 2 + cardWidth / 2
+    const gridTop = 116
+    const startY = gridTop + cardHeight / 2
 
     CAMPAIGN_STAGES.forEach((stage, index) => {
       const column = index % columns
@@ -84,25 +100,34 @@ export class StageSelectScene extends Phaser.Scene {
       const record = this.progress.stages.find((entry) => entry.stageId === stage.id)
 
       const card = this.add.container(x, y)
+      // Same two-pass ink as the character screen: a heavy shape is a second
+      // pass of ink landing off register, not a coloured frame.
+      const shadow = this.add
+        .rectangle(5, 5, cardWidth, cardHeight, 0x1a1a1a, 0.16)
+        .setOrigin(0.5, 0.5)
+        .setVisible(false)
+      this.shadows.set(stage.id, shadow)
+      card.add(shadow)
+
+      const border = this.add
+        .rectangle(0, 0, cardWidth, cardHeight, 0xffffff, 1)
+        .setStrokeStyle(2, unlocked ? 0x1a1a1a : 0xbbbbbb)
+      this.borders.set(stage.id, border)
+      card.add(border)
       card.add(
         this.add
-          .rectangle(0, 0, cardWidth, cardHeight, 0xffffff, 1)
-          .setStrokeStyle(2, unlocked ? 0x1a1a1a : 0xbbbbbb),
-      )
-      card.add(
-        this.add
-          .text(0, -34, `第 ${stage.index} 关`, {
+          .text(0, -30, `第 ${stage.index} 关`, {
             fontFamily: 'Georgia, serif',
-            fontSize: '16px',
+            fontSize: '14px',
             color: unlocked ? PALETTE.ink : '#999999',
           })
           .setOrigin(0.5),
       )
       card.add(
         this.add
-          .text(0, -4, stage.name, {
+          .text(0, 2, stage.name, {
             fontFamily: 'Georgia, serif',
-            fontSize: '20px',
+            fontSize: '19px',
             color: unlocked ? PALETTE.ink : '#999999',
           })
           .setOrigin(0.5),
@@ -111,9 +136,9 @@ export class StageSelectScene extends Phaser.Scene {
         this.add
           .text(
             0,
-            32,
+            34,
             unlocked ? (record?.cleared ? `已通关 · ${record.bestScore} 分` : '未通关') : '未解锁',
-            { fontFamily: 'monospace', fontSize: '12px', color: PALETTE.inkMuted },
+            { fontFamily: 'monospace', fontSize: '11px', color: PALETTE.inkMuted },
           )
           .setOrigin(0.5),
       )
@@ -144,7 +169,7 @@ export class StageSelectScene extends Phaser.Scene {
     })
 
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 70, 'R 重置存档', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 24, 'R 重置存档', {
         fontFamily: 'Georgia, serif',
         fontSize: '14px',
         color: PALETTE.inkMuted,
@@ -204,13 +229,30 @@ export class StageSelectScene extends Phaser.Scene {
     const card = this.cards[this.cursor]
     if (card === undefined) return
 
-    if (this.highlight === null) {
-      this.highlight = this.add
-        .rectangle(card.x, card.y, card.width + 8, card.height + 8)
-        .setStrokeStyle(3, 0xd6452c)
-        .setDepth(10)
+    // A thin vermillion outline was the previous cursor, and it read as one more
+    // border among twelve cards - the report was literally "I cannot tell which
+    // stage is selected". The card now takes the heavier stroke and the ink
+    // shadow, and the rest of the grid steps back, which is the same treatment
+    // the character screen uses so the two screens agree.
+    for (const other of this.cards) {
+      const isCursor = other === card
+      const unlocked = other.unlocked
+      const border = this.borders.get(other.stageId)
+      if (border !== undefined) {
+        border.setStrokeStyle(isCursor ? 3 : 2, unlocked ? 0x1a1a1a : 0xbbbbbb)
+      }
+      const shadow = this.shadows.get(other.stageId)
+      if (shadow !== undefined) shadow.setVisible(isCursor)
+      other.container.setAlpha(isCursor ? 1 : unlocked ? 0.72 : 0.42)
     }
-    this.highlight.setPosition(card.x, card.y)
+
+    if (this.highlight === null) {
+      // Kept as a hit of vermillion at the corner, which is the one thing the
+      // border and shadow cannot express: "this is where the keyboard will go".
+      this.highlight = this.add.rectangle(card.x, card.y - card.height / 2, 26, 4, 0xd6452c)
+      this.highlight.setOrigin(0, 0.5).setDepth(10)
+    }
+    this.highlight.setPosition(card.x - card.width / 2 + 6, card.y - card.height / 2 + 4)
   }
 
   private enterSelected(): void {
