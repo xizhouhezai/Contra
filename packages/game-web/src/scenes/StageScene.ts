@@ -1250,12 +1250,12 @@ export class StageScene extends Phaser.Scene {
     if (!portrait.visible) return
 
     const exit = this.stage.exit
-    const anchorX = exit.x + exit.width / 2
-    const half = portrait.displayWidth / 2
-    const view = this.cameras.main.worldView
-    const x = Math.max(view.x + half, Math.min(anchorX, view.right - half))
-    // Written only on change: a transform write per frame on a static backdrop
-    // is pure fill-rate for the same pixel.
+    const x = exit.x + exit.width / 2
+    // The portrait stays at the arena. An earlier version clamped it into the
+    // camera view, which dragged a 300px-wide figure across the screen and put it
+    // on top of the player standing at the exit: the boss was readable but the
+    // character was inside its skirt. A backdrop is allowed to leave the frame;
+    // what it must not do is follow the camera into the fight.
     if (portrait.x !== x) portrait.x = x
     if (portrait.y !== exit.y + exit.height) portrait.y = exit.y + exit.height
   }
