@@ -124,16 +124,21 @@ describe('GPT four-phase order (T-M3-06)', () => {
     expect(interlude?.moves).toHaveLength(0)
   })
 
+  /** Non-optional phase access: a form missing from the data should fail loudly. */
+  function phaseOf(index: number) {
+    const phase = GPT_PETER_PAN.phases[index]
+    if (phase === undefined) throw new Error(`no phase ${index} on ${GPT_PETER_PAN.id}`)
+    return phase
+  }
+
   it('names every move of the two forms', () => {
-    const formOne = GPT_PETER_PAN.phases[0].moves.map((m) => m.id)
-    const formTwo = GPT_PETER_PAN.phases[3].moves.map((m) => m.id)
+    const formOne = phaseOf(0).moves.map((m) => m.id)
+    const formTwo = phaseOf(3).moves.map((m) => m.id)
     expect(formOne).toEqual(['data-flood', 'compress-wave', 'sample-draw'])
     expect(formTwo).toEqual(['emergent-proliferation', 'overfit', 'collapse'])
   })
 
   it('gets faster in the final phase', () => {
-    expect(GPT_PETER_PAN.phases[3].speedMultiplier).toBeGreaterThan(
-      GPT_PETER_PAN.phases[0].speedMultiplier,
-    )
+    expect(phaseOf(3).speedMultiplier).toBeGreaterThan(phaseOf(0).speedMultiplier)
   })
 })

@@ -81,22 +81,29 @@ describe('BossDirector (T-M2-07)', () => {
   })
 })
 
+/** Non-optional access for test reads: a boss with no phases is a broken dataset. */
+function phaseOf(boss: typeof CLAUDE_AUDITOR, index: number) {
+  const phase = boss.phases[index]
+  if (phase === undefined) throw new Error(`no phase ${index} on ${boss.id}`)
+  return phase
+}
+
 describe('审计者 (T-M2-08)', () => {
   it('has two dodgable moves with a warning window', () => {
-    const moves = CLAUDE_AUDITOR.phases[0].moves
+    const moves = phaseOf(CLAUDE_AUDITOR, 0).moves
     expect(moves.map((m) => m.id).sort()).toEqual(['audit-beam', 'clause-chain'])
     for (const move of moves) expect(move.telegraphSeconds).toBeGreaterThan(0)
   })
 
   it('speeds up below half health', () => {
-    expect(CLAUDE_AUDITOR.phases[1].speedMultiplier).toBeGreaterThan(
-      CLAUDE_AUDITOR.phases[0].speedMultiplier,
+    expect(phaseOf(CLAUDE_AUDITOR, 1).speedMultiplier).toBeGreaterThan(
+      phaseOf(CLAUDE_AUDITOR, 0).speedMultiplier,
     )
   })
 
   it('shortens its warning window in phase 2', () => {
-    const phase1 = CLAUDE_AUDITOR.phases[0].moves.find((m) => m.id === 'audit-beam')
-    const phase2 = CLAUDE_AUDITOR.phases[1].moves.find((m) => m.id === 'audit-beam')
+    const phase1 = phaseOf(CLAUDE_AUDITOR, 0).moves.find((m) => m.id === 'audit-beam')
+    const phase2 = phaseOf(CLAUDE_AUDITOR, 1).moves.find((m) => m.id === 'audit-beam')
     expect(phase2?.telegraphSeconds).toBeLessThan(phase1?.telegraphSeconds ?? 0)
   })
 
@@ -110,8 +117,8 @@ describe('审计者 (T-M2-08)', () => {
 
 describe('改写者 (T-M2-09)', () => {
   it('flips gravity only in its second phase', () => {
-    expect(CLAUDE_REWRITER.phases[0].gravityFlip).toBeNull()
-    expect(CLAUDE_REWRITER.phases[1].gravityFlip).not.toBeNull()
+    expect(phaseOf(CLAUDE_REWRITER, 0).gravityFlip).toBeNull()
+    expect(phaseOf(CLAUDE_REWRITER, 1).gravityFlip).not.toBeNull()
   })
 
   it('flips gravity when it crosses into phase 2', () => {
@@ -131,7 +138,7 @@ describe('改写者 (T-M2-09)', () => {
     stepBoss(state, 0)
     expect(state.gravityFlipped).toBe(true)
 
-    const window = CLAUDE_REWRITER.phases[1].gravityFlip?.secondsPerCycle ?? 0
+    const window = phaseOf(CLAUDE_REWRITER, 1).gravityFlip?.secondsPerCycle ?? 0
     expect(window).toBeGreaterThan(0)
 
     for (let step = 0; step < Math.round(window * 60) + 10; step += 1) stepBoss(state, 1 / 60)
@@ -147,8 +154,8 @@ describe('改写者 (T-M2-09)', () => {
   })
 
   it('has three moves in its second phase', () => {
-    expect(CLAUDE_REWRITER.phases[1].moves.length).toBe(3)
-    expect(CLAUDE_REWRITER.phases[1].moves.map((m) => m.id)).toContain('rule-rewrite')
+    expect(phaseOf(CLAUDE_REWRITER, 1).moves.length).toBe(3)
+    expect(phaseOf(CLAUDE_REWRITER, 1).moves.map((m) => m.id)).toContain('rule-rewrite')
   })
 
   it('keeps every move on a cooldown', () => {

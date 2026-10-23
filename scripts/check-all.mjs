@@ -173,6 +173,21 @@ const GATES = [
     ],
   },
   {
+    // game-core's tsconfig.typecheck.json includes test/**/*.ts and nothing ever
+    // ran it. tsc -b builds src only, so the rule layer's tests were never
+    // typechecked: they held 24 errors, four of them a compile-time exhaustiveness
+    // proof over CoreEvent that stopped being true when boss and enemy attack
+    // events landed. A test that cannot compile is a test that cannot protect.
+    label: '规则层类型',
+    detail: 'game-core tsc --noEmit（含 test/）',
+    run: () => [
+      toolEntry('typescript'),
+      '--noEmit',
+      '-p',
+      'packages/game-core/tsconfig.typecheck.json',
+    ],
+  },
+  {
     // Not a bare `vitest run`: from the repository root that found one test file
     // and reported green on five tests. scripts/test-all.mjs runs each package
     // under its own config and aggregates the verdict.
