@@ -18,7 +18,6 @@ export const GROUND_TILE_HEIGHT = 64
 
 /** The nine-slice source, 3x3 cells of 32px. */
 export const PLATFORM_NINE_SLICE = 96
-const _CELL = 32
 
 export type GroundVariant = 'cold' | 'teal' | 'grey'
 
@@ -120,7 +119,7 @@ export function drawPlatform(
   const h = Math.max(sliceH, 1)
 
   return scene.add
-    .nineslice(platform.x, platform.y, w, h, key, insetX, insetX, insetY, insetY)
+    .nineslice(platform.x, platform.y, key, undefined, w, h, insetX, insetX, insetY, insetY)
     .setOrigin(0, 0)
     .setDepth(1)
 }
