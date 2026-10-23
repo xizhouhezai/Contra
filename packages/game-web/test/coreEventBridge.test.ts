@@ -11,6 +11,8 @@ function bridgeWithSpies() {
     playerDied: vi.fn(),
     weaponPicked: vi.fn(),
     explosion: vi.fn(),
+    bossTelegraph: vi.fn(),
+    bossAttack: vi.fn(),
     bossPhaseChanged: vi.fn(),
     stageCleared: vi.fn(),
   }
@@ -26,7 +28,15 @@ const SAMPLES: readonly CoreEvent[] = [
   { type: 'playerDied', position: { x: 8, y: 8 } },
   { type: 'weaponPicked', weaponId: 'laser', slot: 1 },
   { type: 'explosion', position: { x: 12, y: 12 }, radius: 96 },
-  { type: 'bossPhaseChanged', bossId: 'claude-auditor', phase: 2 },
+  { type: 'bossTelegraph', bossId: 'claude-auditor', moveId: 'audit-beam', seconds: 1.2 },
+  {
+    type: 'bossAttack',
+    bossId: 'claude-auditor',
+    moveId: 'audit-beam',
+    position: { x: 8, y: 8 },
+    hit: true,
+  },
+  { type: 'bossPhaseChanged', bossId: 'claude-auditor', phase: 2, healthFraction: 0.5 },
   { type: 'stageCleared', score: 150 },
 ]
 

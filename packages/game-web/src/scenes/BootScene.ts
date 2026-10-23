@@ -12,6 +12,7 @@ import {
   PARALLAX_LAYERS,
   portraitUrl,
 } from '../assets/manifest'
+import { preloadProjectiles } from '../assets/projectiles'
 import { STAMP_GRADES, stampKey, stampUrl } from '../assets/stamps'
 import { weaponIconKey, weaponIconUrl, weaponsWithIcons } from '../assets/weapons'
 import { preloadAudio } from '../audio/manifest'
@@ -90,6 +91,11 @@ export class BootScene extends Phaser.Scene {
 
     // Generated enemy art: ten archetypes, idle and hit.
     preloadEnemies(this.load)
+
+    // Ten projectile sprites, 15KB in total. Small enough to load with the rest
+    // of the shared art: a weapon's shot appearing a frame late would read as a
+    // missed input, not as a loading state.
+    preloadProjectiles(this.load)
 
     // Per-stage backdrops are NOT preloaded here. 48 images at 1920x1080 took
     // the first load from 4.2MB to 22MB, nearly three times the budget, to

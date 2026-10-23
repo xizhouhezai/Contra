@@ -37,6 +37,12 @@ export function sfxForEvent(event: CoreEvent): SfxKey | null {
       return 'pickup'
     case 'explosion':
       return 'explosion'
+    case 'bossTelegraph':
+      // The warning needs to be audible: a player looking at their own aim will
+      // not see a wind-up that only draws on screen.
+      return 'bossTelegraph'
+    case 'bossAttack':
+      return 'bossAttack'
     case 'bossPhaseChanged':
       return 'bossPhase'
     case 'stageCleared':

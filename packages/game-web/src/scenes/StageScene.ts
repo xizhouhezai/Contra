@@ -1,4 +1,6 @@
 import {
+  BULLET_HEIGHT,
+  BULLET_WIDTH,
   type CharacterId,
   type InputState,
   loadProgress,
@@ -38,9 +40,10 @@ import { WEAPON_ICON_SIZE, weaponIconKey } from '../assets/weapons'
 import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
 import { bgmForStage, preloadBgm } from '../audio/manifest'
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
+import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 import { CoreEventBridge } from '../events/CoreEventBridge'
 import { applyFit } from '../fit'
+import { ProjectileView } from '../render/ProjectileView'
 import { publishStageProbe } from '../StageProbe'
 import { ActorView, characterSprite, enemySprite } from '../sprites/ActorView'
 import { HURT_SECONDS, motionFor, RECOIL_SECONDS } from '../sprites/motion'
@@ -131,6 +134,13 @@ export class StageScene extends Phaser.Scene {
   /** Touch controls, when the device has a touchscreen. */
   private touch: TouchInputSource | null = null
   private stickKnob: Phaser.GameObjects.Arc | null = null
+  /**
+   * The wind-up band for the current boss move.
+   *
+   * Held because a second telegraph has to replace the first: two bands filling
+   * at once would read as two simultaneous attacks.
+   */
+  private telegraphBar: Phaser.GameObjects.Rectangle | null = null
   private playerView: ActorView | null = null
   /** Seconds since the last shot, for the recoil (REQ-MOT-001). */
   private secondsSinceShot = 99
@@ -145,7 +155,7 @@ export class StageScene extends Phaser.Scene {
   /** The character being played, resolved once in create(). */
   private character: CharacterId = 'deepseek'
   private readonly targetViews = new Map<string, ActorView>()
-  private readonly bulletViews = new Map<string, ActorView>()
+  private readonly bulletViews = new Map<string, ProjectileView>()
   private hud: Phaser.GameObjects.Text | null = null
   /** The current weapon's icon, redrawn when the weapon changes. */
   private weaponIcon: Phaser.GameObjects.Image | null = null
@@ -215,10 +225,14 @@ export class StageScene extends Phaser.Scene {
       targets: this.stage.targets,
       exit: this.stage.exit,
       // CharacterSelect always sends one; a direct stage launch may not, and
-      // World has its own default for that case.
-      characterId: this.request.characterId as CharacterId | undefined,
-      // Boss stages name their boss in the stage data (T3).
-      bossId: this.stage.bossId,
+      // World has its own default for that case. Spread rather than pass
+      // undefined, which exactOptionalPropertyTypes rejects.
+      ...(this.request.characterId === undefined
+        ? {}
+        : { characterId: this.request.characterId as CharacterId }),
+      // Boss stages name their boss in the stage data (T3). Only boss stages
+      // have one, so the key is spread in rather than passed as undefined.
+      ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
     })
   }
 
@@ -503,7 +517,7 @@ export class StageScene extends Phaser.Scene {
 
   /** Persists the clear, then hands off to the result screen. */
   private leaveStage(): void {
-    const storage = new LocalStorageAdapter()
+    const storage = LocalStorageAdapter.fromGlobal()
     const ids = [this.stage.id]
     const progress = loadProgress(storage, ids)
     const next = nextStage(this.stage)
@@ -679,10 +693,17 @@ export class StageScene extends Phaser.Scene {
       live.add(bullet.id)
       let view = this.bulletViews.get(bullet.id)
       if (view === undefined) {
-        view = new ActorView(this, TEXTURES.bullet, bullet.position.x, bullet.position.y, 18)
+        view = new ProjectileView(
+          this,
+          bullet.weaponId,
+          bullet.position.x,
+          bullet.position.y,
+          BULLET_WIDTH,
+          BULLET_HEIGHT,
+        )
         this.bulletViews.set(bullet.id, view)
       }
-      view.sync(bullet.position.x, bullet.position.y)
+      view.sync(bullet.position.x, bullet.position.y, BULLET_WIDTH, BULLET_HEIGHT)
     }
     for (const [id, view] of this.bulletViews) {
       if (live.has(id)) continue
@@ -698,7 +719,7 @@ export class StageScene extends Phaser.Scene {
 
   /** Short-lived square at a hit point; used for both damage and deaths. */
   private showImpact(x: number, y: number): void {
-    const impact = this.add.rectangle(x, y, 10, 10, PALETTE.alert, 0.85).setDepth(18)
+    const impact = this.add.rectangle(x, y, 10, 10, PALETTE.alertFill, 0.85).setDepth(18)
     this.tweens.add({
       targets: impact,
       alpha: 0,
@@ -710,7 +731,7 @@ export class StageScene extends Phaser.Scene {
 
   /** A blast ring sized by the radius the rule layer reported. */
   private showBlast(x: number, y: number, radius: number): void {
-    const blast = this.add.circle(x, y, radius, PALETTE.alert, 0.35).setDepth(17)
+    const blast = this.add.circle(x, y, radius, PALETTE.alertFill, 0.35).setDepth(17)
     this.tweens.add({
       targets: blast,
       alpha: 0,
@@ -736,7 +757,7 @@ export class StageScene extends Phaser.Scene {
     }
     const view = this.cameras.main.worldView
     const bar = this.add
-      .rectangle(view.x + 20, view.y + 70, view.width - 40, 6, PALETTE.alert, 0.9)
+      .rectangle(view.x + 20, view.y + 70, view.width - 40, 6, PALETTE.alertFill, 0.9)
       .setOrigin(0, 0.5)
       .setDepth(98)
     bar.setScale(0, 1)
@@ -756,7 +777,7 @@ export class StageScene extends Phaser.Scene {
   /** Plays a boss move: a flash when it lands, nothing when the player dodged. */
   private showBossAttack(x: number, y: number, hit: boolean): void {
     if (!hit) return
-    const flash = this.add.circle(x, y, 90, PALETTE.alert, 0.45).setDepth(18)
+    const flash = this.add.circle(x, y, 90, PALETTE.alertFill, 0.45).setDepth(18)
     this.tweens.add({
       targets: flash,
       alpha: 0,
@@ -835,7 +856,7 @@ export class StageScene extends Phaser.Scene {
     const stickX = 96
     const stickY = GAME_HEIGHT - 96
 
-    this.stickBase = this.add
+    this.add
       .circle(stickX, stickY, STICK_RADIUS_PX, PALETTE.hud as unknown as number, 0.15)
       .setScrollFactor(0)
       .setDepth(200)
@@ -981,7 +1002,7 @@ export class StageScene extends Phaser.Scene {
     // Sized to 62% of the visible height so the character reads as backdrop -
     // present, but clearly not something the player collides with.
     const height = GAME_HEIGHT * 0.62
-    this.bossPortrait = this.add
+    this.add
       .image(view.x + GAME_WIDTH * 0.72, view.y + GAME_HEIGHT * 0.78, key)
       .setOrigin(0.5, 1)
       .setDepth(-50)
