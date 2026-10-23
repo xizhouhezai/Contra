@@ -1,4 +1,5 @@
 import type Phaser from 'phaser'
+import { enemyRoundKey, hasEnemyRound } from '../assets/enemyRounds'
 import { hasProjectile, projectileKey } from '../assets/projectiles'
 
 /**
@@ -31,13 +32,27 @@ export class ProjectileView {
   constructor(
     scene: Phaser.Scene,
     weaponId: string,
+    owner: string,
+    enemyWeaponId: string | undefined,
     x: number,
     y: number,
     boxWidth: number,
     boxHeight: number,
     depth = 18,
   ) {
-    if (hasProjectile(weaponId)) {
+    // Enemy rounds are a separate set: they must be distinguishable from the
+    // player's own fire at a glance, because the only decision that matters when
+    // both are on screen is which ones to walk into.
+    const enemyId = enemyWeaponId ?? ''
+    const enemyKey = owner === 'enemy' ? enemyRoundKey(enemyId) : null
+    if (enemyKey !== null && hasEnemyRound(enemyId)) {
+      const key = enemyKey
+      this.sprite = scene.add
+        .image(x, y, key)
+        .setOrigin(0.5, 0.5)
+        .setDepth(depth)
+        .setScale(DRAW_SIZE / Math.max(1, scene.textures.get(key).getSourceImage().width))
+    } else if (hasProjectile(weaponId)) {
       const key = projectileKey(weaponId)
       this.sprite = scene.add
         .image(x, y, key)

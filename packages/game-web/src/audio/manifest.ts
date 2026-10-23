@@ -62,6 +62,8 @@ export const EVENT_SFX_KEYS = [
   'bossPhase',
   'bossTelegraph',
   'bossAttack',
+  'enemyTelegraph',
+  'enemyShot',
   'select',
 ] as const
 

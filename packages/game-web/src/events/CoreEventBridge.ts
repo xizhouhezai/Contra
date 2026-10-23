@@ -8,6 +8,8 @@ type PlayerHealedEvent = Extract<CoreEvent, { type: 'playerHealed' }>
 type PlayerDiedEvent = Extract<CoreEvent, { type: 'playerDied' }>
 type WeaponPickedEvent = Extract<CoreEvent, { type: 'weaponPicked' }>
 type ExplosionEvent = Extract<CoreEvent, { type: 'explosion' }>
+type EnemyTelegraphEvent = Extract<CoreEvent, { type: 'enemyTelegraph' }>
+type EnemyShotEvent = Extract<CoreEvent, { type: 'enemyShot' }>
 type BossTelegraphEvent = Extract<CoreEvent, { type: 'bossTelegraph' }>
 type BossAttackEvent = Extract<CoreEvent, { type: 'bossAttack' }>
 type BossPhaseChangedEvent = Extract<CoreEvent, { type: 'bossPhaseChanged' }>
@@ -31,6 +33,10 @@ export interface CoreEventHandlers {
   readonly weaponPicked: (event: WeaponPickedEvent) => void
   readonly explosion: (event: ExplosionEvent) => void
   readonly bossPhaseChanged: (event: BossPhaseChangedEvent) => void
+  /** An enemy began winding up. */
+  readonly enemyTelegraph?: (event: EnemyTelegraphEvent) => void
+  /** An enemy fired. */
+  readonly enemyShot?: (event: EnemyShotEvent) => void
   /** The boss began winding up; the fight is readable only if this is drawn. */
   readonly bossTelegraph?: (event: BossTelegraphEvent) => void
   /** The boss landed a move, or whiffed one. */
@@ -79,6 +85,12 @@ export class CoreEventBridge {
           break
         case 'explosion':
           this.handlers.explosion(event)
+          break
+        case 'enemyTelegraph':
+          this.handlers.enemyTelegraph?.(event)
+          break
+        case 'enemyShot':
+          this.handlers.enemyShot?.(event)
           break
         case 'bossTelegraph':
           this.handlers.bossTelegraph?.(event)

@@ -5,6 +5,7 @@ import { sheetUrl } from '../assets/animatedSheets'
 import { avatarKey, avatarUrl } from '../assets/avatars'
 import { bossArtKey, bossArtUrl, bossFormsWithArt } from '../assets/bosses'
 import { preloadEnemies } from '../assets/enemies'
+import { preloadEnemyRounds } from '../assets/enemyRounds'
 import {
   backgroundUrl,
   characterSheets,
@@ -96,6 +97,7 @@ export class BootScene extends Phaser.Scene {
     // of the shared art: a weapon's shot appearing a frame late would read as a
     // missed input, not as a loading state.
     preloadProjectiles(this.load)
+    preloadEnemyRounds(this.load)
 
     // Per-stage backdrops are NOT preloaded here. 48 images at 1920x1080 took
     // the first load from 4.2MB to 22MB, nearly three times the budget, to
