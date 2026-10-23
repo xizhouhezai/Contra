@@ -5,6 +5,17 @@ function entry(id: string, x: number, y: number, w = 16, h = 16) {
   return { id, rect: { x, y, width: w, height: h }, value: id }
 }
 
+/**
+ * A numeric-payload entry, for the one test that measures a SpatialHash<number>.
+ *
+ * The string variant above is what the other cases use; naming the generic as
+ * number in one test and handing it string payloads was a type error that nothing
+ * checked, because game-core's tests were never typechecked.
+ */
+function numericEntry(id: string, x: number, y: number, w = 16, h = 16) {
+  return { id, rect: { x, y, width: w, height: h }, value: 1 }
+}
+
 describe('Spatial hash (T-M1-07)', () => {
   it('uses 64x64 buckets', () => {
     expect(CELL_SIZE).toBe(64)
@@ -47,7 +58,7 @@ describe('Spatial hash (T-M1-07)', () => {
   it('answers a 200-entity query within the frame budget', () => {
     const hash = new SpatialHash<number>()
     for (let i = 0; i < 200; i += 1) {
-      hash.insert(entry(`e${i}`, (i % 20) * 40, Math.floor(i / 20) * 40, 24, 24))
+      hash.insert(numericEntry(`e${i}`, (i % 20) * 40, Math.floor(i / 20) * 40, 24, 24))
     }
     let hits = 0
     const started = performance.now()
