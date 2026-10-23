@@ -91,6 +91,11 @@ export class BootScene extends Phaser.Scene {
     // Generated enemy art: ten archetypes, idle and hit.
     preloadEnemies(this.load)
 
+    // Per-stage backdrops are NOT preloaded here. 48 images at 1920x1080 took
+    // the first load from 4.2MB to 22MB, nearly three times the budget, to
+    // load eleven stage's worth of art the player will not see for minutes.
+    // Each stage loads its own four layers on entry instead.
+
     // Character avatars: square portraits used by the select screen and HUD.
     for (const character of CHARACTER_IDS) {
       const url = avatarUrl(character)

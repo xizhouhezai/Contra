@@ -33,9 +33,11 @@ import { bossArtKey } from '../assets/bosses'
 import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
+import { preloadStageScene, stageSceneLoaded } from '../assets/stages'
 import { WEAPON_ICON_SIZE, weaponIconKey } from '../assets/weapons'
 import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
+import { bgmForStage, preloadBgm } from '../audio/manifest'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, TEXTURES } from '../config'
 import { CoreEventBridge } from '../events/CoreEventBridge'
 import { applyFit } from '../fit'
@@ -44,6 +46,7 @@ import { ActorView, characterSprite, enemySprite } from '../sprites/ActorView'
 import { HURT_SECONDS, motionFor, RECOIL_SECONDS } from '../sprites/motion'
 import { createParallax, updateParallax } from '../stage/createParallax'
 import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../stage/resolveStage'
+import { drawPlatform, groundVariantFor, preloadTerrain } from '../stage/terrain'
 
 /**
  * Plays one stage from the campaign (T1).
@@ -159,6 +162,36 @@ export class StageScene extends Phaser.Scene {
     super('Stage')
   }
 
+  /**
+   * Loads this stage's four backdrop layers.
+   *
+   * Runs before create, and only for the stage being entered. Preloading all
+   * twelve at boot cost 18MB on the first load for art the player would not
+   * see for minutes; loading on entry costs one stage's worth and happens
+   * behind the scene transition.
+   */
+  preload(): void {
+    const stage = resolveStage(this.request)
+    const stageId = stage.id
+
+    // This stage's track. Music used to load at boot, which meant downloading
+    // twelve tracks to hear one - 21MB of the 24MB first load.
+    const bossStage = stage.bossId !== undefined && stage.bossId !== null
+    preloadBgm(this.load, bgmForStage(stage.index, bossStage))
+
+    // Ground and platforms: three shared ground strips and one nine-slice, so
+    // this is cheap and never varies by stage.
+    preloadTerrain(this.load)
+
+    if (stageSceneLoaded(this, stageId)) return
+
+    // The scene urls are lazy imports, so the queue is built asynchronously and
+    // the loader is started by hand once it is ready.
+    void preloadStageScene(this.load, stageId).then(() => {
+      if (!this.load.isLoading()) this.load.start()
+    })
+  }
+
   init(data: StageRequest): void {
     this.request = data ?? {}
     this.stage = resolveStage(this.request)
@@ -189,7 +222,7 @@ export class StageScene extends Phaser.Scene {
   create(): void {
     applyFit(this)
     const vertical = isVerticalStage(this.stage)
-    this.parallax = createParallax(this, this.stage.widthPx)
+    this.parallax = createParallax(this, this.stage.widthPx, this.stage.id)
     this.createBossPortrait()
     this.drawStage()
     this.createViews()
@@ -487,11 +520,9 @@ export class StageScene extends Phaser.Scene {
 
   /** Platforms and the exit marker, drawn once from the stage definition. */
   private drawStage(): void {
+    const groundVariant = groundVariantFor(this.stage.index ?? 1)
     for (const platform of this.stage.platforms) {
-      this.add
-        .rectangle(platform.x, platform.y, platform.width, platform.height, PALETTE.platform)
-        .setOrigin(0, 0)
-        .setDepth(1)
+      drawPlatform(this, platform, groundVariant, PALETTE.platform)
     }
 
     const exit = this.stage.exit
