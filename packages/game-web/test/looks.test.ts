@@ -77,8 +77,9 @@ describe('Chibi index (REQ-VAR-002)', () => {
 
   it('excludes boss art from the selectable looks', () => {
     // meme-claude and meme-gpt hold boss art, not playable looks.
-    expect(chibiModules.claude).toBeUndefined()
-    expect(chibiModules.gpt).toBeUndefined()
+    const modules: Partial<Record<string, unknown>> = chibiModules
+    expect(modules.claude).toBeUndefined()
+    expect(modules.gpt).toBeUndefined()
   })
 
   it('keeps a stable order so the switcher does not jump', () => {

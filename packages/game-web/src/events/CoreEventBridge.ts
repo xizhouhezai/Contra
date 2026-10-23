@@ -8,6 +8,8 @@ type PlayerHealedEvent = Extract<CoreEvent, { type: 'playerHealed' }>
 type PlayerDiedEvent = Extract<CoreEvent, { type: 'playerDied' }>
 type WeaponPickedEvent = Extract<CoreEvent, { type: 'weaponPicked' }>
 type ExplosionEvent = Extract<CoreEvent, { type: 'explosion' }>
+type BossTelegraphEvent = Extract<CoreEvent, { type: 'bossTelegraph' }>
+type BossAttackEvent = Extract<CoreEvent, { type: 'bossAttack' }>
 type BossPhaseChangedEvent = Extract<CoreEvent, { type: 'bossPhaseChanged' }>
 type StageClearedEvent = Extract<CoreEvent, { type: 'stageCleared' }>
 
@@ -29,6 +31,10 @@ export interface CoreEventHandlers {
   readonly weaponPicked: (event: WeaponPickedEvent) => void
   readonly explosion: (event: ExplosionEvent) => void
   readonly bossPhaseChanged: (event: BossPhaseChangedEvent) => void
+  /** The boss began winding up; the fight is readable only if this is drawn. */
+  readonly bossTelegraph?: (event: BossTelegraphEvent) => void
+  /** The boss landed a move, or whiffed one. */
+  readonly bossAttack?: (event: BossAttackEvent) => void
   readonly stageCleared: (event: StageClearedEvent) => void
 }
 
@@ -73,6 +79,12 @@ export class CoreEventBridge {
           break
         case 'explosion':
           this.handlers.explosion(event)
+          break
+        case 'bossTelegraph':
+          this.handlers.bossTelegraph?.(event)
+          break
+        case 'bossAttack':
+          this.handlers.bossAttack?.(event)
           break
         case 'bossPhaseChanged':
           this.handlers.bossPhaseChanged(event)

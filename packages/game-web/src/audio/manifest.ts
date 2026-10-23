@@ -60,6 +60,8 @@ export const EVENT_SFX_KEYS = [
   'die',
   'clear',
   'bossPhase',
+  'bossTelegraph',
+  'bossAttack',
   'select',
 ] as const
 
@@ -154,9 +156,4 @@ export function preloadBgm(load: Phaser.Loader.LoaderPlugin, key: BgmKey): void 
   if (load.cacheManager.audio.exists(key)) return
   const url = bgmUrl(key)
   if (url !== undefined) load.audio(key, url)
-}
-
-/** True when a track is already cached. */
-export function hasBgm(cache: Phaser.Cache.BaseCache, key: BgmKey): boolean {
-  return cache.audio.exists(key)
 }

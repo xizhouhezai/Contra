@@ -24,6 +24,14 @@ export const PALETTE = {
   hud: '#1a1a1a',
   /** Alert red doubles as the hurt and boss colour. */
   alert: '#d6452c',
+  /**
+   * The same red as a fill value.
+   *
+   * Phaser's shape constructors take a number, and \`alert\` is a CSS string, so
+   * every shape that wanted the alert colour was passing a string where the API
+   * expected a number. Text keeps using \`alert\`; shapes use this.
+   */
+  alertFill: 0xd6452c,
   /** Text on paper: ink for body, muted ink for secondary lines. */
   ink: '#1a1a1a',
   inkMuted: '#6b655c',

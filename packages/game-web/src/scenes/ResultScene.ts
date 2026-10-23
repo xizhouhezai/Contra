@@ -69,7 +69,7 @@ export class ResultScene extends Phaser.Scene {
       ['用时', `${this.result.elapsedSeconds.toFixed(1)} 秒`],
     ]
 
-    rows.forEach(([label, value], index) => {
+    rows.forEach(([label = '', value = ''], index) => {
       const y = 380 + index * 44
       this.add
         .text(GAME_WIDTH / 2 - 160, y, label, {

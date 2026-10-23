@@ -15,13 +15,15 @@ describe('Audio manifest (T-M4-08 / T-M4-09)', () => {
     for (const key of WEAPON_SFX_KEYS) expect(sfxUrl(key)).toBeDefined()
   })
 
-  it('has the nine event sounds', () => {
-    expect(EVENT_SFX_KEYS).toHaveLength(9)
+  it('has the eleven event sounds', () => {
+    // Nine until the boss learned to attack: a wind-up needs to be audible and a
+    // landed move needs its own weight, so bossTelegraph and bossAttack joined.
+    expect(EVENT_SFX_KEYS).toHaveLength(11)
     for (const key of EVENT_SFX_KEYS) expect(sfxUrl(key)).toBeDefined()
   })
 
-  it('exposes nineteen effects in total', () => {
-    expect(SFX_KEYS).toHaveLength(19)
+  it('exposes twenty-one effects in total', () => {
+    expect(SFX_KEYS).toHaveLength(21)
   })
 
   it('ships one track per stage', () => {

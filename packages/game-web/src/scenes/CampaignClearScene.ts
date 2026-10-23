@@ -36,7 +36,7 @@ export class CampaignClearScene extends Phaser.Scene {
       ['终点', '涌现 · 坍缩'],
     ]
 
-    rows.forEach(([label, value], index) => {
+    rows.forEach(([label = '', value = ''], index) => {
       const y = 380 + index * 44
       this.add
         .text(GAME_WIDTH / 2 - 180, y, label, {

@@ -21,7 +21,7 @@ import {
  */
 export class SettingsScene extends Phaser.Scene {
   private settings: GameSettings = DEFAULT_SETTINGS
-  private readonly storage = new LocalStorageAdapter()
+  private readonly storage = LocalStorageAdapter.fromGlobal()
   private rows: { label: string; value: () => string }[] = []
   private labels: Phaser.GameObjects.Text[] = []
   private cursor = 0
