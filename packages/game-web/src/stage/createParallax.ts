@@ -1,5 +1,6 @@
 import type Phaser from 'phaser'
-import { backgroundUrl, PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/manifest'
+import { PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/manifest'
+import { hasStageScene, SCENE_LAYERS, stageLayerKey } from '../assets/stages'
 
 /**
  * Builds the parallax backdrop for a stage.
@@ -35,17 +36,39 @@ import { backgroundUrl, PARALLAX_FACTORS, PARALLAX_LAYERS } from '../assets/mani
  */
 const LAYER_ALPHA = [0.72, 0.58, 0.44, 0.3] as const
 
+/**
+ * How much each per-stage layer follows the camera, sky to near.
+ *
+ * These are deliberately unremarkable numbers - the point of the per-stage art
+ * is the picture, not a novel parallax feel. They match the shared set's
+ * spacing so the depth reads the same whichever backdrop is in use.
+ */
+const STAGE_LAYER_FACTORS = [0.05, 0.15, 0.35, 0.6] as const
+
 export function createParallax(
   scene: Phaser.Scene,
   worldWidth: number,
+  stageId?: string,
 ): Phaser.GameObjects.TileSprite[] {
   const created: Phaser.GameObjects.TileSprite[] = []
   const width = scene.scale.width
   const height = scene.scale.height
 
-  PARALLAX_LAYERS.forEach((key, index) => {
-    const url = backgroundUrl(key)
-    if (url === undefined || !scene.textures.exists(key)) return
+  // A stage with its own art uses it; a stage without falls back to the shared
+  // backdrop set, so a missing folder leaves the stage playable rather than
+  // showing empty paper.
+  const perStage = stageId !== undefined && hasStageScene(stageId)
+  const keys = perStage
+    ? SCENE_LAYERS.map((layer) => stageLayerKey(stageId, layer))
+    : [...PARALLAX_LAYERS]
+
+  keys.forEach((key, index) => {
+    if (!scene.textures.exists(key)) return
+
+    // Per-stage art is drawn at full strength: it was authored for this stage
+    // and its palette is already dark enough to sit behind the player. The
+    // shared set still needs the alpha ramp, which was measured against it.
+    const alpha = perStage ? 1 : (LAYER_ALPHA[index] ?? 0.3)
 
     const source = scene.textures.get(key).getSourceImage()
     const tile = scene.add
@@ -53,7 +76,7 @@ export function createParallax(
       .setOrigin(0, 1)
       .setScrollFactor(0)
       .setDepth(-100 + index)
-      .setAlpha(LAYER_ALPHA[index] ?? 0.3)
+      .setAlpha(alpha)
 
     if (source.height > 0) tile.tileScaleY = height / source.height
     created.push(tile)
@@ -75,8 +98,16 @@ export function updateParallax(
   cameraScrollY = 0,
 ): void {
   layers.forEach((layer, index) => {
-    const key = PARALLAX_LAYERS[index]
-    const factor = key === undefined ? 0.3 : (PARALLAX_FACTORS[key] ?? 0.3)
+    // Two backdrops with the same layer order but different factor tables: the
+    // shared set has hand-tuned factors per named layer, the per-stage art is
+    // uniform (sky barely moves, near moves almost with the world). Detected
+    // from the texture key rather than passed in, so a caller does not have to
+    // remember which kind it is holding.
+    const isPerStage = String(layer.texture.key).startsWith('scene-')
+    const factor = isPerStage
+      ? (STAGE_LAYER_FACTORS[index] ?? 0.3)
+      : (PARALLAX_FACTORS[PARALLAX_LAYERS[index] ?? ''] ?? 0.3)
+
     layer.tilePositionX = cameraScrollX * factor
     // A vertical stage scrolls the backdrop on y instead.
     layer.tilePositionY = cameraScrollY * factor
