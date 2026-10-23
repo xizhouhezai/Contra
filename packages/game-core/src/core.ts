@@ -340,6 +340,15 @@ export class World {
   private enemyShotsFired = 0
   /** Campaign act, deciding how many enemies may fire at once. */
   private readonly act: 1 | 2 | 3
+  /**
+   * Left and right limits of the playable area.
+   *
+   * Derived from the union of platforms plus the exit, because WorldOptions
+   * carries no stage width. The player used to walk straight off the right edge
+   * and keep going - there is no terrain out there, so the character fell through
+   * the floor and out of the world.
+   */
+  private readonly movementBounds: { minX: number; maxX: number }
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(
@@ -353,6 +362,19 @@ export class World {
     this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
     this.act = options.act ?? 1
+    {
+      let minX = 0
+      let maxX = 0
+      for (const platform of this.platforms) {
+        minX = Math.min(minX, platform.x)
+        maxX = Math.max(maxX, platform.x + platform.width)
+      }
+      const box = options.exit
+      if (box !== null && box !== undefined) {
+        maxX = Math.max(maxX, box.x + box.width)
+      }
+      this.movementBounds = { minX, maxX }
+    }
     // Only targets that name a known archetype get a timer. Everything else is
     // a plain box and stays inert.
     for (const target of this.targets) {
@@ -784,7 +806,7 @@ export class World {
   private stepOnce(provider: InputProvider): void {
     const input = typeof provider === 'function' ? provider(this.stepCount) : provider
     this.elapsedSeconds += this.fixedStepSeconds
-    updateMovement(this.player, input, this.fixedStepSeconds, this.platforms)
+    updateMovement(this.player, input, this.fixedStepSeconds, this.platforms, this.movementBounds)
 
     releaseExpiredLocks(this.weapon, this.liveTargetIds())
     const fired = updateWeapons(
@@ -798,7 +820,10 @@ export class World {
     this.recordShot(fired)
     this.resolveBeam(fired)
 
+    // A step first, then the cull: a bullet that leaves the world this step
+    // still travels the full step before it is dropped.
     for (const bullet of this.bullets) stepBullet(bullet, this.fixedStepSeconds)
+    this.cullBullets()
     this.steerHomingRounds()
     this.resolveBulletHits()
     this.resolveBlasts()
@@ -899,6 +924,44 @@ export class World {
       bullet.velocity.x = Math.cos(heading) * speed
       bullet.velocity.y = Math.sin(heading) * speed
     }
+  }
+
+  /**
+   * Drops bullets that have left the world.
+   *
+   * Nothing culled bullets before this. A player round usually ends on an enemy
+   * or a platform, so the omission hid - but an enemy round fired to the left over
+   * an empty stretch of stage kept flying forever: one was found at x = -8839
+   * still moving at -300px/s after thirty seconds of simulation. Every one of
+   * those is walked by the hit pass, the blast pass and the player-damage check
+   * on every step, so a long stage accumulated them without bound.
+   *
+   * The margin is generous on purpose: a thrown round can arc a long way below
+   * the floor and still be on its way somewhere, and culling it early would make
+   * lobbed weapons vanish mid-flight.
+   */
+  private cullBullets(): void {
+    const margin = 200
+    let minX = 0
+    let maxX = 0
+    let maxY = 0
+    for (const platform of this.platforms) {
+      minX = Math.min(minX, platform.x)
+      maxX = Math.max(maxX, platform.x + platform.width)
+      maxY = Math.max(maxY, platform.y + platform.height)
+    }
+    if (this.exit !== null) {
+      maxX = Math.max(maxX, this.exit.x + this.exit.width)
+      maxY = Math.max(maxY, this.exit.y + this.exit.height)
+    }
+
+    this.bullets = this.bullets.filter(
+      (bullet) =>
+        bullet.position.x > minX - margin &&
+        bullet.position.x < maxX + margin &&
+        bullet.position.y < maxY + margin &&
+        bullet.position.y > -margin * 4,
+    )
   }
 
   /** Bullet-vs-target resolution, honouring pierce and the faction rules. */
