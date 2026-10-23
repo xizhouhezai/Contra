@@ -180,7 +180,9 @@ export class CharacterSelectScene extends Phaser.Scene {
               fontSize: '10px',
               color: PALETTE.ink,
               lineSpacing: 7,
-              wordWrap: { width: cardWidth / 2 - (hasPortrait ? artWidth - cardWidth / 2 + 12 : 8) - 6 },
+              wordWrap: {
+                width: cardWidth / 2 - (hasPortrait ? artWidth - cardWidth / 2 + 12 : 8) - 6,
+              },
             },
           )
           .setOrigin(0, 0.5),
