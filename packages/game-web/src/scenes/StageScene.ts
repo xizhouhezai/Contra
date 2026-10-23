@@ -110,6 +110,12 @@ export class StageScene extends Phaser.Scene {
       this.showBlast(event.position.x, event.position.y, event.radius)
       this.playEventSound(event)
     },
+    enemyTelegraph: (event) => {
+      this.showEnemyTelegraph(event.position.x, event.position.y, event.seconds)
+    },
+    enemyShot: (event) => {
+      this.showMuzzleFlash(event.position.x, event.position.y)
+    },
     bossTelegraph: (event) => {
       // The warning is what makes the move dodgeable. Without it the boss
       // simply takes a heart at a moment the player could not have read.
@@ -230,6 +236,10 @@ export class StageScene extends Phaser.Scene {
       ...(this.request.characterId === undefined
         ? {}
         : { characterId: this.request.characterId as CharacterId }),
+      // The act sets how many enemies may hold a firing slot at once. Without
+      // it the World defaults to act 1, so acts 2 and 3 would stay capped at one
+      // shooter and the later stages would feel easier than the first.
+      act: this.stage.act,
       // Boss stages name their boss in the stage data (T3). Only boss stages
       // have one, so the key is spread in rather than passed as undefined.
       ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
@@ -696,6 +706,8 @@ export class StageScene extends Phaser.Scene {
         view = new ProjectileView(
           this,
           bullet.weaponId,
+          bullet.owner,
+          bullet.enemyWeaponId,
           bullet.position.x,
           bullet.position.y,
           BULLET_WIDTH,
@@ -742,6 +754,28 @@ export class StageScene extends Phaser.Scene {
   }
 
   /** One-line notice in the banner slot, cleared after a moment. */
+  /**
+   * Shows an enemy wind-up.
+   *
+   * Drawn at the enemy rather than in a fixed place, unlike the boss band,
+   * because the player has to know *which* drone is about to shoot in order to
+   * decide where to move. A growing ring is the smallest mark that answers that
+   * and still reads at 32px.
+   */
+  private showEnemyTelegraph(x: number, y: number, seconds: number): void {
+    const ring = this.add
+      .circle(x, y, 14, 0xffffff, 0)
+      .setStrokeStyle(2, PALETTE.alertFill, 0.9)
+      .setDepth(19)
+    this.tweens.add({
+      targets: ring,
+      radius: 34,
+      alpha: 0.15,
+      duration: Math.max(160, seconds * 1000),
+      onComplete: () => ring.destroy(),
+    })
+  }
+
   /**
    * Shows the boss wind-up.
    *

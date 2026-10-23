@@ -9,6 +9,15 @@ export interface Bullet {
   readonly owner: BulletOwner
   /** Weapon that fired it; decides the blast radius and the pickup sync. */
   readonly weaponId: WeaponId
+  /**
+   * The enemy weapon that fired this round, when the owner is the enemy.
+   *
+   * Separate from weaponId because that field is a WeaponId - the player's ten
+   * guns - and an enemy's weapon is not one of them. Squeezing a 'pulse-gun' into
+   * it is why enemy rounds first drew with the player's pulse art: the renderer
+   * asked for enemy art by an id the rule layer had already flattened.
+   */
+  readonly enemyWeaponId?: string
   /** Top-left corner of the bullet box, in world pixels. */
   readonly position: MutableVec2
   /** Velocity in px/s. Homing rounds and thrown weapons rewrite it in flight. */
@@ -32,6 +41,7 @@ export interface Bullet {
 /** Every option a caller may leave out when spawning a projectile. */
 export interface BulletOptions {
   readonly weaponId: WeaponId
+  readonly enemyWeaponId?: string
   readonly remainingPierces?: number
   readonly lockedTargetId?: EntityId | null
   readonly gravity?: number
@@ -49,6 +59,7 @@ export function createBullet(
     id,
     owner,
     weaponId: options.weaponId,
+    ...(options.enemyWeaponId === undefined ? {} : { enemyWeaponId: options.enemyWeaponId }),
     position: { x: position.x, y: position.y },
     velocity: { x: velocity.x, y: velocity.y },
     damage,

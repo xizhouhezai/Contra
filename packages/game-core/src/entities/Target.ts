@@ -23,6 +23,16 @@ export interface TargetState {
   readonly id: EntityId
   readonly box: Rect
   readonly score: number
+  /**
+   * Which archetype this box is.
+   *
+   * The comment above says the rule layer does not care, and that was true while
+   * an enemy was a static box that could only hurt by being touched. It stopped
+   * being true when enemies learned to shoot: the archetype now decides which
+   * weapon fires and when. It stays optional, so a graybox target with no
+   * archetype is inert rather than an error.
+   */
+  readonly archetype?: string
   hp: number
   alive: boolean
 }
@@ -37,6 +47,7 @@ export function createTarget(definition: TargetDefinition): TargetState {
       height: definition.height,
     },
     score: definition.score,
+    ...(definition.archetype === undefined ? {} : { archetype: definition.archetype }),
     hp: definition.hp,
     alive: true,
   }
