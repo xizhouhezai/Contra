@@ -4,7 +4,9 @@ import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
 import { sheetUrl } from '../assets/animatedSheets'
 import { avatarKey, avatarUrl } from '../assets/avatars'
 import { bossArtKey, bossArtUrl, bossFormsWithArt } from '../assets/bosses'
+import { preloadEffects } from '../assets/effects'
 import { preloadEnemies } from '../assets/enemies'
+import { preloadEnemyProps } from '../assets/enemyProps'
 import { preloadEnemyRounds } from '../assets/enemyRounds'
 import {
   backgroundUrl,
@@ -98,6 +100,12 @@ export class BootScene extends Phaser.Scene {
     // missed input, not as a loading state.
     preloadProjectiles(this.load)
     preloadEnemyRounds(this.load)
+    preloadEnemyProps(this.load)
+
+    // 25 combat effects - muzzle flashes, hit marks, charge auras and the eight
+    // boss attacks - well under 300KB together. They load with the shared art
+    // because a hit mark that arrives a frame late is worse than no hit mark.
+    preloadEffects(this.load)
 
     // Per-stage backdrops are NOT preloaded here. 48 images at 1920x1080 took
     // the first load from 4.2MB to 22MB, nearly three times the budget, to
