@@ -1,4 +1,4 @@
-import { GRAVITY, JUMP_SPEED, MOVE_SPEED } from '../data/constants.js'
+import { GRAVITY, JUMP_SPEED, MOVE_SPEED, PLAYER_WIDTH } from '../data/constants.js'
 import type { InputState, PlatformDefinition } from '../data/types.js'
 import { type PlayerState, playerRect } from '../entities/Player.js'
 
@@ -66,17 +66,39 @@ function resolveY(
  * @param dt the fixed step in seconds — always 1/60 from the World.
  * @param platforms solid AABBs the player cannot pass through.
  */
+/** Left and right limits of the playable area, in world pixels. */
+export interface MovementBounds {
+  readonly minX: number
+  readonly maxX: number
+}
+
 export function updateMovement(
   player: PlayerState,
   input: InputState,
   dt: number,
   platforms: readonly PlatformDefinition[],
+  bounds?: MovementBounds,
 ): void {
   if (input.moveX !== 0) player.facing = input.moveX
 
   player.velocity.x = input.moveX * MOVE_SPEED
   const deltaX = player.velocity.x * dt
   player.position.x = resolveX(player, deltaX, platforms)
+
+  // The stage edge is a wall, not a suggestion. Nothing clamped the player
+  // before this: walking right for a few seconds left the stage at around x=2400
+  // and the character kept going, falling through the floor into empty space
+  // because there is no terrain out there. A recording bot reached x=10612.
+  if (bounds !== undefined) {
+    const maxX = bounds.maxX - PLAYER_WIDTH
+    if (player.position.x < bounds.minX) {
+      player.position.x = bounds.minX
+      player.velocity.x = 0
+    } else if (player.position.x > maxX) {
+      player.position.x = maxX
+      player.velocity.x = 0
+    }
+  }
 
   if (input.jump && player.onGround) {
     player.velocity.y = -JUMP_SPEED
