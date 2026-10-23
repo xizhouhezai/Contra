@@ -1,4 +1,5 @@
 import {
+  type BossId,
   BULLET_HEIGHT,
   BULLET_WIDTH,
   type CharacterId,
@@ -31,7 +32,7 @@ import {
   sheetKey,
   stateFor,
 } from '../assets/animated'
-import { bossArtKey } from '../assets/bosses'
+import { bossArtKey, bossArtPreference } from '../assets/bosses'
 import {
   bossEffectForMove,
   bossEffectKey,
@@ -82,6 +83,16 @@ import { drawPlatform, groundVariantFor, preloadTerrain } from '../stage/terrain
  * unchanged, and so is every existing test.
  */
 const DISPLAY_HEIGHT = 90
+
+/**
+ * Crimson wash for a boss that changed phase without changing form.
+ *
+ * art-style.md §5 assigns 改写者 and 涌现 a colour offset rather than a second
+ * illustration, so a phase change with no new portrait is carried by tint. It
+ * is the alert red the rest of the game already uses for danger.
+ */
+const BOSS_PHASE_TINT = 0xd6452c
+
 export class StageScene extends Phaser.Scene {
   private world!: World
   private stage!: StageDefinition
@@ -135,6 +146,7 @@ export class StageScene extends Phaser.Scene {
     bossPhaseChanged: (event) => {
       this.showBanner(`形态 ${event.phase}`)
       this.playEventSound(event)
+      this.applyBossPhase(event.phase)
     },
     stageCleared: (event) => {
       this.showCleared(event.score)
@@ -187,6 +199,14 @@ export class StageScene extends Phaser.Scene {
   private hudPlate: Phaser.GameObjects.Rectangle | null = null
   private banner: Phaser.GameObjects.Text | null = null
   private exitZone: Phaser.GameObjects.Rectangle | null = null
+  /** The boss portrait on screen; null on a stage without a boss. */
+  private bossPortrait: Phaser.GameObjects.Image | null = null
+  /** The phase the portrait is drawn for, so a texture swap happens once. */
+  private bossPhase = 1
+  /** Its height in world pixels, kept so a form swap rescales to the same size. */
+  private bossPortraitHeight = 0
+  /** Set once the death topple has started, so it cannot replay. */
+  private bossToppled = false
   private prevX = 0
   private prevY = 0
   private clearedEvents = 0
@@ -235,6 +255,13 @@ export class StageScene extends Phaser.Scene {
     this.propViews.clear()
     this.bulletViews.clear()
     this.playerView = null
+    // The portrait belongs to the previous stage's display list, which shutdown
+    // already destroyed: a stale reference would have syncBossPortrait write to
+    // a dead object. The phase resets with it, or a stage entered after a
+    // phase-2 fight would open on the wrong form.
+    this.bossPortrait = null
+    this.bossPhase = 1
+    this.bossToppled = false
     this.clearEvents()
 
     this.world = new World({
@@ -433,6 +460,7 @@ export class StageScene extends Phaser.Scene {
     const events = this.world.update(delta / 1000, this.pollInput(source))
     this.bridge.consume(events)
     this.syncViews()
+    this.syncBossPortrait()
     this.applyMotion(delta / 1000)
     updateParallax(this.parallax, this.cameras.main.scrollX)
     this.updateHud()
@@ -1113,35 +1141,149 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
-   * Places the boss portrait for a stage that has a boss (T-M6-22).
+   * Places the boss portrait for the phase the fight opens in (T-M6-22).
    *
-   * It sits behind the play area and follows the camera horizontally, so the
-   * fight happens in front of the character it is about. A stage without a boss
-   * never creates one, and a boss without a portrait is skipped rather than
-   * leaving an empty frame.
+   * Anchored on the exit zone, not on the camera: the boss has no coordinates of
+   * its own - the runtime state is a phase machine - so the arena it stands in
+   * is its position. Depth keeps it behind the terrain and every actor, so it
+   * reads as a backdrop the fight happens in front of and can never hide a
+   * bullet or the player.
+   *
+   * A stage without a boss never creates one, and a boss whose art is missing
+   * entirely is skipped rather than leaving an empty frame.
    */
   private createBossPortrait(): void {
     const bossId = this.stage.bossId
     if (bossId === undefined) return
 
-    const key = bossArtKey(bossId)
-    if (!this.textures.exists(key)) return
+    const key = this.bossArtKeyFor(bossId, this.bossPhase)
+    if (key === null) return
 
-    const source = this.textures.get(key).getSourceImage()
-    const view = this.cameras.main.worldView
-
-    // Anchored at the ground line, not at the bottom of the view: the floor is
-    // a solid band across the lower third, and a portrait anchored to the view
-    // had its legs hidden behind it and its head cut by the top.
-    //
-    // Sized to 62% of the visible height so the character reads as backdrop -
-    // present, but clearly not something the player collides with.
-    const height = GAME_HEIGHT * 0.62
-    this.add
-      .image(view.x + GAME_WIDTH * 0.72, view.y + GAME_HEIGHT * 0.78, key)
+    const exit = this.stage.exit
+    this.bossPortraitHeight = GAME_HEIGHT * 0.62
+    this.bossPortrait = this.add
+      .image(exit.x + exit.width / 2, exit.y + exit.height, key)
       .setOrigin(0.5, 1)
       .setDepth(-50)
-      .setScale(height / source.height)
+      .setScale(this.bossPortraitHeight / this.textures.get(key).getSourceImage().height)
+    this.syncBossPortrait()
+  }
+
+  /**
+   * The portrait texture to draw for one fight state, or null when none of the
+   * candidate forms is loaded.
+   *
+   * The candidate order comes from the asset layer, which is the only place that
+   * knows a phase without its own portrait has to fall back to another form:
+   * a fight that switches to a form the art does not cover still shows the boss
+   * instead of blinking to an empty stage.
+   */
+  private bossArtKeyFor(bossId: BossId, phase: number): string | null {
+    for (const id of bossArtPreference(bossId, phase)) {
+      const key = bossArtKey(id)
+      if (this.textures.exists(key)) return key
+    }
+    return null
+  }
+
+  /**
+   * Swaps the portrait when the boss crosses into the next phase.
+   *
+   * Driven by the event rather than polled: the form change is the beat the
+   * fight is built around, and reading it a frame late is exactly the lag that
+   * makes a phase switch feel like a bug. The fade covers the texture swap, so
+   * the two forms are not one hard cut.
+   */
+  private applyBossPhase(phase: number): void {
+    this.bossPhase = phase
+    const portrait = this.bossPortrait
+    const bossId = this.stage.bossId
+    // A defeated boss stays down; reviving its portrait on a late phase event
+    // would undo the one thing the death pose is telling the player.
+    if (portrait === null || bossId === undefined || this.bossToppled) return
+
+    const key = this.bossArtKeyFor(bossId, phase)
+    if (key === null) return
+
+    // A phase that keeps the same form still has to read as a change, and
+    // art-style.md §5 is explicit that the form shift is a colour offset when
+    // one illustration covers one form. Cross-fading a picture into itself
+    // would look like a dropped frame, so the identical texture is tinted.
+    if (key === portrait.texture.key) {
+      if (phase > 1) portrait.setTint(BOSS_PHASE_TINT)
+      return
+    }
+
+    this.tweens.add({
+      targets: portrait,
+      alpha: 0,
+      duration: 120,
+      onComplete: () => {
+        if (this.bossPortrait !== portrait) return
+        portrait.setTexture(key)
+        // The tint was this phase-shift's stand-in for art that does not exist;
+        // the new form has its own, so carrying the wash over would report the
+        // previous phase on top of the current one.
+        portrait.clearTint()
+        portrait.setScale(this.bossPortraitHeight / this.textures.get(key).getSourceImage().height)
+        this.tweens.add({ targets: portrait, alpha: 1, duration: 220 })
+      },
+    })
+  }
+
+  /**
+   * Keeps the portrait on the arena without letting the camera scroll it away.
+   *
+   * The camera follows the player, so an image pinned in world space at the
+   * arena would spend the whole approach off screen and the boss would only
+   * appear once the fight had already started. The anchor is the arena centre;
+   * the clamp only moves it as far as it takes to stay inside the shot.
+   */
+  private syncBossPortrait(): void {
+    const portrait = this.bossPortrait
+    if (portrait === null) return
+
+    if (!this.bossToppled && this.world.activeBoss?.defeated === true) {
+      this.toppleBossPortrait(portrait)
+      return
+    }
+    if (!portrait.visible) return
+
+    const exit = this.stage.exit
+    const anchorX = exit.x + exit.width / 2
+    const half = portrait.displayWidth / 2
+    const view = this.cameras.main.worldView
+    const x = Math.max(view.x + half, Math.min(anchorX, view.right - half))
+    // Written only on change: a transform write per frame on a static backdrop
+    // is pure fill-rate for the same pixel.
+    if (portrait.x !== x) portrait.x = x
+    if (portrait.y !== exit.y + exit.height) portrait.y = exit.y + exit.height
+  }
+
+  /**
+   * The defeat pose: the body falls from its feet and then clears.
+   *
+   * The origin sits at the feet, so rotating drops the whole figure backward
+   * from the ground instead of spinning it around its middle. The grey tint is
+   * what separates "beaten" from "changed form" at a glance, because both are a
+   * recoloured silhouette otherwise.
+   */
+  private toppleBossPortrait(portrait: Phaser.GameObjects.Image): void {
+    this.bossToppled = true
+    portrait.setTint(PALETTE.targetDead)
+    this.tweens.add({
+      targets: portrait,
+      angle: -82,
+      duration: 620,
+      ease: 'Quad.easeIn',
+    })
+    this.tweens.add({
+      targets: portrait,
+      alpha: 0,
+      delay: 900,
+      duration: 700,
+      onComplete: () => portrait.setVisible(false),
+    })
   }
 
   /**
