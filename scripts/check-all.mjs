@@ -158,9 +158,27 @@ const GATES = [
     run: () => [toolEntry('typescript'), '-b', 'tsconfig.json'],
   },
   {
+    // The root tsconfig only references core, cli and game-core. game-web was
+    // never in that list, so every "used but not imported" defect in the web
+    // package - preloadEnemies, hudOrigin, bossArtKey, preloadBgm, ProjectileView
+    // - passed a green build and failed in the browser instead. This gate closes
+    // that hole; it had accumulated 37 errors by the time it was added.
+    label: '界面类型',
+    detail: 'game-web tsc --noEmit',
+    run: () => [
+      toolEntry('typescript'),
+      '--noEmit',
+      '-p',
+      'packages/game-web/tsconfig.typecheck.json',
+    ],
+  },
+  {
+    // Not a bare `vitest run`: from the repository root that found one test file
+    // and reported green on five tests. scripts/test-all.mjs runs each package
+    // under its own config and aggregates the verdict.
     label: '单元测试',
     detail: '全部包的 vitest',
-    run: () => [toolEntry('vitest'), 'run'],
+    run: () => ['scripts/test-all.mjs'],
   },
   {
     label: '构建',

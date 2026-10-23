@@ -14,7 +14,11 @@ import { characterTexture, enemyTexture } from '../assets/manifest'
  * degrades to the grey box rather than to an invisible entity.
  */
 export class ActorView {
-  readonly sprite: Phaser.GameObjects.GameObject
+  // Both a Sprite and a Rectangle: the two share Transform and Origin, which is
+  // all this class uses. Typing it as GameObject hid that - calling setOrigin on
+  // it was a type error the build never reported, because this package was not
+  // in the root tsconfig references.
+  readonly sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle
   private lastX = Number.NaN
   private lastY = Number.NaN
 

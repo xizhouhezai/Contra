@@ -18,7 +18,7 @@ import { applyFit } from '../fit'
  * code path (T-M2-12).
  */
 export class StageSelectScene extends Phaser.Scene {
-  private storage = new LocalStorageAdapter()
+  private storage = LocalStorageAdapter.fromGlobal()
   private progress!: CampaignProgress
   /** Cards in campaign order, so arrow keys can walk them. */
   private cards: {
@@ -51,7 +51,7 @@ export class StageSelectScene extends Phaser.Scene {
   create(): void {
     applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
-    this.storage = new LocalStorageAdapter()
+    this.storage = LocalStorageAdapter.fromGlobal()
     this.cards = []
     this.cursor = 0
     this.progress = loadProgress(
