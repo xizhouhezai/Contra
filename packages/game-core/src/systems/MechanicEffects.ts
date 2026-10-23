@@ -10,7 +10,7 @@
 
 import { BULLET_HEIGHT, BULLET_WIDTH } from '../data/constants.js'
 import type { EnemyDefinition } from '../data/enemies.js'
-import type { PlatformDefinition, Rect, Vec2 } from '../data/types.js'
+import type { Rect, Vec2 } from '../data/types.js'
 import type { Bullet } from '../entities/Bullet.js'
 import { attackSide, damageAgainst } from './EnemyBehaviour.js'
 import { overlaps, reflectVelocity, struckFace, type WallFace } from './Mechanics.js'
@@ -122,13 +122,16 @@ export function solidPlatforms(
   platforms: readonly TerrainPlatform[],
   terrain: TerrainState,
   seconds: number,
-): readonly PlatformDefinition[] {
-  const solid: PlatformDefinition[] = []
+): readonly TerrainPlatform[] {
+  // TerrainPlatform, not the bare Rect: the caller has to be able to tell a
+  // moving plank from a still one, and platformAt() returns the position at this
+  // instant while the motion description stays on the platform.
+  const solid: TerrainPlatform[] = []
   for (let index = 0; index < platforms.length; index += 1) {
     const platform = platforms[index]
     if (platform === undefined) continue
     if (!blocksMovement(platform, terrain, index)) continue
-    solid.push(platformAt(platform, seconds))
+    solid.push({ ...platform, ...platformAt(platform, seconds) })
   }
   return solid
 }

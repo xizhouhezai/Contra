@@ -788,6 +788,20 @@ export class World {
   }
 
   /** Boss state for the presentation layer; null on an ordinary stage. */
+  /**
+   * The platforms as they stand this instant.
+   *
+   * A motion platform's x/y in the stage data is its resting position, and
+   * platformAt() is a pure function of elapsed time rather than a mutation. That
+   * is the right shape for determinism, but it left the presentation layer and
+   * every external check with no way to ask where a plank actually is - the only
+   * public view was the authored data, which never moves.
+   */
+  platformStates(): readonly TerrainPlatform[] {
+    return solidPlatforms(this.platforms, this.terrain, this.elapsedSeconds)
+  }
+
+  /** True when this platform id is still solid; a broken plank is not. */
   get activeBoss(): BossRuntimeState | null {
     return this.boss
   }
