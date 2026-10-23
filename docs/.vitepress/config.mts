@@ -114,6 +114,7 @@ export default defineConfig({
             { text: '场景生成提示词', link: '/game/design/scene-prompts' },
             { text: '敌人攻击设计', link: '/game/design/enemy-attack' },
             { text: '战斗素材提示词', link: '/game/design/combat-prompts' },
+            { text: 'Midscene 自动游玩录像', link: '/game/design/midscene-demo' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
