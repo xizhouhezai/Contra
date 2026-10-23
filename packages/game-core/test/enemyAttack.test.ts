@@ -17,9 +17,14 @@ import { createAttackState, stepAttack, volleyDirections } from '../src/systems/
 const IDLE = { moveX: 0, moveY: 0, jump: false, fire: false, bomb: false } as const
 
 function world(options: { targetX?: number; archetype?: string; act?: 1 | 2 | 3 } = {}): World {
+  // exactOptionalPropertyTypes rejects an explicit undefined, so the act key is
+  // built separately and only merged in when the caller named one. Spreading a
+  // conditional inline still yields `act: 1 | 2 | 3 | undefined` to the checker.
+  const actKey: { act?: 1 | 2 | 3 } = options.act === undefined ? {} : { act: options.act }
   return new World({
     spawn: { x: 100, y: 300 },
     platforms: [{ x: 0, y: 400, width: 3000, height: 60 }],
+    ...actKey,
     targets: [
       {
         id: 'e1',
@@ -32,7 +37,6 @@ function world(options: { targetX?: number; archetype?: string; act?: 1 | 2 | 3 
         archetype: options.archetype ?? 'patrol',
       },
     ],
-    act: options.act,
   })
 }
 

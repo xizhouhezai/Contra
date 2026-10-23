@@ -14,7 +14,7 @@ describe('Boss registry (T3)', () => {
   it('resolves every boss id the campaign names', () => {
     const ids = [...CAMPAIGN_STAGES, ...ACT_III_STAGES]
       .map((stage) => stage.bossId)
-      .filter((id): id is string => id !== undefined)
+      .filter((id): id is NonNullable<typeof id> => id !== undefined)
 
     expect(ids.length).toBeGreaterThan(0)
     for (const id of ids) {

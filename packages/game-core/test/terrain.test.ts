@@ -103,7 +103,7 @@ describe('Moving platforms (T-M3-02)', () => {
 
   it('moves horizontal platforms only on x', () => {
     const atZero = platformAt(HORIZONTAL, 0)
-    const half = platformAt(HORIZONTAL, HORIZONTAL.motion?.periodSeconds / 2)
+    const half = platformAt(HORIZONTAL, (HORIZONTAL.motion?.periodSeconds ?? 2) / 2)
     expect(atZero.y).toBe(300)
     expect(half.y).toBe(300)
     expect(atZero.x).not.toBe(half.x)
@@ -111,7 +111,7 @@ describe('Moving platforms (T-M3-02)', () => {
 
   it('moves vertical platforms only on y', () => {
     const atZero = platformAt(VERTICAL, 0)
-    const half = platformAt(VERTICAL, VERTICAL.motion?.periodSeconds / 2)
+    const half = platformAt(VERTICAL, (VERTICAL.motion?.periodSeconds ?? 2) / 2)
     expect(atZero.x).toBe(600)
     expect(half.x).toBe(600)
     expect(atZero.y).not.toBe(half.y)

@@ -2,18 +2,29 @@ import { describe, expect, it } from 'vitest'
 import type { CoreEvent, CoreEventType } from '../src/core.js'
 
 /**
- * The nine event families the presentation layer must be able to consume
+ * Every event family the presentation layer must be able to consume
  * (docs/game/design/architecture.md §事件驱动).
+ *
+ * This list is the contract, and the coverage proof below fails to compile when
+ * core.ts grows an event that is not named here. It did exactly that: boss
+ * telegraph and attack landed with the boss-move fix, then enemy telegraph and
+ * shot with the enemy-attack work, and this test refused to build until the four
+ * were added. That is the whole reason the proof exists.
  */
 const REQUIRED_EVENT_TYPES = [
   'shot',
   'hit',
   'enemyDied',
   'playerHurt',
+  'playerHealed',
   'playerDied',
   'weaponPicked',
   'explosion',
+  'bossTelegraph',
+  'bossAttack',
   'bossPhaseChanged',
+  'enemyTelegraph',
+  'enemyShot',
   'stageCleared',
 ] as const
 
@@ -39,10 +50,33 @@ const samples: readonly CoreEvent[] = [
   { type: 'hit', targetId: 'enemy-1', damage: 10, position: { x: 4, y: 4 } },
   { type: 'enemyDied', enemyId: 'enemy-1', position: { x: 4, y: 4 }, score: 100 },
   { type: 'playerHurt', heartsLeft: 2, position: { x: 8, y: 8 } },
+  { type: 'playerHealed', heartsLeft: 3 },
   { type: 'playerDied', position: { x: 8, y: 8 } },
   { type: 'weaponPicked', weaponId: 'laser', slot: 1 },
   { type: 'explosion', position: { x: 12, y: 12 }, radius: 96 },
-  { type: 'bossPhaseChanged', bossId: 'claude-auditor', phase: 2 },
+  { type: 'bossTelegraph', bossId: 'claude-auditor', moveId: 'audit-beam', seconds: 1.2 },
+  {
+    type: 'bossAttack',
+    bossId: 'claude-auditor',
+    moveId: 'audit-beam',
+    position: { x: 4, y: 4 },
+    hit: true,
+  },
+  { type: 'bossPhaseChanged', bossId: 'claude-auditor', phase: 2, healthFraction: 0.5 },
+  {
+    type: 'enemyTelegraph',
+    enemyId: 'enemy-1',
+    weaponId: 'pulse-gun',
+    seconds: 0.5,
+    position: { x: 4, y: 4 },
+  },
+  {
+    type: 'enemyShot',
+    enemyId: 'enemy-1',
+    weaponId: 'pulse-gun',
+    position: { x: 4, y: 4 },
+    direction: { x: -1, y: 0 },
+  },
   { type: 'stageCleared', score: 5000 },
 ]
 
@@ -56,14 +90,24 @@ function label(event: CoreEvent): string {
       return `enemyDied:${event.enemyId}`
     case 'playerHurt':
       return `playerHurt:${event.heartsLeft}`
+    case 'playerHealed':
+      return `playerHealed:${event.heartsLeft}`
     case 'playerDied':
       return 'playerDied'
     case 'weaponPicked':
       return `weaponPicked:${event.weaponId}`
     case 'explosion':
       return `explosion:${event.radius}`
+    case 'bossTelegraph':
+      return `bossTelegraph:${event.moveId}`
+    case 'bossAttack':
+      return `bossAttack:${event.moveId}`
     case 'bossPhaseChanged':
       return `bossPhaseChanged:${event.bossId}`
+    case 'enemyTelegraph':
+      return `enemyTelegraph:${event.weaponId}`
+    case 'enemyShot':
+      return `enemyShot:${event.weaponId}`
     case 'stageCleared':
       return `stageCleared:${event.score}`
     default: {
