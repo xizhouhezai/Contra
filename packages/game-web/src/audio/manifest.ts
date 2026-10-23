@@ -67,8 +67,28 @@ export const EVENT_SFX_KEYS = [
 export const SFX_KEYS = [...WEAPON_SFX_KEYS, ...EVENT_SFX_KEYS] as const
 export type SfxKey = (typeof SFX_KEYS)[number]
 
-/** Six tracks cycled across twelve stages, and the boss theme last. */
-export const BGM_KEYS = ['bgm-01', 'bgm-02', 'bgm-03', 'bgm-04', 'bgm-05', 'bgm-06'] as const
+/**
+ * One track per stage, named after the stage it belongs to.
+ *
+ * The old list held six generically numbered tracks that were cycled across
+ * twelve stages. Twelve named tracks replaced them; the six originals are left
+ * in the asset folder but are no longer loaded, because keeping them here would
+ * mean downloading 6MB of audio nothing plays.
+ */
+export const BGM_KEYS = [
+  'bgm-01-dock',
+  'bgm-02-corridor',
+  'bgm-03-bridge',
+  'bgm-04-auditor',
+  'bgm-05-coolant',
+  'bgm-06-server',
+  'bgm-07-forge',
+  'bgm-08-rewriter',
+  'bgm-09-archive',
+  'bgm-10-mirror',
+  'bgm-11-abyss',
+  'bgm-12-emergence',
+] as const
 export type BgmKey = (typeof BGM_KEYS)[number]
 
 export function sfxUrl(key: string): string | undefined {
@@ -85,10 +105,33 @@ export function bgmUrl(key: string): string | undefined {
  * Boss stages get the last track; the rest cycle so consecutive stages never
  * repeat the same loop back to back.
  */
-export function bgmForStage(stageIndex: number, isBoss: boolean): BgmKey {
-  if (isBoss) return 'bgm-06'
-  const slot = (stageIndex - 1) % 5
-  return (BGM_KEYS[slot] ?? 'bgm-01') as BgmKey
+export function bgmForStage(stageIndex: number, _isBoss: boolean): BgmKey {
+  // One track per stage now that all twelve exist, instead of five tracks
+  // cycled across twelve stages with a single boss theme. Two adjacent stages
+  // sharing a loop was the reason the soundtrack felt like one long piece.
+  const perStage: Record<number, string> = {
+    1: 'bgm-01-dock',
+    2: 'bgm-02-corridor',
+    3: 'bgm-03-bridge',
+    4: 'bgm-04-auditor',
+    5: 'bgm-05-coolant',
+    6: 'bgm-06-server',
+    7: 'bgm-07-forge',
+    8: 'bgm-08-rewriter',
+    9: 'bgm-09-archive',
+    10: 'bgm-10-mirror',
+    11: 'bgm-11-abyss',
+    12: 'bgm-12-emergence',
+  }
+  const key = perStage[stageIndex]
+  if (key !== undefined && (BGM_KEYS as readonly string[]).includes(key)) {
+    return key as BgmKey
+  }
+
+  // A stage whose track is missing falls back to the nearest one that exists,
+  // so a gap in the soundtrack never leaves a stage silent.
+  const fallback = BGM_KEYS[Math.min(BGM_KEYS.length - 1, Math.max(0, stageIndex - 1))]
+  return (fallback ?? 'bgm-01-dock') as BgmKey
 }
 
 /** Loads every effect and track into the Phaser cache. */

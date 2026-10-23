@@ -24,24 +24,38 @@ describe('Audio manifest (T-M4-08 / T-M4-09)', () => {
     expect(SFX_KEYS).toHaveLength(19)
   })
 
-  it('ships six background tracks', () => {
-    expect(BGM_KEYS).toHaveLength(6)
+  it('ships one track per stage', () => {
+    // Twelve stages, twelve named tracks. The earlier arrangement was six
+    // generically numbered files cycled across the campaign, which meant two
+    // neighbouring stages shared a loop.
+    expect(BGM_KEYS).toHaveLength(12)
     for (const key of BGM_KEYS) expect(bgmUrl(key)).toBeDefined()
   })
 
-  it('gives the boss stage its own theme', () => {
-    expect(bgmForStage(4, true)).toBe('bgm-06')
-    expect(bgmForStage(12, true)).toBe('bgm-06')
+  it('gives every stage its own theme, boss stages included', () => {
+    const tracks = Array.from({ length: 12 }, (_, i) => bgmForStage(i + 1, false))
+    expect(new Set(tracks).size).toBe(12)
+    expect(tracks[0]).toBe('bgm-01-dock')
+    expect(tracks[11]).toBe('bgm-12-emergence')
   })
 
-  it('never repeats the same loop on consecutive non-boss stages', () => {
-    const tracks = [1, 2, 3, 4, 5].map((index) => bgmForStage(index, false))
-    expect(new Set(tracks).size).toBe(tracks.length)
+  it('names each track after the stage it belongs to', () => {
+    // A name like bgm-04-auditor says where it plays; a bare bgm-04 does not.
+    for (const key of BGM_KEYS) {
+      expect(key.split('-').length).toBeGreaterThanOrEqual(3)
+    }
   })
 
-  it('cycles the five stage tracks across the campaign', () => {
-    // Stage 6 reuses stage 1's loop rather than inventing a seventh.
-    expect(bgmForStage(6, false)).toBe(bgmForStage(1, false))
-    expect(bgmForStage(7, false)).toBe(bgmForStage(2, false))
+  it('falls back to a real track for a stage out of range', () => {
+    // A stage index outside the campaign must not return a key with no file.
+    expect(bgmUrl(bgmForStage(99, false))).toBeDefined()
+    expect(bgmUrl(bgmForStage(0, false))).toBeDefined()
+  })
+
+  it('never reuses a loop, which the cycling arrangement used to do', () => {
+    // Stage 6 used to reuse stage 1's loop because there were only five stage
+    // tracks. With one per stage that is exactly the bug this guards against.
+    expect(bgmForStage(6, false)).not.toBe(bgmForStage(1, false))
+    expect(bgmForStage(7, false)).not.toBe(bgmForStage(2, false))
   })
 })
