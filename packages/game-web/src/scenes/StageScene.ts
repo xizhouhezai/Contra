@@ -32,7 +32,15 @@ import {
   stateFor,
 } from '../assets/animated'
 import { bossArtKey } from '../assets/bosses'
+import {
+  bossEffectForMove,
+  bossEffectKey,
+  effectKey,
+  hasEffect,
+  muzzleForWeapon,
+} from '../assets/effects'
 import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
+import { hasEnemyProp, mountProp } from '../assets/enemyProps'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
 import { preloadStageScene, stageSceneLoaded } from '../assets/stages'
@@ -81,13 +89,13 @@ export class StageScene extends Phaser.Scene {
 
   private readonly bridge = new CoreEventBridge({
     shot: (event) => {
-      this.showMuzzleFlash(event.position.x, event.position.y)
+      this.showMuzzleFlash(event.position.x, event.position.y, event.weaponId, 'player')
       this.playEventSound(event)
       // Recoil is driven by the real shot event, not a timer (REQ-MOT-002).
       this.secondsSinceShot = 0
     },
     hit: (event) => {
-      this.showImpact(event.position.x, event.position.y)
+      this.showImpact(event.position.x, event.position.y, event.damage)
       this.playEventSound(event)
     },
     enemyDied: (event) => this.showImpact(event.position.x, event.position.y),
@@ -114,7 +122,7 @@ export class StageScene extends Phaser.Scene {
       this.showEnemyTelegraph(event.position.x, event.position.y, event.seconds)
     },
     enemyShot: (event) => {
-      this.showMuzzleFlash(event.position.x, event.position.y)
+      this.showMuzzleFlash(event.position.x, event.position.y, event.weaponId, 'enemy')
     },
     bossTelegraph: (event) => {
       // The warning is what makes the move dodgeable. Without it the boss
@@ -122,7 +130,7 @@ export class StageScene extends Phaser.Scene {
       this.showTelegraph(event.seconds)
     },
     bossAttack: (event) => {
-      this.showBossAttack(event.position.x, event.position.y, event.hit)
+      this.showBossAttack(event.position.x, event.position.y, event.hit, event.moveId)
     },
     bossPhaseChanged: (event) => {
       this.showBanner(`形态 ${event.phase}`)
@@ -161,6 +169,8 @@ export class StageScene extends Phaser.Scene {
   /** The character being played, resolved once in create(). */
   private character: CharacterId = 'deepseek'
   private readonly targetViews = new Map<string, ActorView>()
+  /** Weapon props mounted on the enemies that carry one, by target id. */
+  private readonly propViews = new Map<string, Phaser.GameObjects.Image>()
   private readonly bulletViews = new Map<string, ProjectileView>()
   private hud: Phaser.GameObjects.Text | null = null
   /** The current weapon's icon, redrawn when the weapon changes. */
@@ -221,6 +231,8 @@ export class StageScene extends Phaser.Scene {
     this.stage = resolveStage(this.request)
     // Reset per-run state: Phaser reuses the scene instance across stages.
     this.targetViews.clear()
+    for (const prop of this.propViews.values()) prop.destroy()
+    this.propViews.clear()
     this.bulletViews.clear()
     this.playerView = null
     this.clearEvents()
@@ -667,6 +679,14 @@ export class StageScene extends Phaser.Scene {
         view.sprite.setScale(1.2)
       }
       this.targetViews.set(target.id, view)
+
+      // Four archetypes carry a weapon the sprite does not include. Mounting it
+      // is what lets a player see which drone is the one with the gun - the
+      // difference between a readable fight and being shot by a blank robot.
+      if (hasEnemyProp(archetype)) {
+        const prop = mountProp(this, archetype, target.x, target.y, target.width, target.height, 16)
+        if (prop !== null) this.propViews.set(target.id, prop)
+      }
     }
   }
   /** The whole one-way sync: read the rule layer, write the renderer. */
@@ -696,6 +716,19 @@ export class StageScene extends Phaser.Scene {
       view.sync(target.box.x + target.box.width / 2, target.box.y + target.box.height)
       view.setVisible(target.alive)
       view.setTint(target.alive ? null : PALETTE.targetDead)
+
+      const prop = this.propViews.get(target.id)
+      if (prop !== undefined) {
+        // The prop is anchored centre while the enemy anchors bottom, so its y
+        // is read from the box top rather than from the sprite's own origin.
+        prop.setPosition(
+          target.box.x + target.box.width * 0.78,
+          target.box.y + target.box.height * 0.5,
+        )
+        prop.setVisible(target.alive)
+        if (target.alive) prop.clearTint()
+        else prop.setTint(PALETTE.targetDead)
+      }
     }
 
     const live = new Set<string>()
@@ -724,31 +757,65 @@ export class StageScene extends Phaser.Scene {
     }
   }
 
-  private showMuzzleFlash(x: number, y: number): void {
-    const flash = this.add.rectangle(x, y, 16, 16, PALETTE.bullet, 0.9).setDepth(19)
-    this.tweens.add({ targets: flash, alpha: 0, duration: 80, onComplete: () => flash.destroy() })
+  /**
+   * A muzzle flash, coloured by faction and element.
+   *
+   * The flash is the only signal that distinguishes "my gun fired" from "someone
+   * shot at me" at a glance when both are on screen, which is the whole point of
+   * keeping the enemy flash on a different palette.
+   */
+  private showMuzzleFlash(x: number, y: number, weaponId: string, owner: string): void {
+    const key = effectKey(muzzleForWeapon(weaponId, owner))
+    if (!hasEffect(key)) return
+    const flash = this.add
+      .image(x, y, key)
+      .setDepth(19)
+      .setRotation(Math.random() * Math.PI)
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scale: 1.5,
+      duration: 90,
+      onComplete: () => flash.destroy(),
+    })
   }
 
-  /** Short-lived square at a hit point; used for both damage and deaths. */
-  private showImpact(x: number, y: number): void {
-    const impact = this.add.rectangle(x, y, 10, 10, PALETTE.alertFill, 0.85).setDepth(18)
+  /**
+   * A hit mark at the point of impact.
+   *
+   * Three sizes exist because the set was drawn that way: a rifle tick, a
+   * mid-sized burst and a heavy one. Picking by the damage dealt means a pierce
+   * round looks different from a scatter pellet without the rule layer having to
+   * say anything about art.
+   */
+  private showImpact(x: number, y: number, damage = 1): void {
+    const size = damage >= 4 ? 'impact-big' : damage >= 2 ? 'impact-med' : 'impact-small'
+    const key = effectKey(size)
+    if (!hasEffect(key)) return
+    const impact = this.add.image(x, y, key).setDepth(18)
     this.tweens.add({
       targets: impact,
       alpha: 0,
-      scale: 1.8,
-      duration: 120,
+      scale: 1.6,
+      duration: 130,
       onComplete: () => impact.destroy(),
     })
   }
 
-  /** A blast ring sized by the radius the rule layer reported. */
+  /** A blast, scaled to the radius the rule layer reported. */
   private showBlast(x: number, y: number, radius: number): void {
-    const blast = this.add.circle(x, y, radius, PALETTE.alertFill, 0.35).setDepth(17)
+    const key = effectKey('impact-big')
+    if (!hasEffect(key)) return
+    const blast = this.add.image(x, y, key).setDepth(17)
+    // The art is 128px wide, so scale against the real radius rather than
+    // against a number that only looks right at one blast size.
+    const scale = Math.max(0.6, (radius * 2) / 128)
+    blast.setScale(scale * 0.7)
     this.tweens.add({
       targets: blast,
       alpha: 0,
-      scale: 1.2,
-      duration: 240,
+      scale: scale * 1.3,
+      duration: 260,
       onComplete: () => blast.destroy(),
     })
   }
@@ -763,6 +830,27 @@ export class StageScene extends Phaser.Scene {
    * and still reads at 32px.
    */
   private showEnemyTelegraph(x: number, y: number, seconds: number): void {
+    const duration = Math.max(160, seconds * 1000)
+    const auraKey = effectKey('charge-aura')
+    if (hasEffect(auraKey)) {
+      // A charge aura that grows over exactly the warning length, so the fill is
+      // a clock rather than a decoration: when it reaches full size, the shot
+      // leaves.
+      const aura = this.add.image(x, y, auraKey).setDepth(19).setAlpha(0.35).setScale(0.4)
+      this.tweens.add({
+        targets: aura,
+        scale: 1.15,
+        alpha: 0.9,
+        duration,
+        onComplete: () => aura.destroy(),
+      })
+      this.tweens.add({
+        targets: aura,
+        angle: 360,
+        duration: duration * 2,
+      })
+      return
+    }
     const ring = this.add
       .circle(x, y, 14, 0xffffff, 0)
       .setStrokeStyle(2, PALETTE.alertFill, 0.9)
@@ -771,7 +859,7 @@ export class StageScene extends Phaser.Scene {
       targets: ring,
       radius: 34,
       alpha: 0.15,
-      duration: Math.max(160, seconds * 1000),
+      duration,
       onComplete: () => ring.destroy(),
     })
   }
@@ -809,16 +897,29 @@ export class StageScene extends Phaser.Scene {
   }
 
   /** Plays a boss move: a flash when it lands, nothing when the player dodged. */
-  private showBossAttack(x: number, y: number, hit: boolean): void {
+  private showBossAttack(x: number, y: number, hit: boolean, moveId: string): void {
     if (!hit) return
-    const flash = this.add.circle(x, y, 90, PALETTE.alertFill, 0.45).setDepth(18)
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      scale: 1.8,
-      duration: 320,
-      onComplete: () => flash.destroy(),
-    })
+    const effect = bossEffectForMove(moveId)
+    const key = effect === null ? null : bossEffectKey(effect)
+    if (key !== null && hasEffect(key)) {
+      const flash = this.add.image(x, y, key).setDepth(18).setScale(0.5)
+      this.tweens.add({
+        targets: flash,
+        alpha: 0,
+        scale: 1.4,
+        duration: 340,
+        onComplete: () => flash.destroy(),
+      })
+    } else {
+      const flash = this.add.circle(x, y, 90, PALETTE.alertFill, 0.45).setDepth(18)
+      this.tweens.add({
+        targets: flash,
+        alpha: 0,
+        scale: 1.8,
+        duration: 320,
+        onComplete: () => flash.destroy(),
+      })
+    }
     this.cameras.main.shake(160, 0.012)
   }
 
