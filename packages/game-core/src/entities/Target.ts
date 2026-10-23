@@ -18,10 +18,33 @@ export interface TargetDefinition extends Rect {
   readonly archetype?: string
 }
 
+/**
+ * A rect a live entity carries around.
+ *
+ * A target used to be a static box, so a plain Rect said exactly that. Once an
+ * enemy walks, its position has to change in place: rebuilding the box every step
+ * would break every holder of a reference to it, and the size never changes
+ * anyway. The shape therefore stays a Rect - readers are unaffected - and only
+ * the two coordinates become writable.
+ */
+export interface MutableRect {
+  x: number
+  y: number
+  readonly width: number
+  readonly height: number
+}
+
 /** Mutable rule-layer state of one target. */
 export interface TargetState {
   readonly id: EntityId
-  readonly box: Rect
+  /**
+   * The body, in world pixels.
+   *
+   * Written by the World's motion step and read by everything else: collision,
+   * homing, blasts and the renderer all resolve against wherever the enemy is
+   * standing now.
+   */
+  readonly box: MutableRect
   readonly score: number
   /**
    * Which archetype this box is.

@@ -1,4 +1,13 @@
-import { CHARACTER_IDS, CHARACTERS, type CharacterId, characterDefinition } from '@contra/game-core'
+import {
+  CHARACTER_IDS,
+  CHARACTERS,
+  type CharacterId,
+  characterDefinition,
+  loadLookChoices,
+  resolveLookId,
+  saveLookChoice,
+} from '@contra/game-core'
+import { LocalStorageAdapter } from '@contra/game-platform'
 import Phaser from 'phaser'
 import { loadChibi } from '../assets/chibi'
 import { type CharacterLook, looksFor, resolveLook } from '../assets/looks'
@@ -15,6 +24,7 @@ import { applyFit } from '../fit'
  * pick differently.
  */
 export class CharacterSelectScene extends Phaser.Scene {
+  private storage = LocalStorageAdapter.fromGlobal()
   private selected: CharacterId = CHARACTER_IDS[0] ?? 'deepseek'
   private readonly cards: Phaser.GameObjects.Container[] = []
   /** The look chosen for each character, so switching back keeps it. */
@@ -36,6 +46,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   create(): void {
     applyFit(this)
     this.cameras.main.setBackgroundColor(PALETTE.background)
+    this.storage = LocalStorageAdapter.fromGlobal()
+    this.restoreLooks()
 
     this.add
       .text(GAME_WIDTH / 2, 70, '选择推理者', {
@@ -227,6 +239,14 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Title'))
 
     this.select(this.selected)
+
+    // A restored look can be a chibi, and those are fetched on demand rather
+    // than in the first load (REQ-VAR-001). Without this the card a player left
+    // on last session would come back blank until they cycled away and back.
+    CHARACTER_IDS.forEach((id) => {
+      const look = this.currentLook(id)
+      if (!this.textures.exists(look.textureKey)) this.showLook(id, look)
+    })
   }
 
   /**
@@ -270,6 +290,22 @@ export class CharacterSelectScene extends Phaser.Scene {
     const next = (current + direction + CHARACTER_IDS.length) % CHARACTER_IDS.length
     const id = CHARACTER_IDS[next]
     if (id !== undefined) this.select(id)
+  }
+
+  /**
+   * Seeds each card with the look saved for it (REQ-VAR-002).
+   *
+   * The saved id is not trusted on its own: a look can disappear from the art
+   * set between releases, so it is resolved against the catalogue that is
+   * actually present and falls back to the first look rather than to nothing.
+   */
+  private restoreLooks(): void {
+    const saved = loadLookChoices(this.storage)
+    CHARACTER_IDS.forEach((id) => {
+      const available = this.looksFor(id).map((look) => look.id)
+      const chosen = resolveLookId(saved[id], available)
+      if (chosen !== undefined) this.chosenLooks.set(id, chosen)
+    })
   }
 
   /** Every look available for a character. */
@@ -335,19 +371,34 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (next === undefined) return
 
     this.chosenLooks.set(this.selected, next.id)
+    // Persisted per character, so picking a look for one does not overwrite the
+    // choice made for another (REQ-VAR-002).
+    saveLookChoice(this.storage, this.selected, next.id)
     this.refreshLookStrip()
 
-    // A chibi image is fetched on demand (REQ-VAR-001): the 57 images are not
-    // in the first load, so the one being switched to has to arrive first.
-    if (next.kind === 'chibi' && !this.textures.exists(next.textureKey)) {
-      const name = next.id.replace('chibi-', '')
-      void loadChibi(this, this.selected, name).then((loaded) => {
-        if (loaded) this.swapLookImage(this.selected, next)
-      })
+    this.showLook(this.selected, next)
+  }
+
+  /**
+   * Draws a look on its card, fetching the art first when it is not loaded.
+   *
+   * A chibi image is fetched on demand (REQ-VAR-001): the 57 images are not in
+   * the first load, so a look being switched to - or restored from a save - has
+   * to arrive before it can be drawn.
+   */
+  private showLook(id: CharacterId, look: CharacterLook): void {
+    if (this.textures.exists(look.textureKey)) {
+      this.swapLookImage(id, look)
       return
     }
+    // Only chibi art is deferred; every other kind was in the first load, so a
+    // missing texture means the file is gone and there is nothing to fetch.
+    if (look.kind !== 'chibi') return
 
-    this.swapLookImage(this.selected, next)
+    const name = look.id.replace('chibi-', '')
+    void loadChibi(this, id, name).then((loaded) => {
+      if (loaded) this.swapLookImage(id, look)
+    })
   }
 
   /** Replaces the art on a card when the look changes. */

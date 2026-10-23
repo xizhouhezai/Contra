@@ -50,6 +50,17 @@ export interface BossDefinition {
 
 export interface BossRuntimeState {
   readonly definition: BossDefinition
+  /**
+   * The area the boss can be hit in.
+   *
+   * A boss is a phase machine, not an entity, so it had no body at all: gunfire
+   * and blasts were resolved only against `targets`, and the three boss stages
+   * declare `targets: []`. The result was a boss that could wound the player and
+   * could never be wounded back - a fight with only one direction.
+   *
+   * Mutable rather than replaced, so callers that hold the state see it move.
+   */
+  readonly box: { x: number; y: number; width: number; height: number }
   hp: number
   phase: number
   /** Per-move remaining cooldowns, keyed by move id. */
@@ -63,9 +74,29 @@ export interface BossRuntimeState {
   defeated: boolean
 }
 
-export function createBossState(definition: BossDefinition): BossRuntimeState {
+/**
+ * Size of the boss's hit area.
+ *
+ * Sized to the arena rather than to the portrait: the portrait is painting, and a
+ * player aiming at art rather than at a place would be aiming at whatever the
+ * scene happened to draw. This is the box that the exit zone occupies vertically,
+ * which is where the boss is said to stand.
+ */
+export const BOSS_HIT_WIDTH = 96
+export const BOSS_HIT_HEIGHT = 120
+
+export function createBossState(
+  definition: BossDefinition,
+  origin = { x: 0, y: 0 },
+): BossRuntimeState {
   return {
     definition,
+    box: {
+      x: origin.x - BOSS_HIT_WIDTH / 2,
+      y: origin.y - BOSS_HIT_HEIGHT,
+      width: BOSS_HIT_WIDTH,
+      height: BOSS_HIT_HEIGHT,
+    },
     hp: definition.maxHp,
     phase: definition.phases[0]?.phase ?? 1,
     cooldowns: new Map(),
