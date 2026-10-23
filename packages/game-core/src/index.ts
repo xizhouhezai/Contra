@@ -243,12 +243,22 @@ export {
   stepFlyer,
   stepMotion,
 } from './systems/EnemyBehaviour.js'
+export type { RiderFeet } from './systems/MechanicEffects.js'
+export {
+  armourDamage,
+  bulletBox,
+  facingFromMotion,
+  platformCarry,
+  reflectBulletsOffWalls,
+  solidPlatforms,
+} from './systems/MechanicEffects.js'
 export {
   bounceOffWalls,
   isOneWay,
   reflectVelocity,
   shouldLand,
   struckFace,
+  type WallFace,
 } from './systems/Mechanics.js'
 export type { MirrorState } from './systems/Mirror.js'
 export {
