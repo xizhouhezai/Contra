@@ -560,8 +560,15 @@ docs/game/requirements/assets/
                     boss-swarm boss-vines boss-burst boss-scythe
   projectiles/      enemy-pulse enemy-pellet enemy-homing
                     enemy-lobbed enemy-mirror enemy-spike enemy-heavy
+                    player-pulse player-scatter player-rifle player-homing
+                    player-pierce player-cluster player-laser player-grenade
+                    player-replay player-prism
   enemy-weapons/    pulse-gun launcher-pod scatter-cannon caster
   audio/bgm/        bgm-01-dock.ogg ... bgm-12-emergence.ogg
+  audio/sfx/        jump pickup hit explosion hurt die clear select
+                    bossPhase bossTelegraph bossAttack
+                    pulse scatter rifle homing pierce cluster laser
+                    grenade replay prism
   scenes/<关卡>/     sky far mid near（十二关专属）
 ```
 
