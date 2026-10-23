@@ -134,14 +134,29 @@ export function bgmForStage(stageIndex: number, _isBoss: boolean): BgmKey {
   return (fallback ?? 'bgm-01-dock') as BgmKey
 }
 
-/** Loads every effect and track into the Phaser cache. */
+/**
+ * Loads every sound effect. Music is loaded per stage instead.
+ *
+ * Effects are small and any of them can fire on the first shot, so they all
+ * come down with the boot. Music is 21MB for twelve tracks and the player will
+ * hear one of them, so preloading the set put the first load at 24MB against
+ * an 8MB budget - the largest single regression this project has had.
+ */
 export function preloadAudio(load: Phaser.Loader.LoaderPlugin): void {
   for (const key of SFX_KEYS) {
     const url = sfxUrl(key)
     if (url !== undefined) load.audio(key, url)
   }
-  for (const key of BGM_KEYS) {
-    const url = bgmUrl(key)
-    if (url !== undefined) load.audio(key, url)
-  }
+}
+
+/** Queues one stage's track, if it is not already in the cache. */
+export function preloadBgm(load: Phaser.Loader.LoaderPlugin, key: BgmKey): void {
+  if (load.cacheManager.audio.exists(key)) return
+  const url = bgmUrl(key)
+  if (url !== undefined) load.audio(key, url)
+}
+
+/** True when a track is already cached. */
+export function hasBgm(cache: Phaser.Cache.BaseCache, key: BgmKey): boolean {
+  return cache.audio.exists(key)
 }
