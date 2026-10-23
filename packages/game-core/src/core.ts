@@ -23,7 +23,6 @@ import type {
   CharacterId,
   EntityId,
   InputState,
-  PlatformDefinition,
   Rect,
   Vec2,
   WeaponId,
@@ -61,8 +60,24 @@ import {
   motionDefinition,
   stepMotion,
 } from './systems/EnemyBehaviour.js'
+import {
+  armourDamage,
+  bulletBox,
+  facingFromMotion,
+  platformCarry,
+  reflectBulletsOffWalls,
+  solidPlatforms,
+} from './systems/MechanicEffects.js'
 import { updateMovement } from './systems/Movement.js'
 import { createPassiveState, type PassiveState, registerRhythmKill } from './systems/Passives.js'
+import {
+  applyBlast,
+  createTerrainState,
+  reachedExit,
+  type ScrollMode,
+  type TerrainPlatform,
+  type TerrainState,
+} from './systems/Terrain.js'
 import {
   createWeaponState,
   type FireOutcome,
@@ -224,8 +239,14 @@ export type InputProvider = InputState | ((stepIndex: number) => InputState)
 export interface WorldOptions {
   /** Top-left corner of the player spawn, in world pixels. */
   readonly spawn: Vec2
-  /** Solid platforms the player collides with. */
-  readonly platforms?: readonly PlatformDefinition[]
+  /**
+   * Solid platforms the player collides with.
+   *
+   * Typed as terrain rather than as a bare rectangle so a stage can say that a
+   * plank moves or breaks; a plain Rect still satisfies it, which is what keeps
+   * every existing caller and test unchanged.
+   */
+  readonly platforms?: readonly TerrainPlatform[]
   /** Gray-box targets that absorb bullets (T-M0-07). */
   readonly targets?: readonly TargetDefinition[]
   /** Stage exit box; reaching it emits one stageCleared event. */
@@ -235,6 +256,7 @@ export interface WorldOptions {
     readonly id: string
     readonly exit: Rect
     readonly bounceWalls?: readonly Rect[]
+    readonly scrollMode?: ScrollMode
   }
   /**
    * Campaign act, 1 to 3.
@@ -301,7 +323,8 @@ export interface WorldSnapshot {
  */
 export class World {
   readonly player: PlayerState
-  readonly platforms: readonly PlatformDefinition[]
+  /** The platforms as authored, motion and breakable state included. */
+  readonly platforms: readonly TerrainPlatform[]
   readonly targets: readonly TargetState[]
   readonly exit: Rect | null
   readonly fixedStepSeconds: number
@@ -349,6 +372,14 @@ export class World {
    * the floor and out of the world.
    */
   private readonly movementBounds: { minX: number; maxX: number }
+  /** Bounce walls: bullets reflect off these, the player does not. */
+  private readonly bounceWalls: readonly Rect[]
+  /** Which way the stage advances; a vertical one is cleared by a downward exit. */
+  private readonly scrollMode: ScrollMode
+  /** Broken platforms, remaining HP, loot; empty when the stage authored none. */
+  private readonly terrain: TerrainState = createTerrainState()
+  /** Where each enemy is looking, so armour can tell a frontal hit from a rear one. */
+  private readonly facings = new Map<EntityId, 1 | -1>()
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(
@@ -358,6 +389,8 @@ export class World {
     this.characterId = options.characterId ?? 'glm'
     this.startingHearts = this.player.hearts
     this.platforms = options.platforms ?? []
+    this.bounceWalls = options.stage?.bounceWalls ?? []
+    this.scrollMode = options.stage?.scrollMode ?? 'horizontal'
     this.targets = (options.targets ?? []).map(createTarget)
     this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
@@ -379,6 +412,9 @@ export class World {
     // a plain box and stays inert.
     for (const target of this.targets) {
       if (target.alive) this.attackStates.set(target.id, createAttackState())
+      // Facing right until proven otherwise: it is the direction a patrol starts
+      // in, and the mirror of it is the one a player can always walk around.
+      this.facings.set(target.id, 1)
     }
     this.homingLockLimit = HOMING_LOCK_LIMIT
     equipWeapon(this.player, INITIAL_WEAPON[this.characterId])
@@ -585,8 +621,10 @@ export class World {
       x: this.player.position.x + PLAYER_WIDTH / 2,
       y: this.player.position.y + PLAYER_HEIGHT / 2,
     }
+    // Broken planks no longer hold an enemy up either.
+    const solid = solidPlatforms(this.platforms, this.terrain, this.elapsedSeconds)
     // Derived once per step: the bounds are pure geometry of the static level.
-    const bounds: MotionBounds | null = motionBounds(this.platforms)
+    const bounds: MotionBounds | null = motionBounds(solid)
 
     for (const target of this.targets) {
       if (!target.alive) continue
@@ -596,11 +634,15 @@ export class World {
       const next = stepMotion(definition, target.box, {
         player,
         dt: this.fixedStepSeconds,
-        platforms: this.platforms,
+        platforms: solid,
         bounds,
       })
       if (next === null) continue
 
+      this.facings.set(
+        target.id,
+        facingFromMotion(next.x - target.box.x, this.facings.get(target.id) ?? 1),
+      )
       target.box.x = next.x
       target.box.y = next.y
     }
@@ -805,8 +847,28 @@ export class World {
 
   private stepOnce(provider: InputProvider): void {
     const input = typeof provider === 'function' ? provider(this.stepCount) : provider
+    const previousSeconds = this.elapsedSeconds
     this.elapsedSeconds += this.fixedStepSeconds
-    updateMovement(this.player, input, this.fixedStepSeconds, this.platforms, this.movementBounds)
+
+    // A moving plank carries whoever stands on it. Applied before the movement
+    // step so the player's own input is resolved against where the terrain is
+    // now, not where it was when the step began.
+    const carry = platformCarry(
+      this.platforms,
+      this.terrain,
+      previousSeconds,
+      this.elapsedSeconds,
+      {
+        x: this.player.position.x,
+        width: PLAYER_WIDTH,
+        bottom: this.player.position.y + PLAYER_HEIGHT,
+      },
+    )
+    this.player.position.x += carry.x
+    this.player.position.y += carry.y
+
+    const solid = solidPlatforms(this.platforms, this.terrain, this.elapsedSeconds)
+    updateMovement(this.player, input, this.fixedStepSeconds, solid, this.movementBounds)
 
     releaseExpiredLocks(this.weapon, this.liveTargetIds())
     const fired = updateWeapons(
@@ -823,6 +885,7 @@ export class World {
     // A step first, then the cull: a bullet that leaves the world this step
     // still travels the full step before it is dropped.
     for (const bullet of this.bullets) stepBullet(bullet, this.fixedStepSeconds)
+    reflectBulletsOffWalls(this.bullets, this.bounceWalls)
     this.cullBullets()
     this.steerHomingRounds()
     this.resolveBulletHits()
@@ -992,7 +1055,7 @@ export class World {
         if (!target.alive || !overlaps(box, target.box)) continue
 
         bullet.hitTargets.add(target.id)
-        this.applyDamageToTarget(target, bullet.damage, bullet.position)
+        this.applyDamageToTarget(target, this.damageAfterArmour(bullet, target), bullet.position)
         if (bullet.remainingPierces > 0) {
           bullet.remainingPierces -= 1
         } else {
@@ -1024,8 +1087,44 @@ export class World {
     return overlaps(box, boss.box)
   }
 
-  /** Applies damage to one target and reports it; scoring lives here and nowhere else. */
+  /**
+   * Damage one round really deals once an armoured front is taken into account.
+   *
+   * A round that pierces asks for no special treatment: damageAgainst already
+   * answers "armour does not apply" for it, which is what makes the piercing
+   * weapon the answer to a shield the player cannot walk around.
+   */
+  private damageAfterArmour(bullet: Bullet, target: TargetState): number {
+    const definition = motionDefinition(target.archetype)
+    if (definition === undefined) return bullet.damage
+    const facing = this.facings.get(target.id) ?? -1
+    return armourDamage(
+      definition,
+      bulletBox(bullet),
+      target.box,
+      facing,
+      bullet.damage,
+      bullet.remainingPierces > 0,
+    )
+  }
+
+  /**
+   * Applies damage to one target and reports it; scoring lives here and nowhere else.
+   *
+   * A hit absorbed by armour still emits its hit event with zero damage, so the
+   * presentation layer can ring the same impact sound the player already reads as
+   * "that did nothing".
+   */
   private applyDamageToTarget(target: TargetState, damage: number, at: Vec2): void {
+    if (damage <= 0) {
+      this.eventQueue.push({
+        type: 'hit',
+        targetId: target.id,
+        damage: 0,
+        position: { x: at.x, y: at.y },
+      })
+      return
+    }
     this.eventQueue.push({
       type: 'hit',
       targetId: target.id,
@@ -1095,7 +1194,9 @@ export class World {
         height: BULLET_HEIGHT,
       }
       const contact =
-        this.platforms.some((platform) => overlaps(box, platform)) ||
+        solidPlatforms(this.platforms, this.terrain, this.elapsedSeconds).some((platform) =>
+          overlaps(box, platform),
+        ) ||
         this.targets.some((target) => target.alive && overlaps(box, target.box)) ||
         this.bulletHitsBoss(box)
       if (!contact) {
@@ -1117,6 +1218,9 @@ export class World {
         const dy = centre.y - bullet.position.y
         if (Math.hypot(dx, dy) <= radius) this.damageBossBy(bullet.damage, bullet.position)
       }
+      // A blast is what breaks terrain: chips of a platform take the damage the
+      // bomb was already spending, so the player's own gun is the key.
+      applyBlast(this.platforms, this.terrain, bullet.position, radius)
       for (const target of this.targets) {
         if (!target.alive) continue
         const dx = target.box.x + target.box.width / 2 - bullet.position.x
@@ -1198,7 +1302,9 @@ export class World {
   /** Fires exactly one stageCleared event the first time the player box meets the exit. */
   private checkExit(): void {
     if (this.cleared || this.exit === null) return
-    if (!overlaps(playerRect(this.player), this.exit)) return
+    // A vertical stage's exit sits at the bottom and is cleared on the way down;
+    // a horizontal one is a door the player has to walk into.
+    if (!reachedExit(playerRect(this.player), this.exit, this.scrollMode)) return
     this.cleared = true
     this.eventQueue.push({ type: 'stageCleared', score: this.score })
   }
