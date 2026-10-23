@@ -88,6 +88,8 @@ export {
 export type { EnemyAttackKind, EnemyWeapon } from './data/enemyWeapons.js'
 export { ENEMY_WEAPONS, enemyWeapon, maxConcurrentShooters } from './data/enemyWeapons.js'
 export { GPT_PETER_PAN, GPT_PHASE_LABELS, gptPhaseFor } from './data/gptBoss.js'
+export type { LookChoices } from './data/looks.js'
+export { loadLookChoices, resolveLookId, saveLookChoice } from './data/looks.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
 export type { StageDefinition } from './data/stageTypes.js'
@@ -127,6 +129,8 @@ export {
   playerRect,
   WEAPON_SLOT_COUNT,
 } from './entities/Player.js'
+export type { MutableRect, TargetDefinition, TargetState } from './entities/Target.js'
+export { createTarget, damageTarget } from './entities/Target.js'
 export type {
   BossDefinition,
   BossMove,
@@ -210,7 +214,13 @@ export {
   stepAttack,
   volleyDirections,
 } from './systems/EnemyAttack.js'
-export type { AttackSide, EnemyMotion } from './systems/EnemyBehaviour.js'
+export type {
+  AttackSide,
+  EnemyMotion,
+  MotionBounds,
+  MotionBox,
+  MotionContext,
+} from './systems/EnemyBehaviour.js'
 export {
   attackSide,
   CHARGER_CHARGE_BOOST,
@@ -218,13 +228,20 @@ export {
   canReachFlyer,
   damageAgainst,
   FLYER_AMPLITUDE_PX,
+  FLYER_CLIMB_RATIO,
+  FLYER_HOVER_PX,
   FLYER_MIN_AIM_OFFSET_PX,
   FLYER_WEAVE_RATE,
   inSight,
   KNOCKBACK_SECONDS,
   knockBack,
+  MELEE_RANGE_PX,
+  motionBounds,
+  motionDefinition,
+  PATROL_SIGHT_PX,
   stepCharger,
   stepFlyer,
+  stepMotion,
 } from './systems/EnemyBehaviour.js'
 export {
   bounceOffWalls,

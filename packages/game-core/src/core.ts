@@ -55,6 +55,12 @@ import {
   stepAttack,
   volleyDirections,
 } from './systems/EnemyAttack.js'
+import {
+  type MotionBounds,
+  motionBounds,
+  motionDefinition,
+  stepMotion,
+} from './systems/EnemyBehaviour.js'
 import { updateMovement } from './systems/Movement.js'
 import { createPassiveState, type PassiveState, registerRhythmKill } from './systems/Passives.js'
 import {
@@ -362,7 +368,14 @@ export class World {
       if (definition === undefined) {
         throw new Error(`unknown boss: ${options.bossId}`)
       }
-      this.boss = createBossState(definition)
+      // The boss stands at the arena: a boss stage's exit zone is the only place
+      // in the data that says where it is, and its hit box is placed there.
+      const arena = options.exit
+      const origin =
+        arena === null || arena === undefined
+          ? { x: 0, y: 0 }
+          : { x: arena.x + arena.width / 2, y: arena.y + arena.height }
+      this.boss = createBossState(definition, origin)
     }
   }
 
@@ -530,6 +543,47 @@ export class World {
     }
   }
 
+  /**
+   * Walks every enemy whose behaviour moves (T-M1-05).
+   *
+   * The rule layer described ten archetypes with distinct behaviours and then
+   * never called systems/EnemyBehaviour: an enemy was a box that could shoot and
+   * could be walked into, but never came for the player. This is the call site
+   * that was missing, and it runs before stepEnemyAttacks so a shot is fired from
+   * where the enemy now stands rather than from where it stood last step.
+   *
+   * Movement only ever rewrites the box. Damage stays entirely on the existing
+   * channels: a charger that reaches the player overlaps them, and the contact
+   * rule in damagePlayer charges the heart. Nothing here can invent a hit.
+   */
+  private stepEnemyMotion(): void {
+    if (this.targets.length === 0) return
+
+    const player = {
+      x: this.player.position.x + PLAYER_WIDTH / 2,
+      y: this.player.position.y + PLAYER_HEIGHT / 2,
+    }
+    // Derived once per step: the bounds are pure geometry of the static level.
+    const bounds: MotionBounds | null = motionBounds(this.platforms)
+
+    for (const target of this.targets) {
+      if (!target.alive) continue
+      const definition = motionDefinition(target.archetype)
+      if (definition === undefined) continue
+
+      const next = stepMotion(definition, target.box, {
+        player,
+        dt: this.fixedStepSeconds,
+        platforms: this.platforms,
+        bounds,
+      })
+      if (next === null) continue
+
+      target.box.x = next.x
+      target.box.y = next.y
+    }
+  }
+
   /** Emits one enemy volley as bullets owned by the enemy faction. */
   private fireEnemyVolley(
     target: TargetState,
@@ -681,12 +735,25 @@ export class World {
    * definition names - the reward is part of the boss data, so a new boss with
    * a different drop needs no code change here.
    */
-  private damageBossBy(amount: number): void {
+  private damageBossBy(amount: number, at?: Vec2): void {
     const boss = this.boss
     if (boss === null || boss.defeated) return
 
     const phaseBefore = boss.phase
+    const hpBefore = boss.hp
     const died = damageBoss(boss, amount)
+
+    // A hit has to be reported or the boss looks invulnerable even while it is
+    // losing hp: every damage number in this game is read off the hit event, and
+    // the boss was the one thing that never emitted one.
+    if (boss.hp !== hpBefore) {
+      this.eventQueue.push({
+        type: 'hit',
+        targetId: boss.definition.id,
+        damage: hpBefore - boss.hp,
+        position: at ?? { x: boss.box.x + boss.box.width / 2, y: boss.box.y + boss.box.height / 2 },
+      })
+    }
 
     if (boss.phase !== phaseBefore) {
       this.eventQueue.push({
@@ -702,7 +769,7 @@ export class World {
     this.eventQueue.push({
       type: 'enemyDied',
       enemyId: boss.definition.id,
-      position: { x: 0, y: 0 },
+      position: { x: boss.box.x, y: boss.box.y },
       score: 0,
     })
 
@@ -735,6 +802,7 @@ export class World {
     this.steerHomingRounds()
     this.resolveBulletHits()
     this.resolveBlasts()
+    this.stepEnemyMotion()
     this.stepEnemyAttacks()
     this.stepBossOnce()
     this.damagePlayer()
@@ -835,7 +903,11 @@ export class World {
 
   /** Bullet-vs-target resolution, honouring pierce and the faction rules. */
   private resolveBulletHits(): void {
-    if (this.targets.length === 0) return
+    // The early return used to be "no targets, nothing to resolve". That was true
+    // while an enemy was the only thing a bullet could hit; a boss stage declares
+    // no targets and the boss is hit by the same pass, so returning here skipped
+    // the boss as well and the whole fight became one-directional.
+    if (this.targets.length === 0 && this.boss === null) return
 
     const survivors: Bullet[] = []
     for (const bullet of this.bullets) {
@@ -858,9 +930,18 @@ export class World {
 
         bullet.hitTargets.add(target.id)
         this.applyDamageToTarget(target, bullet.damage, bullet.position)
-        // A boss shares the bullet path with ordinary targets, so a round that
-        // hits it just passes straight through instead of stopping.
-        this.damageBossBy(bullet.damage)
+        if (bullet.remainingPierces > 0) {
+          bullet.remainingPierces -= 1
+        } else {
+          spent = true
+        }
+      }
+
+      // The boss is tested on its own, not inside the target loop. It used to be
+      // checked there, which meant a boss stage - whose targets list is empty -
+      // never ran the check at all, so the boss could not be shot.
+      if (!spent && this.bulletHitsBoss(box)) {
+        this.damageBossBy(bullet.damage, bullet.position)
         if (bullet.remainingPierces > 0) {
           bullet.remainingPierces -= 1
         } else {
@@ -871,6 +952,13 @@ export class World {
       if (!spent) survivors.push(bullet)
     }
     this.bullets = survivors
+  }
+
+  /** True when a bullet box overlaps the boss's hit area. */
+  private bulletHitsBoss(box: Rect): boolean {
+    const boss = this.boss
+    if (boss === null || boss.defeated) return false
+    return overlaps(box, boss.box)
   }
 
   /** Applies damage to one target and reports it; scoring lives here and nowhere else. */
@@ -945,7 +1033,8 @@ export class World {
       }
       const contact =
         this.platforms.some((platform) => overlaps(box, platform)) ||
-        this.targets.some((target) => target.alive && overlaps(box, target.box))
+        this.targets.some((target) => target.alive && overlaps(box, target.box)) ||
+        this.bulletHitsBoss(box)
       if (!contact) {
         survivors.push(bullet)
         continue
@@ -956,6 +1045,15 @@ export class World {
         position: { x: bullet.position.x, y: bullet.position.y },
         radius,
       })
+      if (this.boss !== null && !this.boss.defeated) {
+        const centre = {
+          x: this.boss.box.x + this.boss.box.width / 2,
+          y: this.boss.box.y + this.boss.box.height / 2,
+        }
+        const dx = centre.x - bullet.position.x
+        const dy = centre.y - bullet.position.y
+        if (Math.hypot(dx, dy) <= radius) this.damageBossBy(bullet.damage, bullet.position)
+      }
       for (const target of this.targets) {
         if (!target.alive) continue
         const dx = target.box.x + target.box.width / 2 - bullet.position.x
