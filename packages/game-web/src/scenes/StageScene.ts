@@ -107,6 +107,14 @@ export class StageScene extends Phaser.Scene {
       this.showBlast(event.position.x, event.position.y, event.radius)
       this.playEventSound(event)
     },
+    bossTelegraph: (event) => {
+      // The warning is what makes the move dodgeable. Without it the boss
+      // simply takes a heart at a moment the player could not have read.
+      this.showTelegraph(event.seconds)
+    },
+    bossAttack: (event) => {
+      this.showBossAttack(event.position.x, event.position.y, event.hit)
+    },
     bossPhaseChanged: (event) => {
       this.showBanner(`形态 ${event.phase}`)
       this.playEventSound(event)
@@ -713,6 +721,52 @@ export class StageScene extends Phaser.Scene {
   }
 
   /** One-line notice in the banner slot, cleared after a moment. */
+  /**
+   * Shows the boss wind-up.
+   *
+   * Drawn as a band across the top of the play area rather than at the boss,
+   * because the boss has no sprite in the world - the arena is the target. The
+   * band's fill takes the length of the telegraph, so the player can read the
+   * remaining time off it instead of counting.
+   */
+  private showTelegraph(seconds: number): void {
+    if (this.telegraphBar !== null) {
+      this.telegraphBar.destroy()
+      this.telegraphBar = null
+    }
+    const view = this.cameras.main.worldView
+    const bar = this.add
+      .rectangle(view.x + 20, view.y + 70, view.width - 40, 6, PALETTE.alert, 0.9)
+      .setOrigin(0, 0.5)
+      .setDepth(98)
+    bar.setScale(0, 1)
+    this.telegraphBar = bar
+
+    this.tweens.add({
+      targets: bar,
+      scaleX: 1,
+      duration: Math.max(120, seconds * 1000),
+      onComplete: () => {
+        bar.destroy()
+        if (this.telegraphBar === bar) this.telegraphBar = null
+      },
+    })
+  }
+
+  /** Plays a boss move: a flash when it lands, nothing when the player dodged. */
+  private showBossAttack(x: number, y: number, hit: boolean): void {
+    if (!hit) return
+    const flash = this.add.circle(x, y, 90, PALETTE.alert, 0.45).setDepth(18)
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scale: 1.8,
+      duration: 320,
+      onComplete: () => flash.destroy(),
+    })
+    this.cameras.main.shake(160, 0.012)
+  }
+
   private showBanner(text: string): void {
     if (this.banner === null) return
     this.banner.setText(text)

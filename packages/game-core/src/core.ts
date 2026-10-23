@@ -6,6 +6,7 @@
  */
 
 import { bossDefinition } from './data/bosses.js'
+import { reachFor } from './data/bossReach.js'
 import { INITIAL_WEAPON } from './data/characters.js'
 import {
   BULLET_HEIGHT,
@@ -36,6 +37,7 @@ import {
   type TargetState,
 } from './entities/Target.js'
 import {
+  type BossMove,
   type BossRuntimeState,
   createBossState,
   damageBoss,
@@ -112,6 +114,35 @@ export interface ExplosionEvent {
   readonly radius: number
 }
 
+/**
+ * The boss began winding up a move.
+ *
+ * The presentation layer needs this. A boss attack with no visible warning is
+ * one the player cannot dodge, and the dodge window is the entire reason the
+ * move data carries a telegraph duration.
+ */
+export interface BossTelegraphEvent {
+  readonly type: 'bossTelegraph'
+  readonly bossId: BossId
+  readonly moveId: string
+  /** Seconds the warning lasts, so the UI can animate to that length. */
+  readonly seconds: number
+}
+
+/**
+ * The boss landed a move.
+ *
+ * hit is false when the player was outside the move's reach; the presentation
+ * layer plays a whiff rather than an impact.
+ */
+export interface BossAttackEvent {
+  readonly type: 'bossAttack'
+  readonly bossId: BossId
+  readonly moveId: string
+  readonly position: Vec2
+  readonly hit: boolean
+}
+
 /** A boss crossed an HP threshold and entered the next phase. */
 export interface BossPhaseChangedEvent {
   readonly type: 'bossPhaseChanged'
@@ -137,6 +168,8 @@ export type CoreEvent =
   | PlayerDiedEvent
   | WeaponPickedEvent
   | ExplosionEvent
+  | BossTelegraphEvent
+  | BossAttackEvent
   | BossPhaseChangedEvent
   | StageClearedEvent
 
@@ -359,6 +392,25 @@ export class World {
     if (boss === null || boss.defeated) return
 
     const result = stepBoss(boss, this.fixedStepSeconds)
+
+    // The director has always produced these two values; until now this call
+    // site read phaseChanged and gravityFlipped and dropped both of them. The
+    // result was a boss that moved, telegraphed nothing, and could not damage
+    // the player - the moves were authored, previewed and never applied.
+    if (result.telegraphed !== null) {
+      const move = this.findBossMove(boss, result.telegraphed)
+      this.eventQueue.push({
+        type: 'bossTelegraph',
+        bossId: boss.definition.id as BossId,
+        moveId: result.telegraphed,
+        seconds: move?.telegraphSeconds ?? 0,
+      })
+    }
+
+    if (result.resolved !== null) {
+      this.applyBossMove(boss, result.resolved)
+    }
+
     if (result.phaseChanged) {
       this.eventQueue.push({
         type: 'bossPhaseChanged',
@@ -370,6 +422,51 @@ export class World {
     if (result.gravityFlipped) {
       this.gravityFlipped = boss.gravityFlipped
     }
+  }
+
+  /** The move definition for an id, across every phase. */
+  private findBossMove(boss: BossRuntimeState, moveId: string): BossMove | undefined {
+    for (const phase of boss.definition.phases) {
+      const move = phase.moves.find((candidate) => candidate.id === moveId)
+      if (move !== undefined) return move
+    }
+    return undefined
+  }
+
+  /**
+   * Applies one resolved boss move.
+   *
+   * A resolved move is a hit unless the player is somewhere it cannot reach.
+   * The move data carries damage and timing but no geometry, so the reach is
+   * derived here from the move's kind: a beam sweeps the whole arena, a chain
+   * needs the player nearby, a ground attack misses a player who is airborne.
+   * Without that distinction every boss would be an unavoidable timer, which is
+   * neither fair nor interesting.
+   */
+  private applyBossMove(boss: BossRuntimeState, move: BossMove): void {
+    if (this.player.hearts <= 0) return
+
+    // The boss has no coordinates of its own - the runtime state is a phase
+    // machine, not an entity. A boss stage's arena is its exit zone, so that is
+    // the anchor: distance is measured from the arena centre, which is where
+    // the boss stands.
+    const arena = this.exit ?? { x: 0, y: 0, width: 0, height: 0 }
+    const fromBoss = { x: arena.x + arena.width / 2, y: arena.y + arena.height / 2 }
+    const distance = Math.abs(this.player.position.x - fromBoss.x)
+    const reach = reachFor(move)
+    const inReach = distance <= reach.maxDistance
+    const grounded = reach.requiresGrounded ? this.player.onGround : true
+
+    this.eventQueue.push({
+      type: 'bossAttack',
+      bossId: boss.definition.id as BossId,
+      moveId: move.id,
+      position: { x: fromBoss.x, y: fromBoss.y },
+      hit: inReach && grounded,
+    })
+
+    if (!inReach || !grounded) return
+    this.hurtPlayer(move.damage)
   }
 
   /** Boss state for the presentation layer; null on an ordinary stage. */
@@ -675,6 +772,31 @@ export class World {
    * A hit is always exactly one heart, and applyHit owns the 1.5s window, so
    * several contacts inside one step still cost a single heart.
    */
+  /**
+   * Applies a direct hit from a boss move.
+   *
+   * Shares applyHit's invulnerability window with contact damage, so a boss
+   * move landing in the same step as an enemy touch still costs one heart.
+   */
+  private hurtPlayer(_damage: number): void {
+    if (this.player.hearts <= 0) return
+    if (!canDamage('enemy', 'player')) return
+
+    const result = applyHit(this.player, this.elapsedSeconds)
+    if (!result.applied) return
+
+    this.eventQueue.push({
+      type: 'playerHurt',
+      heartsLeft: result.heartsLeft,
+      position: { x: this.player.position.x, y: this.player.position.y },
+    })
+    if (!result.died) return
+    this.eventQueue.push({
+      type: 'playerDied',
+      position: { x: this.player.position.x, y: this.player.position.y },
+    })
+  }
+
   private damagePlayer(): void {
     if (this.player.hearts <= 0) return
     if (!canDamage('enemy', 'player')) return
