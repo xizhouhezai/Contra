@@ -9,8 +9,9 @@
  * own the rules. That split is what lets behaviour be unit-tested without
  * building a stage.
  */
-import type { EnemyDefinition, EnemyState } from '../data/enemies.js'
-import type { Vec2 } from '../data/types.js'
+import { ENEMIES, type EnemyDefinition, type EnemyState } from '../data/enemies.js'
+import type { EnemyId, PlatformDefinition, Vec2 } from '../data/types.js'
+import { overlaps } from './Collision.js'
 
 /** Distance at which a charger starts its run, px. */
 export const CHARGER_SIGHT_PX = 320
@@ -135,6 +136,212 @@ export function attackSide(shooterX: number, enemyX: number, facing: 1 | -1): At
   const fromRight = shooterX > enemyX
   const lookingRight = facing === 1
   return fromRight === lookingRight ? 'front' : 'back'
+}
+
+/** How far above the player's centre a flyer holds its hover line, px. */
+export const FLYER_HOVER_PX = FLYER_MIN_AIM_OFFSET_PX * 2
+
+/**
+ * Fraction of its own speed a flyer closes vertically.
+ *
+ * A flyer that dives as fast as it strafes reads as a missile that snaps onto
+ * the player. Climbing slower than it runs keeps it a hovering hunter, and it is
+ * also what leaves the player a window to line the raised shot up.
+ */
+export const FLYER_CLIMB_RATIO = 0.6
+
+/**
+ * Centre distance at which a ground enemy stops pressing, px.
+ *
+ * Stopping short of the player's centre rather than driving through it is what
+ * turns the approach into a contact attack: the two boxes end up overlapping, so
+ * the world's existing contact rule charges the heart and no second damage
+ * channel has to exist.
+ */
+export const MELEE_RANGE_PX = 16
+
+/** Distance at which a patrol notices the player and walks at them, px. */
+export const PATROL_SIGHT_PX = 260
+
+/** The rect enemies may not leave, in world pixels. */
+export interface MotionBounds {
+  readonly minX: number
+  readonly maxX: number
+  readonly minY: number
+  readonly maxY: number
+}
+
+/**
+ * The bounds a level's platforms imply.
+ *
+ * The rule layer is never given a stage size - WorldOptions carries platforms
+ * and an exit, never widthPx/heightPx - so the level's extent has to be read off
+ * the solid geometry: a level is as wide as the union of its platforms, and
+ * nothing may fall below the lowest one. There is deliberately no derived
+ * ceiling. Stages place flyers far above the only floor they have (stage 6
+ * hovers 140px above it), so a ceiling taken from platform tops would bury them
+ * the moment they spawned.
+ *
+ * Null when there are no platforms at all: a world with no level data has no
+ * edge to be pushed back from, and everything about bounds would be invented.
+ */
+export function motionBounds(platforms: readonly PlatformDefinition[]): MotionBounds | null {
+  if (platforms.length === 0) return null
+
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (const platform of platforms) {
+    minX = Math.min(minX, platform.x)
+    maxX = Math.max(maxX, platform.x + platform.width)
+    maxY = Math.max(maxY, platform.y + platform.height)
+  }
+  return { minX, maxX, minY: 0, maxY }
+}
+
+/**
+ * The movement definition behind an archetype string from stage data.
+ *
+ * Stage targets carry their archetype as a plain string, so the lookup has to be
+ * guarded: an id no enemy owns must leave the box stationary rather than throw,
+ * for the same reason a target with no archetype is inert.
+ */
+export function motionDefinition(archetype: string | undefined): EnemyDefinition | undefined {
+  if (archetype === undefined) return undefined
+  if (!Object.hasOwn(ENEMIES, archetype)) return undefined
+  return ENEMIES[archetype as EnemyId]
+}
+
+/** A body's box as the motion step sees it: where it is and how big it is. */
+export interface MotionBox {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+/** What one motion step needs to know about the world it moves through. */
+export interface MotionContext {
+  /** Player centre; enemies aim their approach at the middle of the body. */
+  readonly player: Vec2
+  readonly dt: number
+  readonly platforms: readonly PlatformDefinition[]
+  /** Level bounds, or null when there is no platform geometry to derive them from. */
+  readonly bounds: MotionBounds | null
+}
+
+/**
+ * Horizontal sweep against platform faces.
+ *
+ * Same resolution the player's movement uses, and for the same reason: testing
+ * only the destination lets a fast body tunnel through a wall it should have
+ * stopped at.
+ */
+function sweepX(box: MotionBox, deltaX: number, platforms: readonly PlatformDefinition[]): number {
+  if (deltaX === 0) return box.x
+
+  const targetX = box.x + deltaX
+  let resolved = targetX
+  for (const platform of platforms) {
+    if (!overlaps({ x: targetX, y: box.y, width: box.width, height: box.height }, platform)) {
+      continue
+    }
+    resolved = deltaX > 0 ? platform.x - box.width : platform.x + platform.width
+  }
+  return resolved
+}
+
+/** Pushes a position back inside the level, when it left. */
+function clampToBounds(position: Vec2, box: MotionBox, bounds: MotionBounds | null): Vec2 {
+  if (bounds === null) return position
+  return {
+    x: Math.min(Math.max(position.x, bounds.minX), Math.max(bounds.minX, bounds.maxX - box.width)),
+    y: Math.min(Math.max(position.y, bounds.minY), Math.max(bounds.minY, bounds.maxY - box.height)),
+  }
+}
+
+/**
+ * A walker's step: close the horizontal gap to the player, then stop pressing.
+ *
+ * Ground movement is horizontal only and never integrates gravity. A ground
+ * enemy is authored standing on a floor and walks along it, so the sweep against
+ * the platform faces is the whole of its collision handling.
+ */
+function stepGroundApproach(
+  box: MotionBox,
+  context: MotionContext,
+  speed: number,
+  sightPx: number,
+): Vec2 {
+  const centreX = box.x + box.width / 2
+  const gap = Math.abs(context.player.x - centreX)
+
+  // Out of sight means standing still. A charger crossing the stage to reach a
+  // player who has not arrived yet is not a charge, it is a magnet.
+  if (gap === 0 || gap > sightPx) return clampToBounds({ x: box.x, y: box.y }, box, context.bounds)
+
+  const travel = Math.min(speed * context.dt, gap - MELEE_RANGE_PX)
+  if (travel <= 0) return clampToBounds({ x: box.x, y: box.y }, box, context.bounds)
+
+  const direction = Math.sign(context.player.x - centreX)
+  const x = sweepX(box, direction * travel, context.platforms)
+  return clampToBounds({ x, y: box.y }, box, context.bounds)
+}
+
+/**
+ * A flyer's step: seek the hover line above the player, ignoring platforms.
+ *
+ * Flight is the mechanic - the player has to look up rather than follow the
+ * ground - so this step is handed no platforms at all; the signature is the
+ * guarantee. The hover line sits a fixed distance above the player's centre so
+ * the enemy stays out of a level shot: a flyer that settled onto the player's
+ * height would delete the aiming decision the archetype exists to teach.
+ */
+function stepAirApproach(
+  definition: EnemyDefinition,
+  box: MotionBox,
+  context: MotionContext,
+): Vec2 {
+  const hoverY = context.player.y - FLYER_HOVER_PX
+  const dx = context.player.x - (box.x + box.width / 2)
+  const dy = hoverY - (box.y + box.height / 2)
+
+  const stepX = Math.sign(dx) * Math.min(Math.abs(dx), definition.speed * context.dt)
+  const stepY =
+    Math.sign(dy) * Math.min(Math.abs(dy), definition.speed * FLYER_CLIMB_RATIO * context.dt)
+
+  return clampToBounds({ x: box.x + stepX, y: box.y + stepY }, box, context.bounds)
+}
+
+/**
+ * Moves one enemy for a single fixed step, or returns null when its archetype
+ * does not walk at all.
+ *
+ * The behaviour decides, not the archetype id: charger and patrol close distance
+ * on the ground, flyer closes it through the air. Everything else keeps its
+ * authored position, which is what a turret, a forge and the armoured wall are
+ * supposed to do.
+ */
+export function stepMotion(
+  definition: EnemyDefinition,
+  box: MotionBox,
+  context: MotionContext,
+): Vec2 | null {
+  switch (definition.behaviour) {
+    case 'charger':
+      return stepGroundApproach(
+        box,
+        context,
+        definition.speed * CHARGER_CHARGE_BOOST,
+        CHARGER_SIGHT_PX,
+      )
+    case 'patrol':
+      return stepGroundApproach(box, context, definition.speed, PATROL_SIGHT_PX)
+    case 'flyer':
+      return stepAirApproach(definition, box, context)
+    default:
+      return null
+  }
 }
 
 /**
