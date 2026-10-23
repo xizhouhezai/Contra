@@ -17,6 +17,7 @@ import {
   PLAYER_WIDTH,
   TIME_EPSILON,
 } from './data/constants.js'
+import { enemyWeapon, maxConcurrentShooters } from './data/enemyWeapons.js'
 import type {
   BossId,
   CharacterId,
@@ -28,7 +29,7 @@ import type {
   WeaponId,
 } from './data/types.js'
 import { BEAM_RANGE, explosionRadius, HOMING_LOCK_LIMIT, WEAPONS } from './data/weapons.js'
-import { type Bullet, stepBullet } from './entities/Bullet.js'
+import { type Bullet, createBullet, stepBullet } from './entities/Bullet.js'
 import { createPlayer, type PlayerState, playerRect } from './entities/Player.js'
 import {
   createTarget,
@@ -47,6 +48,13 @@ import {
 import { equipWeapon } from './systems/Arsenal.js'
 import { overlaps, rayBoxDistance } from './systems/Collision.js'
 import { applyHit, canDamage } from './systems/Combat.js'
+import {
+  type AttackState,
+  createAttackState,
+  enemyCentre,
+  stepAttack,
+  volleyDirections,
+} from './systems/EnemyAttack.js'
 import { updateMovement } from './systems/Movement.js'
 import { createPassiveState, type PassiveState, registerRhythmKill } from './systems/Passives.js'
 import {
@@ -152,6 +160,25 @@ export interface BossPhaseChangedEvent {
   readonly healthFraction: number
 }
 
+/** An enemy began winding up an attack. */
+export interface EnemyTelegraphEvent {
+  readonly type: 'enemyTelegraph'
+  readonly enemyId: EntityId
+  readonly weaponId: string
+  /** Seconds of warning, so the UI can animate to that length. */
+  readonly seconds: number
+  readonly position: Vec2
+}
+
+/** An enemy fired. */
+export interface EnemyShotEvent {
+  readonly type: 'enemyShot'
+  readonly enemyId: EntityId
+  readonly weaponId: string
+  readonly position: Vec2
+  readonly direction: Vec2
+}
+
 /** The stage exit was reached; carries the final score of the run. */
 export interface StageClearedEvent {
   readonly type: 'stageCleared'
@@ -170,6 +197,8 @@ export type CoreEvent =
   | ExplosionEvent
   | BossTelegraphEvent
   | BossAttackEvent
+  | EnemyTelegraphEvent
+  | EnemyShotEvent
   | BossPhaseChangedEvent
   | StageClearedEvent
 
@@ -201,6 +230,14 @@ export interface WorldOptions {
     readonly exit: Rect
     readonly bounceWalls?: readonly Rect[]
   }
+  /**
+   * Campaign act, 1 to 3.
+   *
+   * Sets how many enemies may be mid-attack at once. Defaults to act 1, which is
+   * the strictest cap: a world built without stage data should be the safe case,
+   * not the bullet-wall case.
+   */
+  readonly act?: 1 | 2 | 3
   /** Boss to spawn when the stage has one (T3). */
   readonly bossId?: BossId
   /** Playable character; decides the initial weapon (T-M1-01). */
@@ -286,6 +323,17 @@ export class World {
   }
   private cleared = false
   private elapsedSeconds = 0
+  /**
+   * Per-target attack timers, keyed by target id.
+   *
+   * A target with no entry never fires - which is the right default for a
+   * graybox box in a test that only checks collision.
+   */
+  private readonly attackStates = new Map<EntityId, AttackState>()
+  /** Separate counter from the player's shotsFired, so ids cannot collide. */
+  private enemyShotsFired = 0
+  /** Campaign act, deciding how many enemies may fire at once. */
+  private readonly act: 1 | 2 | 3
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(
@@ -298,6 +346,12 @@ export class World {
     this.targets = (options.targets ?? []).map(createTarget)
     this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
+    this.act = options.act ?? 1
+    // Only targets that name a known archetype get a timer. Everything else is
+    // a plain box and stays inert.
+    for (const target of this.targets) {
+      if (target.alive) this.attackStates.set(target.id, createAttackState())
+    }
     this.homingLockLimit = HOMING_LOCK_LIMIT
     equipWeapon(this.player, INITIAL_WEAPON[this.characterId])
 
@@ -379,6 +433,152 @@ export class World {
   }
 
   /** One fixed step: movement, then weapons, then projectiles and damage. */
+  /**
+   * Advances every enemy's attack timer and fires the ones that finish winding up.
+   *
+   * The shooter budget is the point of this method. An act's cap is not a
+   * performance guard, it is a fairness rule: eight drones that all fire aimed
+   * shots produce a wall with no gap, and a wall cannot be dodged. Only the
+   * enemies already winding up count against the budget, so a shut-out enemy
+   * retries on a later step rather than losing its turn permanently.
+   */
+  private stepEnemyAttacks(): void {
+    if (this.targets.length === 0) return
+
+    const budget = maxConcurrentShooters(this.act)
+    // Count the enemies that are winding up right now, before anyone is given a
+    // turn. Counting inside the loop let a second enemy start on the same step
+    // as the first, because the first's slot had not been booked yet.
+    let _winding = 0
+    for (const state of this.attackStates.values()) {
+      if (state.windingUp) _winding += 1
+    }
+    /**
+     * A slot is held from the start of the wind-up until the shot's cooldown
+     * ends, not just until the bullet leaves.
+     *
+     * Releasing it on fire let a second enemy start on the very next step, so an
+     * act-1 stage reached two shooters inside one second: enemy A finished its
+     * 0.5s warning, fired, and enemy B began winding up immediately. The cap is
+     * meant to bound how much incoming fire exists over time, so a slot has to
+     * outlast the shot that spent it.
+     */
+    const holding = new Set<EntityId>()
+    for (const [id, state] of this.attackStates) {
+      if (state.windingUp || state.cooldownUntil > this.elapsedSeconds) holding.add(id)
+    }
+
+    const player = {
+      x: this.player.position.x + PLAYER_WIDTH / 2,
+      y: this.player.position.y + PLAYER_HEIGHT / 2,
+    }
+
+    for (const target of this.targets) {
+      const state = this.attackStates.get(target.id)
+      if (state === undefined || !target.alive) continue
+
+      const weapon = enemyWeapon(target.archetype)
+      if (weapon === undefined) {
+        // A target without a known archetype has no weapon, so it never fires,
+        // and its timer must not be left counting down forever.
+        continue
+      }
+
+      // Idle enemies compete for a free slot; one already in flight keeps its own.
+      //
+      // `winding` is incremented inside this loop, so an enemy that starts a
+      // wind-up early in the iteration consumes the budget for the rest of it.
+      // That is the whole point: without it, six drones decide simultaneously
+      // that a slot is free and all six take it.
+      // The budget counts enemies that hold a slot, not enemies that are
+      // currently winding up. Counting only wind-ups released the slot the
+      // instant a shot left, so the next drone took it on the following step and
+      // the act-1 cap produced a volley every 0.5s - which is exactly the
+      // undodgeable wall the cap exists to prevent.
+      const occupies = holding.has(target.id)
+      const mayStart = occupies || holding.size < budget
+      const step = stepAttack(
+        state,
+        weapon,
+        target,
+        player,
+        this.player.onGround,
+        this.elapsedSeconds,
+        mayStart,
+      )
+
+      if (step.startedTelegraph) {
+        const centre = enemyCentre(target)
+        this.eventQueue.push({
+          type: 'enemyTelegraph',
+          enemyId: target.id,
+          weaponId: weapon.id,
+          seconds: weapon.telegraphSeconds,
+          position: centre,
+        })
+        _winding += 1
+        holding.add(target.id)
+      }
+      if (step.fired && step.origin !== null && step.aim !== null) {
+        this.fireEnemyVolley(target, weapon, step.origin, step.aim)
+        // Keep the slot booked for the rest of this step and until the cooldown
+        // ends. Releasing it on fire let the next enemy in the same iteration
+        // start winding up immediately, which is how an act-1 stage produced two
+        // shooters one step apart.
+        holding.add(target.id)
+      }
+    }
+  }
+
+  /** Emits one enemy volley as bullets owned by the enemy faction. */
+  private fireEnemyVolley(
+    target: TargetState,
+    weapon: {
+      bulletCount: number
+      spreadDeg: number
+      bulletSpeed: number
+      damage: number
+      homing: boolean
+      gravity: number
+      id: string
+    },
+    origin: Vec2,
+    aim: Vec2,
+  ): void {
+    if (!canDamage('enemy', 'player')) return
+
+    const directions = volleyDirections(aim, weapon.bulletCount, weapon.spreadDeg)
+    for (const direction of directions) {
+      this.enemyShotsFired += 1
+      this.bullets.push(
+        createBullet(
+          `enemy-shot-${this.enemyShotsFired}`,
+          'enemy',
+          origin,
+          { x: direction.x * weapon.bulletSpeed, y: direction.y * weapon.bulletSpeed },
+          weapon.damage,
+          {
+            // The player-side id is only used for pool and blast lookups that
+            // never run for an enemy round; the real identity travels in
+            // enemyWeaponId so the renderer can pick the enemy art.
+            weaponId: 'pulse',
+            enemyWeaponId: weapon.id,
+            lockedTargetId: null,
+            gravity: weapon.gravity,
+          },
+        ),
+      )
+    }
+
+    this.eventQueue.push({
+      type: 'enemyShot',
+      enemyId: target.id,
+      weaponId: weapon.id,
+      position: { x: origin.x, y: origin.y },
+      direction: { x: aim.x, y: aim.y },
+    })
+  }
+
   /**
    * Advances the boss and reports what it did (T3).
    *
@@ -535,6 +735,7 @@ export class World {
     this.steerHomingRounds()
     this.resolveBulletHits()
     this.resolveBlasts()
+    this.stepEnemyAttacks()
     this.stepBossOnce()
     this.damagePlayer()
     this.checkExit()
