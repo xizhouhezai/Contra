@@ -14,7 +14,8 @@
       "!**/.vitepress/dist",
       "!**/.vitepress/cache",
       "!**/coverage",
-      "!**/.tmp"
+      "!**/.tmp",
+      "!**/midscene_run"
     ]
   },
   "formatter": {

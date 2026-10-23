@@ -36,3 +36,6 @@ Thumbs.db
 # local scratch
 .tmp/
 *.local
+
+# Midscene run artefacts (reports are archived under docs/game/design/midscene-report)
+midscene_run/
