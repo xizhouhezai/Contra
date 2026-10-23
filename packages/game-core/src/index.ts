@@ -85,6 +85,8 @@ export {
   TRANSITIONS,
   transition as transitionEnemyState,
 } from './data/enemies.js'
+export type { EnemyAttackKind, EnemyWeapon } from './data/enemyWeapons.js'
+export { ENEMY_WEAPONS, enemyWeapon, maxConcurrentShooters } from './data/enemyWeapons.js'
 export { GPT_PETER_PAN, GPT_PHASE_LABELS, gptPhaseFor } from './data/gptBoss.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
@@ -201,6 +203,13 @@ export {
   maybeSplit,
   SPLIT_THRESHOLD,
 } from './systems/Echoes.js'
+export type { AttackState, AttackStep } from './systems/EnemyAttack.js'
+export {
+  createAttackState,
+  enemyCentre,
+  stepAttack,
+  volleyDirections,
+} from './systems/EnemyAttack.js'
 export type { AttackSide, EnemyMotion } from './systems/EnemyBehaviour.js'
 export {
   attackSide,
