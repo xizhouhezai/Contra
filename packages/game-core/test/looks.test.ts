@@ -1,3 +1,10 @@
+/**
+ * REQ-VAR-003 / REQ-CHR-009: 形象变体比例自适应与立绘一致
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { loadLookChoices, resolveLookId, saveLookChoice } from '../src/data/looks.js'
 import type { ProgressStorage } from '../src/stages/Progress.js'

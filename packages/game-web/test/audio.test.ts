@@ -1,3 +1,10 @@
+/**
+ * REQ-VIS-004: 每关有独立视觉主题与音乐
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   BGM_KEYS,

@@ -1,3 +1,10 @@
+/**
+ * REQ-PLY-006: 生命以心计，拾取可恢复
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import type { CoreEvent } from '../src/core.js'
 import { World } from '../src/core.js'

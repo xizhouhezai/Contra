@@ -1,3 +1,9 @@
+/**
+ * REQ-NFR-005: 键盘与触屏双输入
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   buttonsToInput,
