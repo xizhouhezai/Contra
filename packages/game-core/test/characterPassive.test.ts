@@ -1,3 +1,10 @@
+/**
+ * REQ-CHR-010: Kimi 长上下文伤害积累
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { PASSIVE_TUNING } from '../src/data/characters.js'

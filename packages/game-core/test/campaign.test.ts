@@ -1,3 +1,10 @@
+/**
+ * REQ-STG-004: 第 1 关无失败惩罚的教学关
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { CAMPAIGN_STAGES, STAGE_04, STAGE_08 } from '../src/data/campaign.js'
 import {

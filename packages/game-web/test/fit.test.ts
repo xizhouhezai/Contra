@@ -1,3 +1,10 @@
+/**
+ * REQ-GDD-006: Web 平台桌面与移动浏览器适配
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { GAME_HEIGHT, GAME_WIDTH } from '../src/config'
 import { bufferSize, MAX_RENDER_SCALE, renderScale } from '../src/fit'

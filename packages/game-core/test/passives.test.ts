@@ -1,3 +1,17 @@
+/**
+ * REQ-PLY-005: 角色差异化被动
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
+/**
+ * REQ-CHR-011: Gemini 多模态同时命中多目标
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { PASSIVE_TUNING } from '../src/data/characters.js'
 import { SPREAD_GAIN_PER_SHOT } from '../src/systems/Combat.js'

@@ -1,3 +1,10 @@
+/**
+ * REQ-CMB-002: 每次攻击前有可见预告
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { BOSS_MOVE_REACH, reachFor } from '../src/data/bossReach.js'

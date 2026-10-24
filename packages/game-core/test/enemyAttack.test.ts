@@ -1,3 +1,10 @@
+/**
+ * REQ-CMB-001: 敌人主动攻击玩家
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { ENEMY_IDS } from '../src/data/enemies.js'

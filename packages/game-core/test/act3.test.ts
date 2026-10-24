@@ -1,3 +1,10 @@
+/**
+ * REQ-STG-003: 关卡以 Boss 战结束
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { ACT_III_STAGES, INTERLUDES, STAGE_11, totalCampaignSeconds } from '../src/data/act3.js'
 import { CAMPAIGN_STAGES } from '../src/data/campaign.js'

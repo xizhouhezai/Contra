@@ -1,3 +1,10 @@
+/**
+ * REQ-STG-007: 第 12 关四形态连续战
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { ECHO_COUNT } from '../src/systems/Echoes.js'

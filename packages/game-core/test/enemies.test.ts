@@ -1,3 +1,10 @@
+/**
+ * REQ-GDD-003: 敌人至少 6 种，含精英与飞行
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   absorbsHit,
