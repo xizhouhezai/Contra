@@ -120,6 +120,7 @@ export class StageScene extends Phaser.Scene {
     playerDied: (event) => {
       this.showBanner('推理中断')
       this.playEventSound(event)
+      this.beginRetryWindow()
     },
     weaponPicked: (event) => {
       this.showBanner(`拾取 ${event.weaponId}`)
@@ -209,6 +210,8 @@ export class StageScene extends Phaser.Scene {
   private bossToppled = false
   private prevX = 0
   private prevY = 0
+  /** Set once the retry prompt is up, so a second death cannot stack a second prompt. */
+  private retryArmed = false
   private clearedEvents = 0
   private clearedAt = 0
 
@@ -294,6 +297,10 @@ export class StageScene extends Phaser.Scene {
   private clearEvents(): void {
     this.clearedEvents = 0
     this.clearedAt = 0
+    // Scene.restart reuses this instance, so every field that records "already
+    // happened" has to be reset here. retryArmed left set would make the next
+    // death show no prompt at all.
+    this.retryArmed = false
   }
 
   create(): void {
@@ -572,6 +579,40 @@ export class StageScene extends Phaser.Scene {
   }
 
   /** Persists the clear, then hands off to the result screen. */
+  /**
+   * Shows the retry prompt and arms the key that restarts the stage.
+   *
+   * REQ-VIS-002 asks for a retry within three seconds and REQ-PLY-007 for a
+   * restart at the stage start with the weapon slots kept. Both were unreachable:
+   * the rule layer had no failure state and this scene reacted to death with a
+   * banner and nothing else, so a lost run simply kept running.
+   *
+   * The prompt stays up until the player acts. It does not auto-restart, because
+   * a death the player did not understand is worth a second to read.
+   */
+  private beginRetryWindow(): void {
+    if (this.retryArmed) return
+    this.retryArmed = true
+
+    const prompt = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40, '按 R 重试本关', {
+        fontFamily: 'serif',
+        fontSize: '26px',
+        color: '#f4f1ea',
+      })
+      .setOrigin(0.5)
+      .setDepth(900)
+      .setScrollFactor(0)
+    prompt.setShadow(0, 2, '#1a1a1a', 6)
+
+    this.input.keyboard?.once('keydown-R', () => {
+      // A fresh scene is the cleanest reset: every view, timer and audio handle
+      // belongs to the scene, and keeping the old one alive to re-initialise
+      // would leave whichever ones this method forgot still running.
+      this.scene.restart({ stageId: this.stage.id, characterId: this.request.characterId })
+    })
+  }
+
   private leaveStage(): void {
     const storage = LocalStorageAdapter.fromGlobal()
     const ids = [this.stage.id]

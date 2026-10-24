@@ -488,6 +488,21 @@ export class World {
   }
 
   /** Whether the stage exit has already been reached in this run. */
+  /**
+   * Whether the run is over.
+   *
+   * Distinct from defeated bosses and cleared stages: the player can lose, and
+   * before this flag existed the rule layer had no way to say so. REQ-PLY-007
+   * (death returns you to the stage start) and REQ-VIS-002 (retry within three
+   * seconds) both hang off it.
+   */
+  private failed = false
+
+  /** True once the player has run out of hearts. */
+  get failedStage(): boolean {
+    return this.failed
+  }
+
   get clearedStage(): boolean {
     return this.cleared
   }
@@ -1418,6 +1433,10 @@ export class World {
       position: { x: this.player.position.x, y: this.player.position.y },
     })
     if (!result.died) return
+    // The world has to know it is over. Until now a dead player simply stopped
+    // taking damage and the simulation ran on: the stage was unwinnable but never
+    // ended, so the retry the spec asks for had nothing to trigger on.
+    this.failed = true
     this.eventQueue.push({
       type: 'playerDied',
       position: { x: this.player.position.x, y: this.player.position.y },
@@ -1460,6 +1479,7 @@ export class World {
       position: { x: this.player.position.x, y: this.player.position.y },
     })
     if (!result.died) return
+    this.failed = true
     this.eventQueue.push({
       type: 'playerDied',
       position: { x: this.player.position.x, y: this.player.position.y },

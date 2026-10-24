@@ -67,6 +67,8 @@ export {
   PULSE_SHOTS_PER_SECOND,
   TIME_EPSILON,
 } from './data/constants.js'
+export type { CoopLifeMode, CoopSettings } from './data/coop.js'
+export { COOP, coopEnabled, playerSlotCount } from './data/coop.js'
 export type { DifficultySettings } from './data/difficulty.js'
 export {
   DEFAULT_DIFFICULTY,
