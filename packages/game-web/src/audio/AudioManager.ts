@@ -1,4 +1,6 @@
+import { LocalStorageAdapter } from '@contra/game-platform'
 import type Phaser from 'phaser'
+import { type GameSettings, loadSettings } from '../settings/settings'
 import { type BgmKey, bgmForStage, type SfxKey } from './manifest'
 
 /**
@@ -13,11 +15,53 @@ export class AudioManager {
   private currentBgm: Phaser.Sound.BaseSound | null = null
   private currentKey: string | null = null
   private muted = false
-  private bgmVolume = 0.4
-  private sfxVolume = 0.7
+  /**
+   * Base levels, before the player's settings scale them.
+   *
+   * Music sits well below effects on purpose: a loop runs for two minutes under
+   * every fight and wants to stay out of the way, while a shot has to be
+   * identifiable in a busy frame.
+   */
+  private readonly bgmBase = 0.4
+  private readonly sfxBase = 0.7
+  private settings: GameSettings
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
+    this.settings = loadSettings(LocalStorageAdapter.fromGlobal())
+  }
+
+  /**
+   * Takes the player's volumes from the settings screen.
+   *
+   * Until this existed the settings screen wrote masterVolume and sfxVolume to
+   * storage and nothing read them: two sliders that changed a percentage next to
+   * themselves and had no effect on a single sound. The audio layer had its own
+   * constants and never consulted the file.
+   */
+  applySettings(settings: GameSettings): void {
+    this.settings = settings
+    this.scene.sound.volume = settings.masterVolume
+    // BaseSound does not declare setVolume; only the WebAudio and HTML5
+    // implementations have it. The guard is the cast's entire purpose.
+    const bgm = this.currentBgm as { setVolume?: (volume: number) => void } | null
+    if (bgm !== null && typeof bgm.setVolume === 'function') bgm.setVolume(this.bgmVolume)
+  }
+
+  /** Effect level, already scaled by the player's master and effect sliders. */
+  private get sfxVolume(): number {
+    return this.sfxBase * this.settings.masterVolume * this.settings.sfxVolume
+  }
+
+  /**
+   * Music level, scaled by the master slider.
+   *
+   * There is no separate music slider: the settings screen offers master and
+   * effects, so music follows master alone. Adding a third slider is a product
+   * decision, not something to invent here.
+   */
+  private get bgmVolume(): number {
+    return this.bgmBase * this.settings.masterVolume
   }
 
   /** Plays a one-shot effect; silently does nothing when the key is absent. */
