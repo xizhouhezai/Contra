@@ -1,3 +1,10 @@
+/**
+ * REQ-VIS-003: 首次游玩无需外部说明即可上手
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   allowsFlashing,

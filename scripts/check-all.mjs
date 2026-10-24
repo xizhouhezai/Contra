@@ -262,6 +262,37 @@ const INSPECTIONS = [
     },
   },
   {
+    label: '需求追溯',
+    detail: '每条需求都能顺 REQ → 任务 → 测试 走通（或已记录不可单测）',
+    run() {
+      // The audit script answers "is there code for this", which systems/Echoes.ts
+      // passed while doing nothing. This asks the next question: would a test fail
+      // if the behaviour broke. It is the difference between a spec that is
+      // written down and a spec that is held.
+      try {
+        const out = execFileSync(
+          process.execPath,
+          [join(root, 'scripts', 'report-traceability.mjs')],
+          { cwd: root, stdio: 'pipe', encoding: 'utf8' },
+        )
+        const orphans = (out.match(/无任务也无测试/g) ?? []).length
+        const numbers = /已覆盖合计: (\d+) \/ (\d+)/.exec(out)
+        const covered = numbers === null ? 0 : Number(numbers[1])
+        const total = numbers === null ? 0 : Number(numbers[2])
+        // Every requirement either has a test or is documented as untestable; the
+        // report prints the latter with a reason, so a gap here means a silent one.
+        const untestable = (out.match(/无法单测（已记录原因）: (\d+)/) ?? [])[1]
+        const excluded = untestable === undefined ? 0 : Number(untestable)
+        if (covered + excluded < total && orphans === 0) {
+          return [`${total - covered - excluded} 条需求既无测试也无记录`]
+        }
+        return []
+      } catch (error) {
+        return [error instanceof Error ? error.message.split('\n')[0] : String(error)]
+      }
+    },
+  },
+  {
     label: '测试存在性',
     detail: '每个包至少有一个测试文件',
     run() {

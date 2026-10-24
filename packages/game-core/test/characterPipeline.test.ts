@@ -1,3 +1,10 @@
+/**
+ * REQ-PLY-004: 6 名角色初始武器各不相同
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { CHARACTER_IDS, CHARACTERS, INITIAL_WEAPON } from '../src/data/characters.js'

@@ -1,3 +1,17 @@
+/**
+ * REQ-CHR-002: DeepSeek 初始武器为扩散散弹
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
+/**
+ * REQ-CHR-003 / REQ-CHR-004 / REQ-CHR-005: 各角色初始武器各不相同，且指向真实武器
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file. The behaviour was covered before;
+ * only the link was missing.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   CHARACTER_IDS,

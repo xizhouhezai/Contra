@@ -1,3 +1,9 @@
+/**
+ * REQ-NFR-004: 核心逻辑脱离渲染层测试
+ *
+ * Named here so scripts/report-traceability.mjs can follow the chain from the
+ * requirement through the task to this file.
+ */
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { FIXED_STEP_SECONDS, MAX_STEPS_PER_FRAME } from '../src/data/constants.js'

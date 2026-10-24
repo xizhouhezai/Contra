@@ -19,6 +19,7 @@ export type EffectName =
   | 'muzzle-orange'
   | 'muzzle-purple'
   | 'muzzle-white'
+  | 'muzzle-hostile'
   | 'impact-small'
   | 'impact-med'
   | 'impact-big'
@@ -70,8 +71,14 @@ const MUZZLE_BY_WEAPON: Readonly<Record<string, EffectName>> = {
   prism: 'muzzle-purple',
 }
 
-/** Enemy flashes are red-shifted so they never read as the player's own fire. */
-const ENEMY_MUZZLE: EffectName = 'muzzle-orange'
+/**
+ * Enemy flashes use a colour no player weapon uses.
+ *
+ * This was muzzle-orange, which three of the ten player weapons also use - so the
+ * comment promising that enemy fire "never reads as the player's own" was describing
+ * something the code did not do. A hostile flash is now its own texture.
+ */
+const ENEMY_MUZZLE: EffectName = 'muzzle-hostile'
 
 export function muzzleForWeapon(weaponId: string, owner: string): EffectName {
   if (owner === 'enemy') return ENEMY_MUZZLE
@@ -93,6 +100,19 @@ const BOSS_EFFECT_BY_MOVE: Readonly<Record<string, BossEffectName>> = {
   'harvest-vines': 'boss-vines',
   'emergence-burst': 'boss-burst',
   'reaper-scythe': 'boss-scythe',
+  // The GPT fight's own moves were missing from this table, which meant the final
+  // boss of the game telegraphed nothing: every attack arrived with no visual
+  // warning at all. Each is mapped to the shape closest to what it does rather
+  // than all to one default, so a player can tell a wave from a spread.
+  'data-flood': 'boss-swarm',
+  'compress-wave': 'boss-sweep',
+  'sample-draw': 'boss-chain',
+  'emergent-proliferation': 'boss-burst',
+  overfit: 'boss-vines',
+  collapse: 'boss-beam',
+  'final-check': 'boss-lance',
+  'rule-rewrite': 'boss-sweep',
+  'text-storm': 'boss-swarm',
 }
 
 export function bossEffectForMove(moveId: string): BossEffectName | null {
