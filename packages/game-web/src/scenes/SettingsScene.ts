@@ -128,13 +128,26 @@ export class SettingsScene extends Phaser.Scene {
     }
 
     saveSettings(this.storage, this.settings)
+    // Applied here as well as on load, so moving the volume slider is audible
+    // while the slider is being moved. Persisting alone meant the number changed
+    // next to the label and every sound kept its old level until the next scene.
+    this.applyToAudio()
     this.refresh()
+  }
+
+  /** Pushes the current volumes at the audio layer, if one exists yet. */
+  private applyToAudio(): void {
+    const stage = this.scene.get('Stage') as
+      | { audio?: { applySettings?: (settings: GameSettings) => void } }
+      | undefined
+    if (stage?.audio?.applySettings !== undefined) stage.audio.applySettings(this.settings)
   }
 
   private confirm(): void {
     if (this.cursor !== 5) return
     resetSettings(this.storage)
     this.settings = DEFAULT_SETTINGS
+    this.applyToAudio()
     this.refresh()
   }
 
