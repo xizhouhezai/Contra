@@ -194,6 +194,19 @@ export function enemyDefinition(id: EnemyId): EnemyDefinition {
 }
 
 /** Enemy state machine states. */
+/**
+ * The enemy state machine, unused.
+ *
+ * Kept because it is exported API, but nothing in the game drives enemies through
+ * it: behaviour is dispatched from EnemyDefinition.behaviour in
+ * systems/EnemyBehaviour.ts, and armour is answered by damageAgainst(). This state
+ * machine, TRANSITIONS, canTransition() and transition() are the design that
+ * predates that dispatch.
+ *
+ * Flagged by scripts/report-unused-exports.mjs so it does not stay invisible. It is
+ * the third instance of a finished module with no caller - systems/Echoes.ts and
+ * the stage mechanics were the other two - which is why that report exists.
+ */
 export type EnemyState = 'idle' | 'patrol' | 'chase' | 'attack' | 'hurt' | 'dead'
 
 /**

@@ -235,6 +235,33 @@ const INSPECTIONS = [
     },
   },
   {
+    label: '无调用者的导出',
+    detail: 'game-core 导出的符号是否有人引用（仅零引用算失败）',
+    run() {
+      // Twice a finished module sat in the tree with no caller - systems/Echoes.ts
+      // and the whole stage mechanics set - and both had passing unit tests,
+      // because a test imports the module directly and does not need the game to.
+      // A suite cannot catch that by construction: it is the thing importing.
+      try {
+        const out = execFileSync(
+          process.execPath,
+          [join(root, 'scripts', 'report-unused-exports.mjs'), 'game-core'],
+          { cwd: root, stdio: 'pipe', encoding: 'utf8' },
+        )
+        // The report is advisory; only a completely unused export fails.
+        const unused = out
+          .split('\n')
+          .filter((line) => line.startsWith('    '))
+          .map((line) => line.trim())
+        const known = new Set(['transitionEnemyState'])
+        const unexpected = unused.filter((name) => !known.has(name))
+        return unexpected.map((name) => `导出无从引用: ${name}`)
+      } catch (error) {
+        return [error instanceof Error ? error.message.split('\n')[0] : String(error)]
+      }
+    },
+  },
+  {
     label: '测试存在性',
     detail: '每个包至少有一个测试文件',
     run() {
