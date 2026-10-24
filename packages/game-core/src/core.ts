@@ -48,6 +48,15 @@ import { equipWeapon } from './systems/Arsenal.js'
 import { overlaps, rayBoxDistance } from './systems/Collision.js'
 import { applyHit, canDamage } from './systems/Combat.js'
 import {
+  allEchoesCleared,
+  bodyUntargetable,
+  createEchoState,
+  damageEcho,
+  type EchoState,
+  echoesRemaining,
+  maybeSplit,
+} from './systems/Echoes.js'
+import {
   type AttackState,
   createAttackState,
   enemyCentre,
@@ -325,7 +334,13 @@ export class World {
   readonly player: PlayerState
   /** The platforms as authored, motion and breakable state included. */
   readonly platforms: readonly TerrainPlatform[]
-  readonly targets: readonly TargetState[]
+  /**
+   * Live targets, including the echoes that appear mid-fight.
+   *
+   * Writable rather than readonly because stage 12 spawns three of them after
+   * the boss reaches its split threshold - they are not in the stage data.
+   */
+  targets: TargetState[]
   readonly exit: Rect | null
   readonly fixedStepSeconds: number
   bullets: Bullet[] = []
@@ -378,6 +393,20 @@ export class World {
   private readonly scrollMode: ScrollMode
   /** Broken platforms, remaining HP, loot; empty when the stage authored none. */
   private readonly terrain: TerrainState = createTerrainState()
+  /**
+   * The GPT fight's echo interlude.
+   *
+   * systems/Echoes.ts modelled the split properly and nothing called it: the
+   * director advanced on HP alone, so stage 12 reached phase 3 at 40% and stopped
+   * there. Phase 3 carries no moves - the echoes are supposed to be the fight -
+   * so the boss simply stopped attacking and the last phase could never open.
+   */
+  private readonly echoes: EchoState = createEchoState()
+  /** Where each echo stands, keyed by echo id, in world space. */
+  private readonly echoBoxes = new Map<
+    string,
+    { x: number; y: number; width: number; height: number }
+  >()
   /** Where each enemy is looking, so armour can tell a frontal hit from a rear one. */
   private readonly facings = new Map<EntityId, 1 | -1>()
 
@@ -698,6 +727,72 @@ export class World {
   }
 
   /**
+   * Places the three echoes around the arena.
+   *
+   * They are ordinary targets as far as the player is concerned - a bullet hits
+   * one, it takes damage, it dies - so they go in the same targets array the
+   * enemy attacks and the blast code already walk. The echo bookkeeping is what
+   * decides when the body comes back.
+   */
+  private spawnEchoes(): void {
+    const arena = this.exit
+    const baseX = arena === null ? 0 : arena.x
+    const width = 56
+    const height = 72
+    // Stand the echoes on the floor in front of the arena. Anchoring them to the
+    // exit's own y put them 72px above the floor, where a level shot passes
+    // underneath and the interlude cannot be finished at all.
+    const floorY = this.groundTop() - height
+    const offsets = [0, 140, 280]
+
+    for (let index = 0; index < this.echoes.echoes.length; index += 1) {
+      const echo = this.echoes.echoes[index]
+      if (echo === undefined) continue
+      // Spread behind the arena, not across it. Placing one on the exit zone
+      // meant the player cleared the stage while trying to line up a shot on the
+      // last echo.
+      const x = baseX - 620 + (offsets[index] ?? 0)
+      const y = floorY
+      this.echoBoxes.set(echo.id, { x, y, width, height })
+      this.targets.push(
+        createTarget({
+          id: echo.id,
+          x,
+          y,
+          width,
+          height,
+          hp: echo.hp,
+          score: 150,
+          // No archetype: an echo is an obstacle the player must clear, not a
+          // second enemy. Giving it one gave it a weapon, and three echoes firing
+          // at once killed the player before the interlude could be finished -
+          // the fight became unwinnable in the phase that is supposed to be a
+          // breather.
+        }),
+      )
+    }
+  }
+
+  /** Top of the lowest floor slab, which is where ground-standing things sit. */
+  private groundTop(): number {
+    let top = Number.POSITIVE_INFINITY
+    for (const platform of this.platforms) {
+      if (platform.width >= 400) top = Math.min(top, platform.y)
+    }
+    return Number.isFinite(top) ? top : 400
+  }
+
+  /** How many echoes are still standing; the body stays hidden while any are. */
+  get echoesLeft(): number {
+    return echoesRemaining(this.echoes)
+  }
+
+  /** True once every echo is down, which opens the final phase. */
+  get echoesCleared(): boolean {
+    return allEchoesCleared(this.echoes)
+  }
+
+  /**
    * Advances the boss and reports what it did (T3).
    *
    * The director owns phases, telegraphs and the gravity flip; this only
@@ -709,7 +804,30 @@ export class World {
     const boss = this.boss
     if (boss === null || boss.defeated) return
 
+    // The GPT fight does not advance on HP alone. Between phase 2 and the final
+    // form sits an interlude where the body splits and stops being reachable;
+    // the director's own hp table would enter it at 40% and then never leave,
+    // because its phase 3 has no moves and its phase 4 shares the same
+    // threshold. Holding the phase at 3 until the echoes are down is what makes
+    // the last phase reachable at all.
+    const isGpt = boss.definition.id === 'gpt-emergent' || boss.definition.id === 'gpt-corpus'
     const result = stepBoss(boss, this.fixedStepSeconds)
+
+    // The director recomputes the phase from HP on every step, so an override
+    // has to come after it, not before. Setting it before was silently reverted
+    // on the same step and the fight skipped straight to phase 4.
+    if (isGpt) {
+      const want = this.echoesCleared ? 4 : this.echoes.split ? 3 : boss.phase
+      if (want !== boss.phase) {
+        boss.phase = want
+        this.eventQueue.push({
+          type: 'bossPhaseChanged',
+          bossId: boss.definition.id as BossId,
+          phase: want,
+          healthFraction: hpFraction(boss),
+        })
+      }
+    }
 
     // The director has always produced these two values; until now this call
     // site read phaseChanged and gravityFlipped and dropped both of them. The
@@ -817,6 +935,11 @@ export class World {
     const boss = this.boss
     if (boss === null || boss.defeated) return
 
+    // While the echoes are alive the body cannot be reached. Without this the
+    // split would be cosmetic: the player could keep hitting the boss and skip
+    // the interlude entirely.
+    if (bodyUntargetable(this.echoes)) return
+
     const phaseBefore = boss.phase
     const hpBefore = boss.hp
     const died = damageBoss(boss, amount)
@@ -825,6 +948,13 @@ export class World {
     // losing hp: every damage number in this game is read off the hit event, and
     // the boss was the one thing that never emitted one.
     if (boss.hp !== hpBefore) {
+      // The split happens the moment the last hit takes the body to the
+      // threshold, so the player never lands a shot on a boss that is already
+      // meant to be out of reach.
+      if (boss.definition.id === 'gpt-emergent' || boss.definition.id === 'gpt-corpus') {
+        const split = maybeSplit(this.echoes, boss.hp, boss.definition.maxHp, 120)
+        if (split) this.spawnEchoes()
+      }
       this.eventQueue.push({
         type: 'hit',
         targetId: boss.definition.id,
@@ -1129,6 +1259,20 @@ export class World {
    * presentation layer can ring the same impact sound the player already reads as
    * "that did nothing".
    */
+  /**
+   * Mirrors a hit on an echo back into the echo bookkeeping.
+   *
+   * The target and the echo are two views of one thing: the target is what
+   * bullets and blasts collide with, the echo is what decides whether the body is
+   * reachable. Applying damage to only one of them would leave the body hidden
+   * forever after the last echo dies.
+   */
+  private syncEchoDamage(target: TargetState): void {
+    if (!target.id.startsWith('echo-')) return
+    if (target.hp > 0) return
+    damageEcho(this.echoes, target.id, Number.MAX_SAFE_INTEGER)
+  }
+
   private applyDamageToTarget(target: TargetState, damage: number, at: Vec2): void {
     if (damage <= 0) {
       this.eventQueue.push({
@@ -1145,7 +1289,10 @@ export class World {
       damage,
       position: { x: at.x, y: at.y },
     })
-    if (!damageTarget(target, damage)) return
+    // damageTarget returns true when this hit destroyed the target.
+    const killed = damageTarget(target, damage)
+    this.syncEchoDamage(target)
+    if (!killed) return
 
     this.score += target.score
     this.eventQueue.push({
@@ -1282,7 +1429,13 @@ export class World {
     if (!canDamage('enemy', 'player')) return
 
     const box = playerRect(this.player)
-    const touching = this.targets.some((target) => target.alive && overlaps(box, target.box))
+    // Echoes are obstacles, not bodies. They are solid so a bullet can hit them,
+    // and that same solidity made walking into one cost a heart - three echoes in
+    // a line means three hearts, which ended the interlude before the player
+    // could clear it.
+    const touching = this.targets.some(
+      (target) => target.alive && !target.id.startsWith('echo-') && overlaps(box, target.box),
+    )
     const shot = this.bullets.some(
       (bullet) =>
         bullet.owner === 'enemy' &&
