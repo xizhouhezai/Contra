@@ -78,7 +78,44 @@ export function createParallax(
       .setDepth(-100 + index)
       .setAlpha(alpha)
 
-    if (source.height > 0) tile.tileScaleY = height / source.height
+    // Both axes, and the same factor.
+    //
+    // Only Y was scaled before: the texture was squashed vertically to 540 while
+    // staying 1:1 horizontally, so every layer was drawn with an anisotropic
+    // stretch - 1920px of picture across a 960px window, wrapping wherever the
+    // texture ended. That wrap is the vertical seam, and the mismatch between the
+    // two axes is why the art also looked soft: horizontal samples landed between
+    // texels while vertical ones did not.
+    //
+    // With one factor the 1920x1080 texture becomes exactly 960x540, one texture
+    // fills the window, and the wrap happens at the texture edge - which is the
+    // edge the art was authored to join.
+    // Scale so one copy of the texture covers the window exactly. Dividing by the
+    // texture width rather than its height is the difference between a seamless
+    // backdrop and a repeating one: the layers are authored 16:9 to match the
+    // window, so width is the axis that decides how many copies fit. Driving the
+    // scale from height left the texture narrower than the window whenever the
+    // aspect ratio drifted - which happens as soon as the canvas is FIT-scaled -
+    // and every extra copy starts with a visible seam.
+    const scale = source.width > 0 ? width / source.width : 1
+    tile.tileScaleX = scale
+    tile.tileScaleY = scale
+
+    // Half-scale downsampling is the blur. Every per-stage layer is 1920x1080
+    // shown in a 960x540 window, so the GPU is resampling the whole picture at
+    // exactly 0.5 - and tilePositionX is rarely an integer, so each frame samples
+    // between texels. NEAREST keeps the pixel edges the Riso art is drawn with
+    // instead of averaging them into a soft seam where the tile repeats.
+    //
+    // The cost is aliasing when a layer is scaled by a non-integer factor; that is
+    // the honest trade for this art, which is flat colour and hard edges and reads
+    // worse blurred than it does aliased.
+    // FilterMode.NEAREST is 0 in Phaser's enum; the numeric form is used because
+    // this module holds Phaser as a type import, not a value.
+    const texture = scene.textures.get(key) as Phaser.Textures.Texture & {
+      setFilter?: (mode: number) => void
+    }
+    texture.setFilter?.(0)
     created.push(tile)
   })
 
