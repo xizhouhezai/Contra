@@ -17,6 +17,16 @@ import type Phaser from 'phaser'
 /** Frame size of every packed enemy image. */
 export const ENEMY_FRAME_SIZE = 128
 
+/**
+ * How tall a generated enemy is drawn, in world pixels.
+ *
+ * Independent of the collision box on purpose. Most enemies are 40px tall in the
+ * rules, which would render a 128px frame at 0.31 and make hand-drawn art read as
+ * a few pixels on the floor. 72px keeps a drone recognisable next to the 40px
+ * player without making it look like a boss.
+ */
+export const ENEMY_ART_DRAWN_PX = 72
+
 /** Slots the art provides. */
 export const ENEMY_FRAMES = ['idle', 'hit'] as const
 export type EnemyFrame = (typeof ENEMY_FRAMES)[number]

@@ -16,18 +16,29 @@ import { WEAPONS } from '../src/data/weapons.js'
 const PACING_TOLERANCE = 0.2
 
 describe('Stage pacing (T-M5-06)', () => {
-  it('keeps every stage within 20% of its designed length', () => {
+  it('keeps every stage within the authored range', () => {
     const report = CAMPAIGN_STAGES.map((stage) => ({
       id: stage.id,
       name: stage.name,
       seconds: stage.timeTargetSeconds,
+      expanded: (stage.waves?.length ?? 0) > 0,
     }))
     for (const row of report) {
       expect(row.seconds).toBeGreaterThan(0)
-      // The target is the authored value; a stage cannot drift from itself.
-      // What this guards is the range: nothing wildly out of family.
-      expect(row.seconds).toBeGreaterThan(60)
-      expect(row.seconds).toBeLessThan(300)
+      // The range is now two ranges, because the campaign is mid-migration.
+      //
+      // Sixteen stages were authored as 90-180 second corridors. Stage 1 has been
+      // reworked to the expansion's ten-minute target, and the rest have not, so a
+      // single bound would either force the old stages to lie about their length
+      // or fail the new one. The split is temporary and makes the migration state
+      // visible: every stage still on the old budget is a stage not yet done.
+      if (row.expanded) {
+        expect(row.seconds).toBeGreaterThan(300)
+        expect(row.seconds).toBeLessThan(1300)
+      } else {
+        expect(row.seconds).toBeGreaterThan(60)
+        expect(row.seconds).toBeLessThan(300)
+      }
     }
   })
 
@@ -35,8 +46,11 @@ describe('Stage pacing (T-M5-06)', () => {
     for (const act of [1, 2] as const) {
       const stages = CAMPAIGN_STAGES.filter((s) => s.act === act)
       const boss = stages.find((s) => s.bossId !== undefined)
-      const others = stages.filter((s) => s.bossId === undefined)
-      if (boss === undefined) continue
+      // Only stages still on the old budget are comparable. Act I's non-boss
+      // stages now include a reworked ten-minute stage, and averaging a 600 second
+      // stage with 100 second ones says nothing about whether the boss is long.
+      const others = stages.filter((s) => s.bossId === undefined && (s.waves?.length ?? 0) === 0)
+      if (boss === undefined || others.length === 0) continue
       const average = others.reduce((sum, s) => sum + s.timeTargetSeconds, 0) / others.length
       expect(boss.timeTargetSeconds).toBeGreaterThan(average)
     }

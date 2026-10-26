@@ -31,9 +31,14 @@ export class ActorView {
     width = 24,
     height = 40,
   ) {
+    // Bottom-centre by default. A sprite of a person or a machine stands on the
+    // ground, and the caller syncs it to the bottom of the collision box; anchoring
+    // at the top-left - which this used to do - drew every enemy one body-height
+    // above the floor, off the top of a 540px stage. The rectangle keeps the same
+    // origin so a missing texture degrades to a box in the same place.
     this.sprite = scene.textures.exists(texture)
-      ? scene.add.sprite(x, y, texture).setOrigin(0, 0).setDepth(depth)
-      : scene.add.rectangle(x, y, width, height, 0x1a1a1a).setOrigin(0, 0).setDepth(depth)
+      ? scene.add.sprite(x, y, texture).setOrigin(0.5, 1).setDepth(depth)
+      : scene.add.rectangle(x, y, width, height, 0x1a1a1a).setOrigin(0.5, 1).setDepth(depth)
   }
 
   /** Copies an entity box onto the sprite; no-op when the box has not moved. */
