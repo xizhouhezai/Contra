@@ -1504,6 +1504,17 @@ export class World {
   /** Fires exactly one stageCleared event the first time the player box meets the exit. */
   private checkExit(): void {
     if (this.cleared || this.exit === null) return
+
+    // A boss stage's door does not open while the boss is standing.
+    //
+    // Without this the door was a way past the fight: walk in, the stage clears,
+    // the boss leaves at full health. REQ-STG-003 says every stage ends with a
+    // boss fight and REQ-PLY-008 says the boss has a bar and phases; both are
+    // decorative if the door ignores them. The arena and the door share a place
+    // in the stage data, so this is the one stage type where a player can reach
+    // the exit without fighting.
+    if (this.boss !== null && !this.boss.defeated) return
+
     // A vertical stage's exit sits at the bottom and is cleared on the way down;
     // a horizontal one is a door the player has to walk into.
     if (!reachedExit(playerRect(this.player), this.exit, this.scrollMode)) return
