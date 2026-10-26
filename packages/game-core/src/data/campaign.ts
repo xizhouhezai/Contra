@@ -84,7 +84,12 @@ export const STAGE_03: StageDefinition = {
   targets: [groundTarget('t1', 1000), groundTarget('t2', 1500), groundTarget('t3', 2300)],
   mechanics: ['platforming'],
   timeTargetSeconds: 110,
-  exit: { x: 2720, y: 220, width: 40, height: 120 },
+  // FLOOR_TOP - 120, not 220. The doors on every other stage reach the floor, so
+  // walking into the x coordinate is enough; this one floated 60px above head
+  // height and could only be entered from the highest plank. found while
+  // recording: a bot walked the full width of stage 3, stood under the door at
+  // the right x with three hearts, and never triggered the clear.
+  exit: { x: 2720, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
 /** Stage 4 - 审计者. Boss stage. */

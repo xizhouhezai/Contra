@@ -120,6 +120,8 @@ export class StageScene extends Phaser.Scene {
     playerDied: (event) => {
       this.showBanner('推理中断')
       this.playEventSound(event)
+      // The world stops advancing on the next step; the prompt is what the
+      // player needs next, so it goes up in the same frame as the banner.
       this.beginRetryWindow()
     },
     weaponPicked: (event) => {

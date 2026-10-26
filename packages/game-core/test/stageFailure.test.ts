@@ -82,6 +82,22 @@ describe('stage failure (REQ-PLY-007 / REQ-VIS-002)', () => {
     expect(lethalWorld().failedStage).toBe(false)
   })
 
+  it('stops advancing once the player is dead', () => {
+    // Found while recording a playthrough: the bot lost all three hearts at x=876
+    // and then walked in place for the rest of the take, because nothing stopped
+    // the simulation. The character could still move, could not reach the exit,
+    // and the stage became an unwinnable loop.
+    const world = lethalWorld()
+    runUntilDead(world)
+    const xAtDeath = world.player.position.x
+    const stepsAtDeath = world.steps
+
+    for (let i = 0; i < 300; i += 1) world.update(1 / 60, { ...IDLE, moveX: 1 })
+
+    expect(world.player.position.x).toBe(xAtDeath)
+    expect(world.steps).toBe(stepsAtDeath)
+  })
+
   it('never reports both failed and cleared', () => {
     // A stage cannot be won and lost at once, and the presentation trusts these
     // two to pick a transition.
