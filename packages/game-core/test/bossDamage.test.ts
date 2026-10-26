@@ -35,6 +35,11 @@ function shootBoss(world: World, seconds = 6): number {
     // player spawns far to the left of it.
     world.player.position.x = ARENA.x - 40
     world.player.position.y = 300
+    // Revive every step. The boss's moves land on a player standing this close,
+    // and once the simulation halts on death the test would stop mid-fight and
+    // report an undamaged boss. This suite is about the boss taking damage, not
+    // about surviving the arena; the survival rules have their own tests.
+    world.player.hearts = world.startingHearts
   }
   return before - (world.activeBoss?.hp ?? 0)
 }

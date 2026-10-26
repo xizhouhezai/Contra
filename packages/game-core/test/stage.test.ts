@@ -22,9 +22,20 @@ function floorTop(): number {
   return floor.y
 }
 
+/**
+ * Steps the world, keeping the player alive.
+ *
+ * The simulation stops once the last heart is gone, so a test that walks the
+ * whole stage would otherwise end mid-run the first time an enemy connects and
+ * report a stage that was never cleared. These tests are about traversal and the
+ * exit rule; dying has its own tests.
+ */
 function run(world: World, state: ReturnType<typeof input>, count: number): CoreEvent[] {
   const events: CoreEvent[] = []
-  for (let step = 0; step < count; step += 1) events.push(...world.update(1 / 60, state))
+  for (let step = 0; step < count; step += 1) {
+    events.push(...world.update(1 / 60, state))
+    world.player.hearts = world.startingHearts
+  }
   return events
 }
 
@@ -50,9 +61,7 @@ describe('Gray-box stage (T-M0-07)', () => {
     const events: CoreEvent[] = []
 
     // 180 px/s over ~1600px takes under 9 seconds; 12s leaves a wide margin.
-    for (let step = 0; step < 60 * 12; step += 1) {
-      events.push(...world.update(1 / 60, input({ moveX: 1 })))
-    }
+    events.push(...run(world, input({ moveX: 1 }), 60 * 12))
 
     expect(world.player.position.x).toBeGreaterThan(GRAYBOX_STAGE.exit.x)
     const cleared = events.filter((event) => event.type === 'stageCleared')

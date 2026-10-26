@@ -53,6 +53,9 @@ function shootUntilSplit(world: World): void {
     world.update(1 / 60, { ...IDLE, fire: true })
     world.player.position.x = ARENA.x - 120
     world.player.position.y = 300
+    // The boss shoots back, and the simulation now halts when the player dies.
+    // This suite is about the split, not about surviving the arena.
+    world.player.hearts = world.startingHearts
   }
 }
 
@@ -79,7 +82,7 @@ function clearEchoes(world: World): void {
       guard += 1
       world.player.position.x = echo.box.x - 70
       world.player.position.y = feetY
-      world.player.hearts = 3
+      world.player.hearts = world.startingHearts
       world.update(1 / 60, { ...IDLE, fire: true })
     }
   }

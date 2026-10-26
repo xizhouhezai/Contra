@@ -352,7 +352,14 @@ export class World {
   private stepCount = 0
   private score = 0
   /** Hearts at spawn, the ceiling a refund may restore to. */
-  private readonly startingHearts: number
+  /**
+   * Hearts the run started with.
+   *
+   * Public because a caller restoring a full bar - a test driving a stage, or the
+   * retry path resetting a run - needs to know what "full" is. It is readonly and
+   * fixed at construction, so exposing it cannot let anything change it.
+   */
+  readonly startingHearts: number
   /** GLM refunds one heart per stage, no more. */
   private rhythmRefunded = false
   private readonly passive: PassiveState = createPassiveState()
@@ -526,6 +533,14 @@ export class World {
    */
   update(dt: number, input: InputProvider): readonly CoreEvent[] {
     if (!Number.isFinite(dt) || dt <= 0) return this.drainEvents()
+
+    // A dead player stops the simulation. Without this the run carried on after
+    // the last heart: the character kept walking, could not reach the exit, and
+    // the stage became an unwinnable loop the player had to escape by refreshing
+    // the page. found while recording a playthrough - the bot walked into a
+    // stage, lost all three hearts at x=876 and then stood there for the rest of
+    // the take because nothing told it the run was over.
+    if (this.failed) return this.drainEvents()
 
     const step = this.fixedStepSeconds
     const maxWindow = step * MAX_STEPS_PER_FRAME
