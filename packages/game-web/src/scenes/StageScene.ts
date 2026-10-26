@@ -1,3 +1,4 @@
+import type { TargetDefinition, TargetState } from '@contra/game-core'
 import {
   type BossId,
   BULLET_HEIGHT,
@@ -40,7 +41,7 @@ import {
   hasEffect,
   muzzleForWeapon,
 } from '../assets/effects'
-import { ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
+import { ENEMY_ART_DRAWN_PX, ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { hasEnemyProp, mountProp } from '../assets/enemyProps'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
@@ -290,6 +291,10 @@ export class StageScene extends Phaser.Scene {
       // tests build a World with the stage attached and never noticed, because
       // they bypass this call site entirely.
       stage: this.stage,
+      // Waves, when the stage authors them. Spread rather than passed as undefined,
+      // which exactOptionalPropertyTypes rejects; a stage without waves keeps its
+      // enemies on frame one exactly as before.
+      ...(this.stage.waves === undefined ? {} : { waves: this.stage.waves }),
       // Boss stages name their boss in the stage data (T3). Only boss stages
       // have one, so the key is spread in rather than passed as undefined.
       ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
@@ -732,40 +737,68 @@ export class StageScene extends Phaser.Scene {
     }
 
     for (const target of this.stage.targets) {
-      // The archetype is declared by the stage data, not parsed out of the id:
-      // ids run t1, t2, t3 in act 1 and mirror-1 in act 3, so splitting on '-'
-      // picked the wrong enemy or none at all. A target with no archetype is a
-      // plain destructible box and keeps the placeholder.
-      const archetype = target.archetype
-
-      // Generated art when it exists, the procedural placeholder otherwise. The
-      // sprite is scaled to the target's own collision box, so a drone and a
-      // charger are drawn at the size the rules actually give them rather than
-      // at one size that fits neither.
-      const artKey = archetype === undefined ? undefined : enemyFrameKey(archetype, 'idle')
-      const hasArt = artKey !== undefined && this.textures.exists(artKey)
-      const texture = hasArt && artKey !== undefined ? artKey : enemySprite(archetype ?? 'patrol')
-      const view = new ActorView(this, texture, target.x, target.y, 15, 32, 32)
-
-      if (hasArt) {
-        // Stage targets carry their size flat (x/y/width/height), not in a box -
-        // that shape only exists on the rule-layer state.
-        view.sprite.setOrigin(0.5, 1)
-        view.sprite.setScale(target.height / ENEMY_FRAME_SIZE)
-      } else {
-        view.sprite.setScale(1.2)
-      }
-      this.targetViews.set(target.id, view)
-
-      // Four archetypes carry a weapon the sprite does not include. Mounting it
-      // is what lets a player see which drone is the one with the gun - the
-      // difference between a readable fight and being shot by a blank robot.
-      if (hasEnemyProp(archetype)) {
-        const prop = mountProp(this, archetype, target.x, target.y, target.width, target.height, 16)
-        if (prop !== null) this.propViews.set(target.id, prop)
-      }
+      this.createTargetView(target)
     }
   }
+
+  /**
+   * Builds the view for one target.
+   *
+   * Extracted from the stage setup loop because a wave enemy does not exist at
+   * that point: it is created by the rule layer mid-stage, arrives in
+   * world.targets, and would otherwise be simulated but never drawn - an invisible
+   * enemy that shoots and cannot be seen. The sync pass calls this for any target
+   * it finds without a view.
+   */
+  private createTargetView(target: TargetDefinition | TargetState): void {
+    // Two shapes reach this method: authored targets carry x/y/width/height flat,
+    // and rule-layer state carries them in a box. Normalising here keeps one
+    // renderer for both, so a wave enemy is drawn by exactly the same code as a
+    // stage enemy rather than by a near-copy that drifts.
+    const rect =
+      'box' in target
+        ? target.box
+        : { x: target.x, y: target.y, width: target.width, height: target.height }
+    // The archetype is declared by the stage data, not parsed out of the id:
+    // ids run t1, t2, t3 in act 1 and mirror-1 in act 3, so splitting on '-'
+    // picked the wrong enemy or none at all. A target with no archetype is a
+    // plain destructible box and keeps the placeholder.
+    const archetype = target.archetype
+
+    // Generated art when it exists, the procedural placeholder otherwise. The
+    // sprite is scaled to the target's own collision box, so a drone and a
+    // charger are drawn at the size the rules actually give them rather than
+    // at one size that fits neither.
+    const artKey = archetype === undefined ? undefined : enemyFrameKey(archetype, 'idle')
+    const hasArt = artKey !== undefined && this.textures.exists(artKey)
+    const texture = hasArt && artKey !== undefined ? artKey : enemySprite(archetype ?? 'patrol')
+    const view = new ActorView(this, texture, rect.x, rect.y, 15, 32, 32)
+
+    if (hasArt) {
+      // Drawn at a readable size, not at the collision box.
+      //
+      // Scaling to the box looked right on a grey rectangle and wrong the moment
+      // the art landed: the box is 40px tall, so a 128px sprite was shrunk to
+      // 0.31 and a hand-drawn enemy became a few orange pixels next to a 1.4x
+      // placeholder that used to stand there. The box decides what the rules
+      // collide with; the sprite decides what the player sees, and those are
+      // different jobs.
+      const readable = ENEMY_FRAME_SIZE / ENEMY_ART_DRAWN_PX
+      view.sprite.setScale(readable)
+    } else {
+      view.sprite.setScale(1.2)
+    }
+    this.targetViews.set(target.id, view)
+
+    // Four archetypes carry a weapon the sprite does not include. Mounting it
+    // is what lets a player see which drone is the one with the gun - the
+    // difference between a readable fight and being shot by a blank robot.
+    if (hasEnemyProp(archetype)) {
+      const prop = mountProp(this, archetype, rect.x, rect.y, rect.width, rect.height, 16)
+      if (prop !== null) this.propViews.set(target.id, prop)
+    }
+  }
+
   /** The whole one-way sync: read the rule layer, write the renderer. */
   private syncViews(): void {
     const alpha = Math.min(1, this.world.pendingTime / this.world.fixedStepSeconds)
@@ -784,6 +817,10 @@ export class StageScene extends Phaser.Scene {
     )
 
     for (const target of this.world.targets) {
+      // A wave enemy arrives mid-stage, so there is no view for it yet. Build one
+      // on the first frame it exists, with the same code the authored targets use;
+      // without this the enemy is simulated, shoots, and is never drawn.
+      if (!this.targetViews.has(target.id)) this.createTargetView(target)
       const view = this.targetViews.get(target.id)
       if (view === undefined) continue
       // Same correction the player needed: the rule layer's y is the top of the

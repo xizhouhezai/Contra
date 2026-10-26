@@ -205,13 +205,15 @@ def contact(folder: Path, qa_path: Path, zoom: int = 4, cols: int = 4, dark=(26,
     return qa_path
 
 
-def prep(cell: Image.Image, punch_white: bool = True) -> Image.Image:
+def prep(cell: Image.Image, punch_white: bool = True, clear: int = 229) -> Image.Image:
     """Cut a cell out of its white background.
 
     punch_white is off for sprites that are legitimately white filled, such as
     the mirror enemy's orb, where the enclosed white is the body itself.
+    A higher `clear` keeps pale, thinly outlined art (steam, light cones) whole:
+    at the default the flood leaks through anti-aliased outlines and shreds it.
     """
-    im = drop_small(remove_white(cell))
+    im = drop_small(remove_white(cell, clear))
     if punch_white:
         im = clean_white_and_shadow(im)
     bbox = im.getchannel('A').getbbox()

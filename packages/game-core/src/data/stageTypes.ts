@@ -1,5 +1,6 @@
 import type { TargetDefinition } from '../entities/Target.js'
 import type { TerrainPlatform } from '../systems/Terrain.js'
+import type { Wave } from '../systems/Wave.js'
 import type { BossId, MechanicId, Rect, Vec2 } from './types.js'
 
 /**
@@ -33,6 +34,15 @@ export interface StageDefinition {
   /** Walls that reflect bullets (mechanic: bounce-wall). */
   readonly bounceWalls: readonly Rect[]
   readonly targets: readonly TargetDefinition[]
+  /**
+   * Enemies that arrive as the player advances.
+   *
+   * Additive and optional: a stage without waves keeps placing everything up front,
+   * which is every stage except the one being reworked. A stage with waves should
+   * leave `targets` empty, because an enemy placed on frame one is an enemy the
+   * player can outrun before its wave is due.
+   */
+  readonly waves?: readonly Wave[]
   /** Mechanics this stage teaches or uses. */
   readonly mechanics: readonly MechanicId[]
   /** Boss guarding the stage, if any. */

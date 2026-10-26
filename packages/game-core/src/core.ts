@@ -88,6 +88,15 @@ import {
   type TerrainState,
 } from './systems/Terrain.js'
 import {
+  createWaveState,
+  dueSpawns,
+  routeOpen,
+  triggersOn,
+  type Wave,
+  type WaveState,
+  waveCleared,
+} from './systems/Wave.js'
+import {
   createWeaponState,
   type FireOutcome,
   type LockCandidate,
@@ -258,6 +267,16 @@ export interface WorldOptions {
   readonly platforms?: readonly TerrainPlatform[]
   /** Gray-box targets that absorb bullets (T-M0-07). */
   readonly targets?: readonly TargetDefinition[]
+  /**
+   * Waves that bring enemies in as the player advances.
+   *
+   * Optional, and additive: a world built without waves behaves exactly as it did
+   * before, which is what keeps the existing callers and the 49 tests that build
+   * a world directly unchanged. A stage that authors waves stops placing all its
+   * enemies on frame one, which is the difference between a fifteen second stage
+   * and one that lasts.
+   */
+  readonly waves?: readonly Wave[]
   /** Stage exit box; reaching it emits one stageCleared event. */
   readonly exit?: Rect | null
   /** Source stage, when the world was built from a StageDefinition (T-M2-01). */
@@ -416,6 +435,10 @@ export class World {
   >()
   /** Where each enemy is looking, so armour can tell a frontal hit from a rear one. */
   private readonly facings = new Map<EntityId, 1 | -1>()
+  /** Authored waves, or empty when the stage places its enemies up front. */
+  private readonly waves: readonly Wave[]
+  /** Per-wave runtime state, keyed by wave id. */
+  private readonly waveStates = new Map<string, WaveState>()
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(
@@ -431,6 +454,8 @@ export class World {
     this.exit = options.exit ?? null
     this.fixedStepSeconds = options.fixedStepSeconds ?? FIXED_STEP_SECONDS
     this.act = options.act ?? 1
+    this.waves = options.waves ?? []
+    for (const wave of this.waves) this.waveStates.set(wave.id, createWaveState())
     {
       let minX = 0
       let maxX = 0
@@ -446,12 +471,7 @@ export class World {
     }
     // Only targets that name a known archetype get a timer. Everything else is
     // a plain box and stays inert.
-    for (const target of this.targets) {
-      if (target.alive) this.attackStates.set(target.id, createAttackState())
-      // Facing right until proven otherwise: it is the direction a patrol starts
-      // in, and the mirror of it is the one a player can always walk around.
-      this.facings.set(target.id, 1)
-    }
+    for (const target of this.targets) this.registerEnemy(target)
     this.homingLockLimit = HOMING_LOCK_LIMIT
     equipWeapon(this.player, INITIAL_WEAPON[this.characterId])
 
@@ -673,6 +693,93 @@ export class World {
    * channels: a charger that reaches the player overlaps them, and the contact
    * rule in damagePlayer charges the heart. Nothing here can invent a hit.
    */
+  /**
+   * Gives one enemy its per-target state.
+   *
+   * Shared by the constructor and by wave spawning so an enemy that arrives mid-
+   * stage is indistinguishable from one placed up front - same attack timer, same
+   * facing bookkeeping. Duplicating these two lines in the wave path is how wave
+   * enemies would end up silently unable to attack.
+   */
+  private registerEnemy(target: TargetState): void {
+    if (target.alive) this.attackStates.set(target.id, createAttackState())
+    // Facing right until proven otherwise: it is the direction a patrol starts in,
+    // and the mirror of it is the one a player can always walk around.
+    this.facings.set(target.id, 1)
+  }
+
+  /**
+   * Advances every authored wave: fires them on contact, places due spawns, and
+   * tracks what each has put on the field.
+   *
+   * Spawning has to happen through the same createTarget path the constructor uses,
+   * because a wave's enemy is an ordinary enemy - same collision, same attack
+   * timers, same art. Anything else would give wave enemies subtly different rules
+   * from the ones placed up front, and that difference would only show up as a bug
+   * report about one specific enemy in one specific room.
+   */
+  private stepWaves(): void {
+    if (this.waves.length === 0) return
+    const player = playerRect(this.player)
+
+    for (const wave of this.waves) {
+      const state = this.waveStates.get(wave.id)
+      if (state === undefined) continue
+
+      if (!state.fired) {
+        if (!triggersOn(wave, player)) continue
+        state.fired = true
+        // Elapsed starts at one step, not zero: a spawn with no delay is due on the
+        // step the wave fires, and starting the clock at zero made the first spawn
+        // wait a frame while every later one counted from the wrong origin.
+        state.elapsed = this.fixedStepSeconds
+      } else {
+        state.elapsed += this.fixedStepSeconds
+      }
+
+      for (const spawn of dueSpawns(wave, state)) {
+        const target = createTarget({
+          ...spawn.target,
+          x: wave.trigger.x + spawn.x,
+          y: wave.trigger.y + spawn.y,
+        })
+        this.targets.push(target)
+        state.spawned.add(target.id)
+        this.registerEnemy(target)
+      }
+    }
+  }
+
+  /**
+   * The live target ids as a set.
+   *
+   * liveTargetIds returns an array because the weapon code wants one to iterate;
+   * the wave checks ask "is this id alive" once per spawn, which is a set lookup.
+   */
+  private liveTargetSet(): ReadonlySet<string> {
+    return new Set(this.liveTargetIds())
+  }
+
+  /**
+   * Whether the way onward is open.
+   *
+   * A stage with no gating waves is always open, which is every existing stage.
+   */
+  get routeOpen(): boolean {
+    return routeOpen(this.waves, this.waveStates, this.liveTargetSet())
+  }
+
+  /** How many authored waves have been cleared, for pacing and diagnostics. */
+  get wavesCleared(): number {
+    const live = this.liveTargetSet()
+    let cleared = 0
+    for (const wave of this.waves) {
+      const state = this.waveStates.get(wave.id)
+      if (state !== undefined && waveCleared(wave, state, live)) cleared += 1
+    }
+    return cleared
+  }
+
   private stepEnemyMotion(): void {
     if (this.targets.length === 0) return
 
@@ -1064,6 +1171,7 @@ export class World {
     this.steerHomingRounds()
     this.resolveBulletHits()
     this.resolveBlasts()
+    this.stepWaves()
     this.stepEnemyMotion()
     this.stepEnemyAttacks()
     this.stepBossOnce()
@@ -1514,6 +1622,11 @@ export class World {
     // in the stage data, so this is the one stage type where a player can reach
     // the exit without fighting.
     if (this.boss !== null && !this.boss.defeated) return
+
+    // A gating wave holds the door the same way a boss does. Without this the wave
+    // system would add enemies and change nothing: the player walks past them, the
+    // stage clears, and the waves exist for decoration.
+    if (!this.routeOpen) return
 
     // A vertical stage's exit sits at the bottom and is cleared on the way down;
     // a horizontal one is a door the player has to walk into.
