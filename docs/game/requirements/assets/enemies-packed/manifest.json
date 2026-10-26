@@ -38,5 +38,21 @@
   "warden": {
     "hit-00": "warden-hit-00.webp",
     "idle-00": "warden-idle-00.webp"
+  },
+  "scrapper": {
+    "idle-00": "scrapper-idle-00.webp",
+    "hit-00": "scrapper-hit-00.webp"
+  },
+  "crane-hook": {
+    "idle-00": "crane-hook-idle-00.webp",
+    "hit-00": "crane-hook-hit-00.webp"
+  },
+  "steam-vent": {
+    "idle-00": "steam-vent-idle-00.webp",
+    "hit-00": "steam-vent-hit-00.webp"
+  },
+  "audit-drone": {
+    "idle-00": "audit-drone-idle-00.webp",
+    "hit-00": "audit-drone-hit-00.webp"
   }
 }
