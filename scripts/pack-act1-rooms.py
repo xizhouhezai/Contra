@@ -17,14 +17,24 @@ QA = ROOT / 'vibe_images' / 'archive' / '_qa'
 W, H = 1920, 540
 
 SHEETS = {
-    'bg-act1-warehouse-far': 'act1-bg-warehouse-far_*.png',
-    'bg-act1-corridor-mid': 'act1-bg-corridor-mid_*.png',
-    'bg-act1-scaffold-sky': 'act1-bg-scaffold-sky_*.png',
+    'bg-act1-warehouse-far': 'act1-bg-warehouse-far-v2_*.png',
+    'bg-act1-corridor-mid': 'act1-bg-corridor-mid-v2_*.png',
+    'bg-act1-scaffold-sky': 'act1-bg-scaffold-sky-v3_*.png',
 }
 
 
-def band(im: Image.Image) -> Image.Image:
+def drop_watermark(im: Image.Image) -> Image.Image:
+    """These sheets carry a paper band, so the corner mark is painted over with
+    the band's own paper tone before the band gets cropped away."""
     im = im.convert('RGB')
+    paper = im.getpixel((6, im.height - 6))
+    ImageDraw.Draw(im).rectangle(
+        (int(im.width * 0.72), int(im.height * 0.84), im.width - 1, im.height - 1), fill=paper)
+    return im
+
+
+def band(im: Image.Image) -> Image.Image:
+    im = drop_watermark(im)
     height = round(im.width * H / W)
     top = max(0, (im.height - height) // 2)
     return im.crop((0, top, im.width, top + height)).resize((W, H), Image.LANCZOS)
