@@ -21,25 +21,126 @@ function groundTarget(id: string, x: number, hp = 30, score = 50, archetype = 'p
   return { id, x, y: FLOOR_TOP - 40, width: 32, height: 40, hp, score, archetype }
 }
 
-/** Stage 1 - 码头晨雾. Teaches move, jump, aim, shoot. */
+import type { Wave } from '../systems/Wave.js'
+
+/**
+ * Stage 1's waves, one per beat.
+ *
+ * Paced so the stage teaches in the order a player can absorb it: one enemy to
+ * learn the gun, then a pair from both sides, then airborne pressure over the gap,
+ * then the first fight that has to be finished, then a surge before the door.
+ *
+ * Only the beats that should hold the player are gating. The rest are pressure:
+ * they add enemies without stopping the run. A stage where every fight is
+ * mandatory has no rhythm, and one where none are is a corridor.
+ */
+/**
+ * A wave spawn standing on the floor.
+ *
+ * The offset is relative to the wave's trigger, and the trigger spans the full
+ * screen height, so a zero offset puts the enemy at y=0 - floating at the top of
+ * the stage where the player's level shots pass underneath and it can never be
+ * killed. Every ground spawn carries the feet offset explicitly for that reason.
+ */
+const GROUND_SPAWN_Y = FLOOR_TOP - 40
+
+const ground = (id: string, delaySeconds: number, archetype = 'patrol') => ({
+  x: 0,
+  y: GROUND_SPAWN_Y,
+  delaySeconds,
+  target: { id, x: 0, y: 0, width: 32, height: 40, hp: 30, score: 50, archetype },
+})
+
+export const STAGE_01_WAVES: readonly Wave[] = [
+  {
+    // Beat 1 - one enemy at range, nothing else on screen. Teaches the gun.
+    id: 's1-w1',
+    gates: false,
+    trigger: { x: 400, y: 0, width: 300, height: 540 },
+    spawns: [ground('s1-a', 0.2)],
+  },
+  {
+    // Beat 2 - a pair. Teaches facing and aiming.
+    id: 's1-w2',
+    gates: true,
+    trigger: { x: 1200, y: 0, width: 300, height: 540 },
+    spawns: [ground('s1-b', 0), ground('s1-c', 1.2)],
+  },
+  {
+    // Beat 3 - airborne pressure over the gap, so not everything is on the floor.
+    id: 's1-w3',
+    gates: false,
+    trigger: { x: 4600, y: 0, width: 400, height: 540 },
+    spawns: [ground('s1-d', 0.4, 'flyer'), ground('s1-e', 1.6)],
+  },
+  {
+    // Beat 4 - the first fight that has to be finished. Guards the warehouse.
+    id: 's1-w4',
+    gates: true,
+    trigger: { x: 7400, y: 0, width: 400, height: 540 },
+    spawns: [ground('s1-f', 0), ground('s1-g', 0.8), ground('s1-h', 2.0, 'turret')],
+  },
+  {
+    // Beat 5 - the surge before the door. Not gating: running past it is allowed.
+    id: 's1-w5',
+    gates: false,
+    trigger: { x: 10600, y: 0, width: 400, height: 540 },
+    spawns: [
+      ground('s1-i', 0),
+      ground('s1-j', 0.6),
+      ground('s1-k', 1.2),
+      ground('s1-l', 1.8, 'charger'),
+    ],
+  },
+]
+
+/**
+ * Stage 1 - 码头晨雾. Teaches move, jump, aim, shoot.
+ *
+ * Rewritten for the expansion as five beats instead of one corridor. The old
+ * version was a single 2400px walk with three enemies standing in the open, which
+ * a player cleared in fifteen seconds by holding right - measured, not estimated,
+ * and the reason every stage felt the same.
+ *
+ * The beats are paced by purpose rather than by distance: each one introduces one
+ * thing and then tests it. Gating waves hold the door, so the length comes from
+ * fights that have to be finished rather than from a longer walk to the exit.
+ */
 export const STAGE_01: StageDefinition = {
   id: 'stage-01',
   name: '码头晨雾',
   act: 1,
   index: 1,
-  widthPx: 2400,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 2400, height: GROUND_H },
-    // One low step, per the spec's "仅一处低矮台阶".
+    { x: 0, y: FLOOR_TOP, width: 4200, height: GROUND_H },
+    // Cargo steps: the first jump the player has to make on purpose.
     { x: 900, y: FLOOR_TOP - 40, width: 120, height: 40 },
+    { x: 1800, y: FLOOR_TOP - 90, width: 160, height: 20 },
+    { x: 2200, y: FLOOR_TOP - 140, width: 160, height: 20 },
+    // The dock breaks up here - a gap the player crosses rather than falls into.
+    { x: 4400, y: FLOOR_TOP, width: 2400, height: GROUND_H },
+    { x: 4800, y: FLOOR_TOP - 100, width: 140, height: 16 },
+    { x: 5300, y: FLOOR_TOP - 170, width: 140, height: 16 },
+    { x: 5900, y: FLOOR_TOP - 100, width: 160, height: 16 },
+    // Warehouse run into the crane yard.
+    { x: 7000, y: FLOOR_TOP, width: 5000, height: GROUND_H },
+    { x: 7800, y: FLOOR_TOP - 120, width: 200, height: 20 },
+    { x: 8600, y: FLOOR_TOP - 60, width: 180, height: 20 },
+    { x: 9600, y: FLOOR_TOP - 120, width: 200, height: 20 },
+    { x: 10400, y: FLOOR_TOP - 80, width: 220, height: 20 },
+    { x: 11200, y: FLOOR_TOP - 140, width: 200, height: 20 },
   ],
   bounceWalls: [],
-  targets: [groundTarget('t1', 600), groundTarget('t2', 1400), groundTarget('t3', 2000)],
+  // No targets placed up front. Everything arrives through a wave, which is what
+  // makes the stage take its time instead of emptying in one screen.
+  targets: [],
+  waves: STAGE_01_WAVES,
   mechanics: [],
-  timeTargetSeconds: 90,
-  exit: { x: 2320, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
 /** Stage 2 - 锈铁回廊. Introduces bounce walls. */

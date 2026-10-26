@@ -290,6 +290,10 @@ export class StageScene extends Phaser.Scene {
       // tests build a World with the stage attached and never noticed, because
       // they bypass this call site entirely.
       stage: this.stage,
+      // Waves, when the stage authors them. Spread rather than passed as undefined,
+      // which exactOptionalPropertyTypes rejects; a stage without waves keeps its
+      // enemies on frame one exactly as before.
+      ...(this.stage.waves === undefined ? {} : { waves: this.stage.waves }),
       // Boss stages name their boss in the stage data (T3). Only boss stages
       // have one, so the key is spread in rather than passed as undefined.
       ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
