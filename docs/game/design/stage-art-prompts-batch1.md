@@ -1,8 +1,43 @@
 # 关卡扩容 · 批次 1 美术提示词（幕 I）
 
-> 状态：**待生成**
+> 状态：**已生成，待接入**（2026-10-26）
 > 对应方案：[关卡扩容方案 · 路径 C](/game/design/stage-expansion-plan)
 > 本批交付后即可接入幕 I 并做该幕验收
+
+## 交付记录（2026-10-26）
+
+36 个文件全部落盘，全部通过 §8 验收：
+
+| 类别 | 数量 | 输出位置 |
+| --- | --- | --- |
+| 新敌人 | 8 | `assets/enemies-packed/`（`manifest.json` 已并入，共 14 只） |
+| 房间背景 | 3 | `assets/backgrounds-rooms/` |
+| 房间地形套件 | 6 | `assets/tiles/` |
+| 中段小 Boss | 16 | `assets/minibosses/`（`-q-01..q-04`） |
+| 玩法 UI | 3 | `assets/ui/` |
+
+验收拼图：`vibe_images/archive/_qa/act1-qa-enemies-focus.png`、`act1-qa-rooms.png`、
+`act1-qa-tiles-assembly.png`、`act1-qa-minibosses.png`、`act1-qa-ui.png`。
+打包脚本：`scripts/pack-act1-{enemies,rooms,tiles,minibosses,ui}.py`。
+
+**生成时踩到、下次要一并写进提示词的三件事：**
+
+1. **主体色要写死占比**。只写「主体墨黑」时模型会把机身画成纸白（本批四只敌人全部返工一次）。
+   有效的写法是「armour is INK BLACK #1a1a1a over at least 70 percent of the body and reads
+   as a dark silhouette；paper #f4f1ea only as thin edge highlights」。
+2. **背景层要写「只能五个平色 + 粗网点」**，否则出来的是写实插画而不是丝网印刷。
+   另外「纯远景」必须写成「什么东西都不能有，不要栏杆/梁/平台」，否则会在前景长出栈道。
+3. **小 Boss 要写死外形否定项**。卷宗柜第一版画成了宝箱（会与宝箱房图标混淆），
+   加上「NOT a treasure chest, no curved lid, no lock」才回到立式柜。
+
+**后处理约定**（脚本已实现，重生成时不用改）：
+
+- 两帧动作共用一个缩放与锚点：地面单位按「脚部」对齐，悬浮单位按「身体」对齐。
+  否则钩子/吊臂/蒸汽一变大，本体就跟着缩水，看起来像换了尺寸。
+- 九宫格不是九张生成图，而是**一张可平铺贴图**左右上下自混后切 3×3 得到的，
+  这样拼起来天然无缝（实测接缝差值 15.8/4.2，低于贴图自身纹理差值 21.7/4.8）。
+- 纸白主体一律 `punch_white=False`：地形、UI 图标、蒸汽的纸白是内容，
+  按默认值会被当成背景抠空。
 
 ## 0. 使用方式
 

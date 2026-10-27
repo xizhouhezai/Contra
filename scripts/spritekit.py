@@ -205,6 +205,26 @@ def contact(folder: Path, qa_path: Path, zoom: int = 4, cols: int = 4, dark=(26,
     return qa_path
 
 
+def key_backdrop(im: Image.Image, tol: int = 14) -> Image.Image:
+    """Drop a backdrop that is not white, such as a painted paper tint.
+
+    Keys on the corner colour instead of pure white, and only removes the
+    region connected to the frame edge, so a same-coloured shape in the middle
+    of the art survives.
+    """
+    rgba = im.convert('RGBA')
+    ref = rgba.getpixel((0, 0))[:3]
+    diff = ImageChops.difference(rgba.convert('RGB'), Image.new('RGB', rgba.size, ref)).convert('L')
+    mask = diff.point(lambda v: 255 if v <= tol else 0)
+    for seed in ((0, 0), (rgba.width - 1, 0), (0, rgba.height - 1), (rgba.width - 1, rgba.height - 1)):
+        if mask.getpixel(seed) == 255:
+            ImageDraw.floodfill(mask, seed, 128, thresh=0)
+    alpha = mask.point(lambda v: 0 if v == 128 else 255)
+    rgba.putalpha(ImageChops.multiply(rgba.getchannel('A'), alpha))
+    box = rgba.getchannel('A').getbbox()
+    return rgba.crop(box) if box else rgba
+
+
 def prep(cell: Image.Image, punch_white: bool = True, clear: int = 229) -> Image.Image:
     """Cut a cell out of its white background.
 
