@@ -187,6 +187,17 @@ export class StageScene extends Phaser.Scene {
   private readonly targetViews = new Map<string, ActorView>()
   /** Weapon props mounted on the enemies that carry one, by target id. */
   private readonly propViews = new Map<string, Phaser.GameObjects.Image>()
+  /**
+   * Wave enemies whose view is owed.
+   *
+   * A target can appear for the first time inside syncViews - the rule layer adds
+   * it during world.update - and a sprite created at that point is added to the
+   * display list after the current frame's render walk, so it is never drawn. It
+   * looks like a depth or coordinate bug (every property reads correct and nothing
+   * appears) and it is really an ordering one. The ids are collected here and the
+   * views built at the top of the next update, before the world advances again.
+   */
+  private readonly pendingViews = new Set<string>()
   private readonly bulletViews = new Map<string, ProjectileView>()
   private hud: Phaser.GameObjects.Text | null = null
   /** The current weapon's icon, redrawn when the weapon changes. */
@@ -473,6 +484,10 @@ export class StageScene extends Phaser.Scene {
       return
     }
 
+    // Build any views owed from last frame before the world advances again, so a
+    // new enemy is drawn on the frame after it appears rather than never.
+    this.flushPendingViews()
+
     const before = this.world.player.position
     this.prevX = before.x
     this.prevY = before.y
@@ -739,6 +754,30 @@ export class StageScene extends Phaser.Scene {
     for (const target of this.stage.targets) {
       this.createTargetView(target)
     }
+
+    // Wave enemies get their views here too, hidden until the wave releases them.
+    //
+    // Creating a sprite during update() does not work: the stage's static enemies
+    // render at the same depth with the same texture and appear, while a wave enemy
+    // created mid-update is in the display list, visible, inside the camera bounds,
+    // and never drawn. Building them up front uses the one path that is proven to
+    // draw - the same one every authored target already takes - and a hidden sprite
+    // costs nothing until its wave fires.
+    for (const wave of this.stage.waves ?? []) {
+      for (const spawn of wave.spawns) {
+        this.createTargetView({
+          id: spawn.target.id,
+          x: wave.trigger.x + spawn.x,
+          y: wave.trigger.y + spawn.y,
+          width: spawn.target.width,
+          height: spawn.target.height,
+          hp: spawn.target.hp,
+          score: spawn.target.score,
+          ...(spawn.target.archetype === undefined ? {} : { archetype: spawn.target.archetype }),
+        })
+        this.targetViews.get(spawn.target.id)?.setVisible(false)
+      }
+    }
   }
 
   /**
@@ -788,6 +827,7 @@ export class StageScene extends Phaser.Scene {
     } else {
       view.sprite.setScale(1.2)
     }
+    view.sync(rect.x + rect.width / 2, rect.y + rect.height)
     this.targetViews.set(target.id, view)
 
     // Four archetypes carry a weapon the sprite does not include. Mounting it
@@ -797,6 +837,24 @@ export class StageScene extends Phaser.Scene {
       const prop = mountProp(this, archetype, rect.x, rect.y, rect.width, rect.height, 16)
       if (prop !== null) this.propViews.set(target.id, prop)
     }
+  }
+
+  /**
+   * Builds the views queued by the last sync pass.
+   *
+   * Done at the start of an update rather than inside syncViews because a sprite
+   * created after the render walk does not draw until something else touches it -
+   * which is why the enemy appeared only once a property was poked from the
+   * console, and never in normal play.
+   */
+  private flushPendingViews(): void {
+    if (this.pendingViews.size === 0) return
+    for (const id of this.pendingViews) {
+      const target = this.world.targets.find((candidate) => candidate.id === id)
+      if (target === undefined) continue
+      this.createTargetView(target)
+    }
+    this.pendingViews.clear()
   }
 
   /** The whole one-way sync: read the rule layer, write the renderer. */
@@ -817,10 +875,12 @@ export class StageScene extends Phaser.Scene {
     )
 
     for (const target of this.world.targets) {
-      // A wave enemy arrives mid-stage, so there is no view for it yet. Build one
-      // on the first frame it exists, with the same code the authored targets use;
-      // without this the enemy is simulated, shoots, and is never drawn.
-      if (!this.targetViews.has(target.id)) this.createTargetView(target)
+      // A wave enemy arrives mid-stage and has no view yet. Building it here would
+      // be too late to be drawn this frame, so it is queued and built next frame.
+      if (!this.targetViews.has(target.id)) {
+        this.pendingViews.add(target.id)
+        continue
+      }
       const view = this.targetViews.get(target.id)
       if (view === undefined) continue
       // Same correction the player needed: the rule layer's y is the top of the
