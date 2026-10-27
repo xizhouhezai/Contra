@@ -106,4 +106,42 @@ describe('stage 1 waves (stage-expansion-plan §4.3)', () => {
       expect(gap).toBeGreaterThan(400)
     }
   })
+
+  it('gives every enemy in a wave its own ground', () => {
+    // Every spawn used to default to x: 0, so a wave of three placed all three on
+    // the same pixel: one visible enemy that took three times the damage and read
+    // as a single target that would not die.
+    for (const wave of STAGE_01_WAVES) {
+      const columns = wave.spawns.map((spawn) => spawn.x)
+      expect(new Set(columns).size).toBe(columns.length)
+      // A spawn behind the trigger is an enemy the run has already passed. On a
+      // gating wave that is a wall the player cannot see, because the door only
+      // opens once the whole group is dead.
+      for (const column of columns) {
+        expect(column).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('puts every wave enemy on the floor, not at the trigger origin', () => {
+    // A zero y offset spawns at y=0, above the screen: the player's level shots
+    // pass underneath and the enemy can never be killed, so a gating wave never
+    // clears.
+    for (const wave of STAGE_01_WAVES) {
+      for (const spawn of wave.spawns) {
+        expect(wave.trigger.y + spawn.y).toBeGreaterThan(300)
+      }
+    }
+  })
+
+  it("spawns a wave's enemies far enough apart to be separate targets", () => {
+    // Two enemies within a body width of each other overlap on screen and read as
+    // one, which is the same defect as placing them on the same pixel.
+    for (const wave of STAGE_01_WAVES) {
+      const columns = wave.spawns.map((spawn) => spawn.x).sort((a, b) => a - b)
+      for (let i = 1; i < columns.length; i += 1) {
+        expect((columns[i] ?? 0) - (columns[i - 1] ?? 0)).toBeGreaterThan(40)
+      }
+    }
+  })
 })

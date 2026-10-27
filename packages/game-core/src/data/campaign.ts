@@ -38,14 +38,21 @@ import type { Wave } from '../systems/Wave.js'
  * A wave spawn standing on the floor.
  *
  * The offset is relative to the wave's trigger, and the trigger spans the full
- * screen height, so a zero offset puts the enemy at y=0 - floating at the top of
- * the stage where the player's level shots pass underneath and it can never be
- * killed. Every ground spawn carries the feet offset explicitly for that reason.
+ * screen height, so a zero y offset puts the enemy at y=0 - floating at the top
+ * of the stage where the player's level shots pass underneath and it can never
+ * be killed. Every ground spawn carries the feet offset explicitly for that
+ * reason.
+ *
+ * The x offset matters for the same kind of reason. Every spawn used to default
+ * to x: 0, so a wave of two or three enemies placed them all on the exact same
+ * pixel - one visible enemy that took three times the damage to kill and read as
+ * a single target that would not die. A wave is a group, so each member names its
+ * own lane within the trigger.
  */
 const GROUND_SPAWN_Y = FLOOR_TOP - 40
 
-const ground = (id: string, delaySeconds: number, archetype = 'patrol') => ({
-  x: 0,
+const ground = (id: string, delaySeconds: number, x: number, archetype = 'patrol') => ({
+  x,
   y: GROUND_SPAWN_Y,
   delaySeconds,
   target: { id, x: 0, y: 0, width: 32, height: 40, hp: 30, score: 50, archetype },
@@ -57,28 +64,34 @@ export const STAGE_01_WAVES: readonly Wave[] = [
     id: 's1-w1',
     gates: false,
     trigger: { x: 400, y: 0, width: 300, height: 540 },
-    spawns: [ground('s1-a', 0.2)],
+    spawns: [ground('s1-a', 0.2, 260)],
   },
   {
-    // Beat 2 - a pair. Teaches facing and aiming.
+    // Beat 2 - a pair, spread across the dock. Teaches facing and aiming: they
+    // stand at different ranges, so the player has to pick an order.
+    //
+    // Both are placed ahead of the trigger rather than one behind it. A spawn
+    // behind the player is a gating enemy the run has already passed, and since a
+    // gating wave only opens the door once its whole group is dead, that enemy
+    // becomes a wall the player cannot see.
     id: 's1-w2',
     gates: true,
     trigger: { x: 1200, y: 0, width: 300, height: 540 },
-    spawns: [ground('s1-b', 0), ground('s1-c', 1.2)],
+    spawns: [ground('s1-b', 0, 140), ground('s1-c', 1.2, 300)],
   },
   {
     // Beat 3 - airborne pressure over the gap, so not everything is on the floor.
     id: 's1-w3',
     gates: false,
     trigger: { x: 4600, y: 0, width: 400, height: 540 },
-    spawns: [ground('s1-d', 0.4, 'flyer'), ground('s1-e', 1.6)],
+    spawns: [ground('s1-d', 0.4, 150, 'flyer'), ground('s1-e', 1.6, 300)],
   },
   {
     // Beat 4 - the first fight that has to be finished. Guards the warehouse.
     id: 's1-w4',
     gates: true,
     trigger: { x: 7400, y: 0, width: 400, height: 540 },
-    spawns: [ground('s1-f', 0), ground('s1-g', 0.8), ground('s1-h', 2.0, 'turret')],
+    spawns: [ground('s1-f', 0, 180), ground('s1-g', 0.8, 300), ground('s1-h', 2.0, 400, 'turret')],
   },
   {
     // Beat 5 - the surge before the door. Not gating: running past it is allowed.
@@ -86,10 +99,10 @@ export const STAGE_01_WAVES: readonly Wave[] = [
     gates: false,
     trigger: { x: 10600, y: 0, width: 400, height: 540 },
     spawns: [
-      ground('s1-i', 0),
-      ground('s1-j', 0.6),
-      ground('s1-k', 1.2),
-      ground('s1-l', 1.8, 'charger'),
+      ground('s1-i', 0, 140),
+      ground('s1-j', 0.6, 220),
+      ground('s1-k', 1.2, 300),
+      ground('s1-l', 1.8, 380, 'charger'),
     ],
   },
 ]

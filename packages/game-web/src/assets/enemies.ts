@@ -20,10 +20,13 @@ export const ENEMY_FRAME_SIZE = 128
 /**
  * How tall a generated enemy is drawn, in world pixels.
  *
- * Independent of the collision box on purpose. Most enemies are 40px tall in the
- * rules, which would render a 128px frame at 0.31 and make hand-drawn art read as
- * a few pixels on the floor. 72px keeps a drone recognisable next to the 40px
- * player without making it look like a boss.
+ * Independent of the collision box on purpose, and independent in both
+ * directions: the box is 40px tall, so scaling to it would draw a 128px frame at
+ * 0.31 and turn hand-drawn art into a few pixels on the floor, while scaling the
+ * wrong ratio (frame over drawn) drew it at 1.78 - larger than the player. 72px
+ * sits under the player's 90px drawn height, so an ordinary enemy reads as
+ * something the player can take, and only a boss is bigger. See the regression
+ * test in packages/game-web/test/enemyArtScale.test.ts.
  */
 export const ENEMY_ART_DRAWN_PX = 72
 
