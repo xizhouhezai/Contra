@@ -42,7 +42,7 @@ import {
   muzzleForWeapon,
 } from '../assets/effects'
 import { ENEMY_ART_DRAWN_PX, ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
-import { hasEnemyProp, mountProp } from '../assets/enemyProps'
+import { hasEnemyProp, mountProp, PROP_OFFSET } from '../assets/enemyProps'
 import { resolveLook } from '../assets/looks'
 import { portraitUrl } from '../assets/manifest'
 import { preloadStageScene, stageSceneLoaded } from '../assets/stages'
@@ -755,14 +755,18 @@ export class StageScene extends Phaser.Scene {
       this.createTargetView(target)
     }
 
-    // Wave enemies get their views here too, hidden until the wave releases them.
+    // Wave enemies get their views here too, built during stage setup and hidden
+    // until their wave releases them.
     //
-    // Creating a sprite during update() does not work: the stage's static enemies
-    // render at the same depth with the same texture and appear, while a wave enemy
-    // created mid-update is in the display list, visible, inside the camera bounds,
-    // and never drawn. Building them up front uses the one path that is proven to
-    // draw - the same one every authored target already takes - and a hidden sprite
-    // costs nothing until its wave fires.
+    // Built now rather than when the wave fires for an ordering reason: a sprite
+    // created from inside update() lands in the display list after that frame's
+    // render walk, so it first appears one frame late at best. Building the whole
+    // cast up front means a wave only has to flip visibility.
+    //
+    // Visibility, not position. An earlier version parked these off-stage at
+    // -100000 and moved them in, which produced a second class of bug for no
+    // benefit - and the reason it looked necessary was a wrong scale factor, not
+    // an ordering problem at all (see the scale in createTargetView).
     for (const wave of this.stage.waves ?? []) {
       for (const spawn of wave.spawns) {
         this.createTargetView({
@@ -775,7 +779,11 @@ export class StageScene extends Phaser.Scene {
           score: spawn.target.score,
           ...(spawn.target.archetype === undefined ? {} : { archetype: spawn.target.archetype }),
         })
+        // Hidden until the wave fires. Both halves of the view have to go: the
+        // mounted weapon is a separate sprite, and hiding only the enemy left a
+        // floating gun standing at every spawn point in the stage.
         this.targetViews.get(spawn.target.id)?.setVisible(false)
+        this.propViews.get(spawn.target.id)?.setVisible(false)
       }
     }
   }
@@ -783,11 +791,9 @@ export class StageScene extends Phaser.Scene {
   /**
    * Builds the view for one target.
    *
-   * Extracted from the stage setup loop because a wave enemy does not exist at
-   * that point: it is created by the rule layer mid-stage, arrives in
-   * world.targets, and would otherwise be simulated but never drawn - an invisible
-   * enemy that shoots and cannot be seen. The sync pass calls this for any target
-   * it finds without a view.
+   * Handles both target shapes: an authored target from the stage data, and one
+   * the rule layer added mid-stage. Wave enemies are built during stage setup like
+   * every authored target, so this runs in one place for one cast.
    */
   private createTargetView(target: TargetDefinition | TargetState): void {
     // Two shapes reach this method: authored targets carry x/y/width/height flat,
@@ -822,7 +828,14 @@ export class StageScene extends Phaser.Scene {
       // placeholder that used to stand there. The box decides what the rules
       // collide with; the sprite decides what the player sees, and those are
       // different jobs.
-      const readable = ENEMY_FRAME_SIZE / ENEMY_ART_DRAWN_PX
+      //
+      // The ratio is drawn-pixels over frame-pixels, and it was written the wrong
+      // way round for three releases. Inverted it drew a 128px frame at 1.78 - a
+      // 228px enemy on a 540px stage, 303px after the camera's 1.33x zoom. That
+      // creature filled most of the viewport and read as scenery, which is why an
+      // afternoon went into depth sorting, render batches and object pooling
+      // chasing an "invisible" enemy that was in fact the biggest thing on screen.
+      const readable = ENEMY_ART_DRAWN_PX / ENEMY_FRAME_SIZE
       view.sprite.setScale(readable)
     } else {
       view.sprite.setScale(1.2)
@@ -833,8 +846,13 @@ export class StageScene extends Phaser.Scene {
     // Four archetypes carry a weapon the sprite does not include. Mounting it
     // is what lets a player see which drone is the one with the gun - the
     // difference between a readable fight and being shot by a blank robot.
+    //
+    // The prop is positioned every frame in syncViews, from the sprite rather than
+    // from the box, so the two cannot drift apart when an enemy is drawn at a
+    // different size than it collides.
     if (hasEnemyProp(archetype)) {
-      const prop = mountProp(this, archetype, rect.x, rect.y, rect.width, rect.height, 16)
+      const drawnHeight = hasArt ? ENEMY_ART_DRAWN_PX : rect.height
+      const prop = mountProp(this, archetype, rect.x, rect.y, drawnHeight, 16)
       if (prop !== null) this.propViews.set(target.id, prop)
     }
   }
@@ -842,10 +860,14 @@ export class StageScene extends Phaser.Scene {
   /**
    * Builds the views queued by the last sync pass.
    *
-   * Done at the start of an update rather than inside syncViews because a sprite
-   * created after the render walk does not draw until something else touches it -
-   * which is why the enemy appeared only once a property was poked from the
-   * console, and never in normal play.
+   * Only targets the rule layer invents mid-stage take this path - the three
+   * interlude echoes are the ones that exist today. Everything authored, waves
+   * included, is built during stage setup.
+   *
+   * Done at the start of an update rather than inside syncViews for a plain
+   * ordering reason: a sprite added after the frame's render walk cannot be drawn
+   * until the next one, so building it here means it appears a frame after the
+   * world creates it instead of never.
    */
   private flushPendingViews(): void {
     if (this.pendingViews.size === 0) return
@@ -875,8 +897,9 @@ export class StageScene extends Phaser.Scene {
     )
 
     for (const target of this.world.targets) {
-      // A wave enemy arrives mid-stage and has no view yet. Building it here would
-      // be too late to be drawn this frame, so it is queued and built next frame.
+      // A target the rule layer invented mid-stage has no view yet. Queue it for
+      // the top of the next update, where creating it is still ahead of that
+      // frame's render walk.
       if (!this.targetViews.has(target.id)) {
         this.pendingViews.add(target.id)
         continue
@@ -888,16 +911,21 @@ export class StageScene extends Phaser.Scene {
       // through left every enemy standing 40px above the floor - the box height
       // again, and it read as enemies hovering rather than standing.
       view.sync(target.box.x + target.box.width / 2, target.box.y + target.box.height)
+      // Visibility is the only thing that separates a wave enemy waiting for its
+      // beat from one on the field: both have a view from setup, and the world
+      // simply does not list the waiting ones until their wave fires.
       view.setVisible(target.alive)
       view.setTint(target.alive ? null : PALETTE.targetDead)
 
       const prop = this.propViews.get(target.id)
       if (prop !== undefined) {
-        // The prop is anchored centre while the enemy anchors bottom, so its y
-        // is read from the box top rather than from the sprite's own origin.
+        // The prop is mounted in the sprite's own space, not the box's: the enemy
+        // is drawn at ENEMY_ART_DRAWN_PX while its collision box is 40px, so a
+        // position derived from the box would drift off the hand.
+        const sprite = view.sprite
         prop.setPosition(
-          target.box.x + target.box.width * 0.78,
-          target.box.y + target.box.height * 0.5,
+          sprite.x + sprite.displayWidth * (PROP_OFFSET.x - 0.5),
+          sprite.y - sprite.displayHeight * (1 - PROP_OFFSET.y),
         )
         prop.setVisible(target.alive)
         if (target.alive) prop.clearTint()
