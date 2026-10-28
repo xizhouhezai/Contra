@@ -110,6 +110,11 @@ export default defineConfig({
             { text: '动作帧提示词', link: '/game/design/sprite-prompts' },
             { text: '美术资源总索引', link: '/game/design/asset-index' },
             { text: '美术资源提示词', link: '/game/design/art-prompt-catalogue' },
+            { text: '批次 1 提示词（幕 I）', link: '/game/design/stage-art-prompts-batch1' },
+            {
+              text: '批次 2/3 提示词（幕 II/III）',
+              link: '/game/design/stage-art-prompts-batch23',
+            },
             { text: '场景与音效规划', link: '/game/design/scene-plan' },
             { text: '场景生成提示词', link: '/game/design/scene-prompts' },
             { text: '敌人攻击设计', link: '/game/design/enemy-attack' },
