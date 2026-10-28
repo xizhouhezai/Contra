@@ -5,25 +5,16 @@
  *
  * Each stage is data. StageRunner reads these fields and has no per-stage
  * branching, so tuning a stage means editing numbers here (T-M2-01).
+ *
+ * Every stage in the campaign now arrives by wave. The `groundTarget` helper that
+ * placed act II's enemies up front is gone with the last stage that used it: an
+ * enemy standing in the open on frame one is one the player can outrun before its
+ * beat is due, which is what made the pre-expansion stages fifteen seconds long.
  */
 import type { StageDefinition } from './stageTypes.js'
 
 const GROUND_H = 60
 const FLOOR_TOP = 400
-
-/**
- * Shorthand for a target that stands on the floor.
- *
- * The archetype defaults to the patrolling drone, which is what act 1 uses
- * everywhere; a stage that wants something else passes it explicitly.
- *
- * Only stages 5-8 still place their enemies this way: act I moved to waves, so
- * its enemies arrive as the player advances rather than standing in the open on
- * frame one.
- */
-function groundTarget(id: string, x: number, hp = 30, score = 50, archetype = 'patrol') {
-  return { id, x, y: FLOOR_TOP - 40, width: 32, height: 40, hp, score, archetype }
-}
 
 import type { MinibossPlacement } from '../systems/Miniboss.js'
 import type { Wave } from '../systems/Wave.js'
@@ -35,6 +26,16 @@ import {
   STAGE_04_MINIBOSSES,
   STAGE_04_WAVES,
 } from './act1Waves.js'
+import {
+  STAGE_05_MINIBOSSES,
+  STAGE_05_WAVES,
+  STAGE_06_MINIBOSSES,
+  STAGE_06_WAVES,
+  STAGE_07_MINIBOSSES,
+  STAGE_07_WAVES,
+  STAGE_08_MINIBOSSES,
+  STAGE_08_WAVES,
+} from './act2Waves.js'
 
 /**
  * Stage 1's waves, one per beat.
@@ -328,91 +329,164 @@ export const STAGE_04: StageDefinition = {
   exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Stage 5 - 冷却管廊. Introduces chasing enemies. */
+/**
+ * Stage 5 - 冷却管廊. Introduces chasing enemies.
+ *
+ * Rebuilt for the expansion: 12000px, six beats, one gating mid-stage fight. The
+ * stage still teaches exactly one thing - the charger that comes to you - but it
+ * now has room to teach it three times: a single charger, a pair, then a charge
+ * with a turret behind it that stops the player simply backing away.
+ */
 export const STAGE_05: StageDefinition = {
   id: 'stage-05',
   name: '冷却管廊',
   act: 2,
   index: 5,
-  widthPx: 2800,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 2800, height: GROUND_H },
-    { x: 1000, y: 320, width: 160, height: 16 },
+    { x: 0, y: FLOOR_TOP, width: 12000, height: GROUND_H },
+    // Pipe runs at head height, so the corridor has a ceiling in places and the
+    // airborne beats have something to be fought around.
+    { x: 900, y: 200, width: 900, height: 24 },
+    { x: 2600, y: 210, width: 700, height: 24 },
+    { x: 4500, y: 190, width: 900, height: 24 },
+    { x: 6800, y: 205, width: 700, height: 24 },
+    { x: 8800, y: 195, width: 900, height: 24 },
+    // Ledges over the coolant floor, so the charger has somewhere to be dodged
+    // onto rather than only away from.
+    { x: 1800, y: FLOOR_TOP - 110, width: 180, height: 18 },
+    { x: 3600, y: FLOOR_TOP - 120, width: 200, height: 18 },
+    { x: 5400, y: FLOOR_TOP - 100, width: 180, height: 18 },
+    { x: 7400, y: FLOOR_TOP - 120, width: 200, height: 18 },
+    { x: 9400, y: FLOOR_TOP - 110, width: 180, height: 18 },
   ],
   bounceWalls: [],
-  targets: [groundTarget('charger-1', 900, 35, 130), groundTarget('charger-2', 1800, 35, 130)],
+  targets: [],
+  waves: STAGE_05_WAVES,
+  minibosses: STAGE_05_MINIBOSSES,
   mechanics: ['tracking-enemy'],
-  timeTargetSeconds: 115,
-  exit: { x: 2720, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Stage 6 - 阵列机房. Introduces flying enemies. */
+/**
+ * Stage 6 - 阵列机房. Introduces flying enemies.
+ *
+ * Rebuilt for the expansion. The stage's whole lesson is "aim up", so its floor
+ * is deliberately boring - one long slab - and everything that makes it hard is
+ * in the air. Four of the six beats put nothing on the floor at all.
+ */
 export const STAGE_06: StageDefinition = {
   id: 'stage-06',
   name: '阵列机房',
   act: 2,
   index: 6,
-  widthPx: 2900,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
-  platforms: [{ x: 0, y: FLOOR_TOP, width: 2900, height: GROUND_H }],
-  bounceWalls: [],
-  targets: [
-    // Flyers hover above the muzzle line, so a raised aim is required.
-    { id: 'flyer-1', x: 900, y: FLOOR_TOP - 140, width: 30, height: 26, hp: 25, score: 140 },
-    { id: 'flyer-2', x: 1700, y: FLOOR_TOP - 160, width: 30, height: 26, hp: 25, score: 140 },
-    { id: 'flyer-3', x: 2400, y: FLOOR_TOP - 130, width: 30, height: 26, hp: 25, score: 140 },
+  platforms: [
+    { x: 0, y: FLOOR_TOP, width: 12000, height: GROUND_H },
+    // Rack rows: vertical blocks the player has to weave through, and the only
+    // cover in a hall that is otherwise a shooting range.
+    { x: 1400, y: 130, width: 40, height: 270 },
+    { x: 3000, y: 130, width: 40, height: 270 },
+    { x: 4800, y: 130, width: 40, height: 270 },
+    { x: 6600, y: 130, width: 40, height: 270 },
+    { x: 8500, y: 130, width: 40, height: 270 },
+    { x: 10300, y: 130, width: 40, height: 270 },
+    // Walkable tops on half of them, so the player can get up to the flyers'
+    // level instead of only shooting from below.
+    { x: 2900, y: FLOOR_TOP - 150, width: 240, height: 18 },
+    { x: 6500, y: FLOOR_TOP - 150, width: 240, height: 18 },
+    { x: 10200, y: FLOOR_TOP - 150, width: 240, height: 18 },
   ],
+  bounceWalls: [],
+  targets: [],
+  waves: STAGE_06_WAVES,
+  minibosses: STAGE_06_MINIBOSSES,
   mechanics: ['flying-enemy'],
-  timeTargetSeconds: 120,
-  exit: { x: 2820, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Stage 7 - 熔炉区. Introduces armoured enemies. */
+/**
+ * Stage 7 - 熔炉区. Introduces armoured enemies.
+ *
+ * Rebuilt for the expansion. Armour is the lesson, so the stage hands the player
+ * room to get behind things: wide floor, gaps to step through, and furnace stacks
+ * that are solid. Every gating beat is armoured.
+ */
 export const STAGE_07: StageDefinition = {
   id: 'stage-07',
   name: '熔炉区',
   act: 2,
   index: 7,
-  widthPx: 3000,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 3000, height: GROUND_H },
-    { x: 1400, y: 300, width: 200, height: 16 },
+    { x: 0, y: FLOOR_TOP, width: 4000, height: GROUND_H },
+    // The furnace breaks the floor, so the player is funnelled past an armoured
+    // body rather than around it.
+    { x: 4150, y: FLOOR_TOP - 90, width: 200, height: 18 },
+    { x: 4500, y: FLOOR_TOP, width: 3200, height: GROUND_H },
+    { x: 7850, y: FLOOR_TOP - 90, width: 200, height: 18 },
+    { x: 8200, y: FLOOR_TOP, width: 3800, height: GROUND_H },
+    // Catwalks above the pour line.
+    { x: 1500, y: 280, width: 300, height: 18 },
+    { x: 2900, y: 250, width: 320, height: 18 },
+    { x: 5200, y: 270, width: 300, height: 18 },
+    { x: 6600, y: 240, width: 320, height: 18 },
+    { x: 9000, y: 265, width: 300, height: 18 },
+    { x: 10400, y: 250, width: 320, height: 18 },
   ],
   bounceWalls: [],
-  targets: [
-    { id: 'armored-1', x: 1000, y: FLOOR_TOP - 44, width: 40, height: 44, hp: 90, score: 220 },
-    { id: 'armored-2', x: 2200, y: FLOOR_TOP - 44, width: 40, height: 44, hp: 90, score: 220 },
-  ],
+  targets: [],
+  waves: STAGE_07_WAVES,
+  minibosses: STAGE_07_MINIBOSSES,
   mechanics: ['armored-enemy'],
-  timeTargetSeconds: 125,
-  exit: { x: 2920, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Stage 8 - 改写者. Boss stage closing act II. */
+/**
+ * Stage 8 - 改写者. Boss stage closing act II.
+ *
+ * Rebuilt for the expansion, the same way stage 4 was: the arena stays a clean
+ * room, and everything the player fights through comes before it. The last thing
+ * before the boss is the 红线书记, which drops the laser - the weapon the
+ * rewriter's gravity-flipping second phase rewards.
+ */
 export const STAGE_08: StageDefinition = {
   id: 'stage-08',
   name: '改写者',
   act: 2,
   index: 8,
-  widthPx: 1800,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 60, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 1800, height: GROUND_H },
+    { x: 0, y: FLOOR_TOP, width: 10800, height: GROUND_H },
     { x: 500, y: 300, width: 140, height: 16 },
-    { x: 1200, y: 300, width: 140, height: 16 },
+    { x: 1800, y: 280, width: 160, height: 16 },
+    { x: 3200, y: 300, width: 140, height: 16 },
+    { x: 4700, y: 280, width: 160, height: 16 },
+    { x: 6100, y: 300, width: 140, height: 16 },
+    { x: 7500, y: 280, width: 160, height: 16 },
+    // The arena: clean floor, no ledges, because the fight is about reading which
+    // way is down.
+    { x: 10800, y: FLOOR_TOP, width: 1200, height: GROUND_H },
   ],
   bounceWalls: [],
   targets: [],
+  waves: STAGE_08_WAVES,
+  minibosses: STAGE_08_MINIBOSSES,
   mechanics: ['platforming', 'armored-enemy'],
   bossId: 'claude-rewriter',
-  timeTargetSeconds: 150,
-  exit: { x: 1720, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
 import { ACT_III_STAGES } from './act3.js'

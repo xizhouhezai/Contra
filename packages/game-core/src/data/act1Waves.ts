@@ -227,13 +227,22 @@ export const STAGE_03_WAVES: readonly Wave[] = [
   },
 ]
 
-/** 栈道吊车 guards the approach to the final scaffold run. */
+/**
+ * 栈道吊车 guards the approach to the final scaffold run.
+ *
+ * Placed at 9800, on the ground slab that starts at 9700. The first draft stood it
+ * at 9600 - over the gap between the 9300 plank and that slab, which reads as a
+ * dramatic spot in the data and is a body hanging over a hole in play: the player
+ * can stand on either side and the fight can never be reached from the channel
+ * between them. The reachability test in acts23Expansion.test.ts caught it on the
+ * first run, which is the whole reason that assertion exists.
+ */
 export const STAGE_03_MINIBOSSES: readonly MinibossPlacement[] = [
   {
     id: 's3-mini',
     minibossId: 'miniboss-scaffold-crane',
-    trigger: { x: 9200, y: 0, width: 300, height: 540 },
-    x: 9600,
+    trigger: { x: 9400, y: 0, width: 320, height: 540 },
+    x: 9800,
     y: FLOOR_TOP,
     gates: true,
   },
