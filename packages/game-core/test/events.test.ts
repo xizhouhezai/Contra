@@ -25,6 +25,9 @@ const REQUIRED_EVENT_TYPES = [
   'bossPhaseChanged',
   'enemyTelegraph',
   'enemyShot',
+  'minibossStarted',
+  'minibossCleared',
+  'waveStarted',
   'stageCleared',
 ] as const
 
@@ -77,6 +80,23 @@ const samples: readonly CoreEvent[] = [
     position: { x: 4, y: 4 },
     direction: { x: -1, y: 0 },
   },
+  {
+    type: 'minibossStarted',
+    minibossId: 'miniboss-dock-foreman',
+    position: { x: 6400, y: 400 },
+  },
+  {
+    type: 'minibossCleared',
+    minibossId: 'miniboss-dock-foreman',
+    position: { x: 6400, y: 400 },
+  },
+  {
+    type: 'waveStarted',
+    waveId: 's1-w2',
+    position: { x: 1350, y: 0 },
+    gates: true,
+    count: 2,
+  },
   { type: 'stageCleared', score: 5000 },
 ]
 
@@ -108,6 +128,12 @@ function label(event: CoreEvent): string {
       return `enemyTelegraph:${event.weaponId}`
     case 'enemyShot':
       return `enemyShot:${event.weaponId}`
+    case 'minibossStarted':
+      return `minibossStarted:${event.minibossId}`
+    case 'minibossCleared':
+      return `minibossCleared:${event.minibossId}`
+    case 'waveStarted':
+      return `waveStarted:${event.waveId}`
     case 'stageCleared':
       return `stageCleared:${event.score}`
     default: {

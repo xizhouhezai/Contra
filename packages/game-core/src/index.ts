@@ -6,10 +6,13 @@ export type {
   ExplosionEvent,
   HitEvent,
   InputProvider,
+  MinibossClearedEvent,
+  MinibossStartedEvent,
   PlayerDiedEvent,
   PlayerHurtEvent,
   ShotEvent,
   StageClearedEvent,
+  WaveStartedEvent,
   WeaponPickedEvent,
   WorldOptions,
   WorldSnapshot,
@@ -24,7 +27,13 @@ export {
   STAGE_12,
   totalCampaignSeconds,
 } from './data/act3.js'
-export { BOSSES, bossDefinition, CLAUDE_AUDITOR, CLAUDE_REWRITER } from './data/bosses.js'
+export {
+  BOSSES,
+  bossDefinition,
+  CLAUDE_AUDITOR,
+  CLAUDE_REWRITER,
+  stageBossDefinition,
+} from './data/bosses.js'
 export {
   CAMPAIGN_STAGES,
   STAGE_01,
@@ -92,6 +101,18 @@ export { ENEMY_WEAPONS, enemyWeapon, maxConcurrentShooters } from './data/enemyW
 export { GPT_PETER_PAN, GPT_PHASE_LABELS, gptPhaseFor } from './data/gptBoss.js'
 export type { LookChoices } from './data/looks.js'
 export { loadLookChoices, resolveLookId, saveLookChoice } from './data/looks.js'
+export {
+  isMinibossId,
+  MINIBOSS_AUDIT_CLERK,
+  MINIBOSS_DOCK_FOREMAN,
+  MINIBOSS_HIT_HEIGHT,
+  MINIBOSS_HIT_WIDTH,
+  MINIBOSS_IDS,
+  MINIBOSS_PIPE_WARDEN,
+  MINIBOSS_SCAFFOLD_CRANE,
+  MINIBOSSES,
+  minibossDefinition,
+} from './data/minibosses.js'
 export type { GrayboxStageDefinition } from './data/stages.js'
 export { GRAYBOX_STAGE } from './data/stages.js'
 export type { StageDefinition } from './data/stageTypes.js'
@@ -100,8 +121,10 @@ export type {
   CharacterId,
   Difficulty,
   EntityId,
+  FightId,
   InputState,
   MechanicId,
+  MinibossId,
   MutableVec2,
   PlatformDefinition,
   Rect,
@@ -262,6 +285,16 @@ export {
   struckFace,
   type WallFace,
 } from './systems/Mechanics.js'
+export type {
+  MinibossPlacement,
+  MinibossStaging,
+} from './systems/Miniboss.js'
+export {
+  createMinibossStaging,
+  minibossRouteOpen,
+  minibossSeconds,
+  minibossTriggered,
+} from './systems/Miniboss.js'
 export type { MirrorState } from './systems/Mirror.js'
 export {
   createMirrorState,
@@ -317,6 +350,15 @@ export {
   platformId,
   reachedExit,
 } from './systems/Terrain.js'
+export type { Wave, WaveSpawn, WaveState } from './systems/Wave.js'
+export {
+  createWaveState,
+  dueSpawns,
+  routeOpen,
+  triggersOn,
+  waveCleared,
+  waveSeconds,
+} from './systems/Wave.js'
 export type { FireOutcome, LockCandidate, WeaponState } from './systems/Weapons.js'
 export {
   AIM_DIRECTIONS,

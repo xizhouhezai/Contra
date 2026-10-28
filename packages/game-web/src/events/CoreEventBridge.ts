@@ -13,6 +13,9 @@ type EnemyShotEvent = Extract<CoreEvent, { type: 'enemyShot' }>
 type BossTelegraphEvent = Extract<CoreEvent, { type: 'bossTelegraph' }>
 type BossAttackEvent = Extract<CoreEvent, { type: 'bossAttack' }>
 type BossPhaseChangedEvent = Extract<CoreEvent, { type: 'bossPhaseChanged' }>
+type MinibossStartedEvent = Extract<CoreEvent, { type: 'minibossStarted' }>
+type MinibossClearedEvent = Extract<CoreEvent, { type: 'minibossCleared' }>
+type WaveStartedEvent = Extract<CoreEvent, { type: 'waveStarted' }>
 type StageClearedEvent = Extract<CoreEvent, { type: 'stageCleared' }>
 
 /**
@@ -41,6 +44,12 @@ export interface CoreEventHandlers {
   readonly bossTelegraph?: (event: BossTelegraphEvent) => void
   /** The boss landed a move, or whiffed one. */
   readonly bossAttack?: (event: BossAttackEvent) => void
+  /** A mid-stage fight started; its body has to go on screen. */
+  readonly minibossStarted?: (event: MinibossStartedEvent) => void
+  /** A mid-stage fight was finished; the route opens. */
+  readonly minibossCleared?: (event: MinibossClearedEvent) => void
+  /** A wave fired; the player gets a warning before its enemies arrive. */
+  readonly waveStarted?: (event: WaveStartedEvent) => void
   readonly stageCleared: (event: StageClearedEvent) => void
 }
 
@@ -100,6 +109,15 @@ export class CoreEventBridge {
           break
         case 'bossPhaseChanged':
           this.handlers.bossPhaseChanged(event)
+          break
+        case 'minibossStarted':
+          this.handlers.minibossStarted?.(event)
+          break
+        case 'minibossCleared':
+          this.handlers.minibossCleared?.(event)
+          break
+        case 'waveStarted':
+          this.handlers.waveStarted?.(event)
           break
         case 'stageCleared':
           this.handlers.stageCleared(event)

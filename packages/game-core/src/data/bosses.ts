@@ -9,6 +9,8 @@
  */
 import type { BossDefinition } from '../stages/BossDirector.js'
 import { GPT_PETER_PAN } from './gptBoss.js'
+import { MINIBOSSES } from './minibosses.js'
+import type { FightId } from './types.js'
 
 /**
  * 审计者 - stage 4.
@@ -85,19 +87,36 @@ export const CLAUDE_REWRITER: BossDefinition = {
 }
 
 /**
- * Every boss the campaign can spawn.
+ * Every fight the director can run.
  *
  * The two GPT forms are defined in gptBoss.ts but belong in this registry all
  * the same: campaign.ts names 'gpt-emergent' for stage 12, and a boss id that
  * resolves to undefined is a final stage with nothing in it.
+ *
+ * Act I's mid-stage bosses are registered here too, in one table, so that "which
+ * fight is this id" has exactly one answer. They are still told apart at the
+ * point of use - a stage door opens for a BossId, a miniboss gates where it
+ * stands - but nothing has to know which table an id came from.
  */
 export const BOSSES: Readonly<Record<string, BossDefinition>> = {
   'claude-auditor': CLAUDE_AUDITOR,
   'claude-rewriter': CLAUDE_REWRITER,
   'gpt-corpus': GPT_PETER_PAN,
   'gpt-emergent': GPT_PETER_PAN,
+  ...MINIBOSSES,
 }
 
+/** The definition for any director fight, stage boss or mid-stage boss. */
 export function bossDefinition(id: string): BossDefinition | undefined {
   return BOSSES[id]
+}
+
+/** The definition for a stage boss, or undefined when the id names something else. */
+export function stageBossDefinition(id: FightId): BossDefinition | undefined {
+  const definition = BOSSES[id]
+  // The registry holds both kinds; a fight placed by its own trigger is not the
+  // one guarding the door, and treating it as such would lock a stage's exit
+  // behind a fight the stage did not ask for.
+  if (definition === undefined || id.startsWith('miniboss-')) return undefined
+  return definition
 }

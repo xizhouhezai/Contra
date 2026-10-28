@@ -7,7 +7,7 @@
  * One director drives both bosses: a boss is a phase table, and a move is data.
  * That is what makes T-M2-07 a framework rather than one boss written twice.
  */
-import type { BossId } from '../data/types.js'
+import type { FightId } from '../data/types.js'
 
 /** One attack a boss can perform. */
 export interface BossMove {
@@ -40,7 +40,16 @@ export interface BossPhase {
 }
 
 export interface BossDefinition {
-  readonly id: BossId
+  /**
+   * Which fight this is.
+   *
+   * FightId rather than BossId: the director runs stage bosses and act I
+   * mid-stage bosses through the same machine, and the only thing that differs
+   * between them is where the world places them. Keeping this as BossId would
+   * have meant a second director for the minibosses, which is a second phase
+   * machine to keep correct for no gain.
+   */
+  readonly id: FightId
   readonly name: string
   readonly maxHp: number
   readonly phases: readonly BossPhase[]
@@ -81,21 +90,33 @@ export interface BossRuntimeState {
  * player aiming at art rather than at a place would be aiming at whatever the
  * scene happened to draw. This is the box that the exit zone occupies vertically,
  * which is where the boss is said to stand.
+ *
+ * A fight that is not guarding the door can pass its own size, which is what
+ * keeps a mid-stage fight distinguishable from a stage boss on screen.
  */
 export const BOSS_HIT_WIDTH = 96
 export const BOSS_HIT_HEIGHT = 120
 
+/** The box a fight is hit in. */
+export interface BossHitSize {
+  readonly width: number
+  readonly height: number
+}
+
+const DEFAULT_HIT_SIZE: BossHitSize = { width: BOSS_HIT_WIDTH, height: BOSS_HIT_HEIGHT }
+
 export function createBossState(
   definition: BossDefinition,
   origin = { x: 0, y: 0 },
+  size: BossHitSize = DEFAULT_HIT_SIZE,
 ): BossRuntimeState {
   return {
     definition,
     box: {
-      x: origin.x - BOSS_HIT_WIDTH / 2,
-      y: origin.y - BOSS_HIT_HEIGHT,
-      width: BOSS_HIT_WIDTH,
-      height: BOSS_HIT_HEIGHT,
+      x: origin.x - size.width / 2,
+      y: origin.y - size.height,
+      width: size.width,
+      height: size.height,
     },
     hp: definition.maxHp,
     phase: definition.phases[0]?.phase ?? 1,

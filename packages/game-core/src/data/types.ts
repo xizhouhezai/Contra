@@ -42,6 +42,40 @@ export type CharacterId = 'deepseek' | 'qwen' | 'doubao' | 'glm' | 'kimi' | 'gem
 /** The four boss forms: Claude and GPT with two forms each. */
 export type BossId = 'claude-auditor' | 'claude-rewriter' | 'gpt-corpus' | 'gpt-emergent'
 
+/**
+ * The act I mid-stage bosses.
+ *
+ * Source of truth: docs/game/design/stage-expansion-plan.md §4.4 and
+ * docs/game/design/stage-art-prompts-batch1.md §6.
+ *
+ * A stage used to have at most one fight, at the door, so a ten minute stage had
+ * nothing to hold the middle of it: the player walked from one end to the other
+ * and the only body that could stop them was the one guarding the exit. A
+ * miniboss is the same phase machine as a stage boss placed at a point along the
+ * route instead, and it gates the way forward until it is down.
+ *
+ * The ids match the art filenames one for one (`miniboss-dock-foreman-q-01.webp`
+ * and so on), so the presentation layer resolves them with the same lookup the
+ * stage bosses use.
+ */
+export type MinibossId =
+  | 'miniboss-dock-foreman'
+  | 'miniboss-pipe-warden'
+  | 'miniboss-scaffold-crane'
+  | 'miniboss-audit-clerk'
+
+/**
+ * Anything the boss director can run.
+ *
+ * Named separately from BossId because the two are placed differently - a stage
+ * boss stands at the exit arena, a miniboss stands where its trigger is - but
+ * they share one definition shape, one phase machine and one set of events. The
+ * distinction that matters to the rest of the code is "is this the fight that
+ * guards the door", which is BossId, not "is this a director fight", which is
+ * this.
+ */
+export type FightId = BossId | MinibossId
+
 /** Enemy archetypes, one per behaviour in data/enemies.ts. */
 export type EnemyId =
   | 'patrol'
@@ -54,6 +88,19 @@ export type EnemyId =
   | 'forge'
   | 'mirror'
   | 'elite-charger'
+  /**
+   * Act I's four expansion enemies, from
+   * docs/game/design/stage-art-prompts-batch1.md §3.
+   *
+   * They exist as archetypes rather than as anonymous boxes because an archetype
+   * is what decides whether an enemy moves, what it fires and how long it warns
+   * first - a target with an id nothing knows is an inert rectangle, which is
+   * exactly what stage 2's first draft of these four would have been.
+   */
+  | 'scrapper'
+  | 'crane-hook'
+  | 'steam-vent'
+  | 'audit-drone'
 
 /** Stage mechanics introduced across the campaign. */
 export type MechanicId =

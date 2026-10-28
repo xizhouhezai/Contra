@@ -113,6 +113,23 @@ const BOSS_EFFECT_BY_MOVE: Readonly<Record<string, BossEffectName>> = {
   'final-check': 'boss-lance',
   'rule-rewrite': 'boss-sweep',
   'text-storm': 'boss-swarm',
+
+  // Act I's mid-stage fights (REQ-STG-009). Every one of these moves warns before
+  // it lands, and a warning with no picture is the "invisible damage source" the
+  // design principles forbid outright - the test below caught these four fights
+  // shipping with no visual at all.
+  //
+  // Mapped to the shape closest to what each does rather than to one default, the
+  // same rule the GPT moves follow: a swing reads as a sweep, a stamp as a lance
+  // coming down, a scan as a beam, a valve burst as an area burst.
+  'crane-swing': 'boss-sweep',
+  'hook-drag': 'boss-chain',
+  'valve-burst': 'boss-burst',
+  'pipe-sweep': 'boss-sweep',
+  'hook-drop': 'boss-lance',
+  'jib-swing': 'boss-sweep',
+  'clause-stamp': 'boss-lance',
+  'ledger-scan': 'boss-beam',
 }
 
 export function bossEffectForMove(moveId: string): BossEffectName | null {
@@ -156,4 +173,37 @@ export function effectKeys(): string[] {
 /** Queues every combat effect. 25 sprites, well under 300KB in total. */
 export function preloadEffects(load: Phaser.Loader.LoaderPlugin): void {
   for (const [key, url] of urls) load.image(key, url)
+}
+
+/**
+ * Act I's gameplay UI art.
+ *
+ * Source of truth: docs/game/design/stage-art-prompts-batch1.md §7. The intent
+ * batch holds three pieces - a wave warning band, a route map and a room-type icon
+ * set - and they live in their own folder because they are interface rather than
+ * combat effects: nothing about them belongs to a hit or an explosion, and the
+ * route map is drawn once per stage rather than per frame.
+ */
+const uiModules = import.meta.glob('../../../../docs/game/requirements/assets/ui/*.webp', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>
+
+const uiUrls = new Map<string, string>()
+collect(uiModules, 'ui-', /ui\/(ui-[a-z-]+)\.webp$/)
+
+/** Texture key for the wave warning band. */
+export function waveWarningKey(): string {
+  return 'ui-ui-wave-warning'
+}
+
+/** True when the warning band shipped. */
+export function hasWaveWarning(): boolean {
+  return uiUrls.has(waveWarningKey())
+}
+
+/** Queues the gameplay UI pieces. Three files, about 40KB together. */
+export function preloadUi(load: Phaser.Loader.LoaderPlugin): void {
+  for (const [key, url] of uiUrls) load.image(key, url)
 }

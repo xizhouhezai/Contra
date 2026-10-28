@@ -65,7 +65,119 @@ export function preloadTerrain(load: Phaser.Loader.LoaderPlugin): void {
 }
 
 /**
- * Draws one platform.
+ * Act I room-kit tiles.
+ *
+ * Source of truth: docs/game/design/stage-art-prompts-batch1.md §5.
+ *
+ * These are the six pieces the expansion's act I rooms are built from: a floor
+ * plate, a wall plate, a platform strip, a props atlas, a hazard strip and a door
+ * sheet. They are a different language from the `terrain/` set above - that one is
+ * a single tiled ground strip in three tints, this one is a kit with corners and
+ * edges - so they are addressed separately rather than folded into
+ * GroundVariant.
+ *
+ * Sizes come from the packer, not from a guess: floor and wall are 256x256, the
+ * platform is 384x64, the hazard strip is 384x128, the props atlas is 256x192 and
+ * the door sheet is 288x160.
+ */
+export const ACT1_TILE_NAMES = ['floor', 'wall', 'platform', 'props', 'hazard', 'door'] as const
+export type Act1TileName = (typeof ACT1_TILE_NAMES)[number]
+
+/** Source size of each act I tile, so a caller can slice without loading it. */
+export const ACT1_TILE_SIZE: Readonly<Record<Act1TileName, { width: number; height: number }>> = {
+  floor: { width: 256, height: 256 },
+  wall: { width: 256, height: 256 },
+  platform: { width: 384, height: 64 },
+  props: { width: 256, height: 192 },
+  hazard: { width: 384, height: 128 },
+  door: { width: 288, height: 160 },
+}
+
+const act1Modules = import.meta.glob(
+  '../../../../docs/game/requirements/assets/tiles/tiles-act1-*.webp',
+  { eager: true, query: '?url', import: 'default' },
+) as Record<string, string>
+
+const ACT1_NAME = /tiles-act1-([a-z]+)\.webp$/
+
+const act1Urls = new Map<Act1TileName, string>()
+for (const [path, url] of Object.entries(act1Modules)) {
+  const match = ACT1_NAME.exec(path)
+  const name = match?.[1]
+  if (name === undefined) continue
+  if (!(ACT1_TILE_NAMES as readonly string[]).includes(name)) continue
+  act1Urls.set(name as Act1TileName, url)
+}
+
+/** Texture key for one act I tile. */
+export function act1TileKey(name: Act1TileName): string {
+  return `act1-tile-${name}`
+}
+
+/** True when that piece of the kit shipped. */
+export function hasAct1Tile(name: Act1TileName): boolean {
+  return act1Urls.has(name)
+}
+
+/**
+ * Queues the act I kit.
+ *
+ * Six files, about 300KB together - cheap enough to load per stage rather than at
+ * boot, and loaded per stage anyway because a stage that does not use the kit
+ * should not pay for it.
+ */
+export function preloadAct1Tiles(load: Phaser.Loader.LoaderPlugin): void {
+  for (const [name, url] of act1Urls) load.image(act1TileKey(name), url)
+}
+
+/**
+ * Whether a stage belongs to the act that has the kit.
+ *
+ * Act I only: stages 5-12 are still on the shared ground strip, and drawing them
+ * from this kit would mix two visual languages in one campaign.
+ */
+export function usesAct1Kit(stageIndex: number): boolean {
+  return stageIndex >= 1 && stageIndex <= 4
+}
+
+/**
+ * Draws one platform from the act I kit, falling back to the shared strip.
+ *
+ * Ground slabs are the floor plate tiled; ledges are the platform strip, which is
+ * authored as three segments (end cap, repeatable middle, end cap) and is therefore
+ * tiled horizontally rather than nine-sliced. A missing texture falls through to
+ * the caller's existing path, because an invisible floor is a far worse failure
+ * than an old-looking one.
+ */
+export function drawAct1Platform(
+  scene: Phaser.Scene,
+  platform: { x: number; y: number; width: number; height: number },
+): Phaser.GameObjects.GameObject | null {
+  const isGround = platform.height >= 40
+  const name: Act1TileName = isGround ? 'floor' : 'platform'
+  const key = act1TileKey(name)
+  if (!scene.textures.exists(key)) return null
+
+  const tile = scene.add
+    .tileSprite(platform.x, platform.y, platform.width, platform.height, key)
+    .setOrigin(0, 0)
+    .setDepth(1)
+
+  // Ground is a square plate, so it scales in both directions; a ledge is a
+  // 16px-thick strip being drawn into a 16-20px slot, so it is scaled to fit the
+  // height and left to tile horizontally.
+  if (isGround) {
+    const source = ACT1_TILE_SIZE[name]
+    tile.tileScaleX = 1
+    tile.tileScaleY = platform.height / source.height
+  } else {
+    tile.tileScaleY = platform.height / ACT1_TILE_SIZE.platform.height
+  }
+  return tile
+}
+
+/**
+ * Draws one platform from the shared terrain set.
  *
  * Ground slabs (60px tall and up) are a tiled strip, because the art is a
  * horizontal repeat and stretching it would smear the rivets. Everything else

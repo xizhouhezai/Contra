@@ -234,6 +234,78 @@ export const ENEMY_WEAPONS: Readonly<Record<EnemyId, EnemyWeapon>> = {
     gravity: 0,
     mirrorsPlayer: false,
   },
+
+  /* ------------------------------------------------- act I expansion roster */
+
+  // Contact damage only: the swarm's threat is its number and its speed, and
+  // giving it a gun as well would make a group of four unfair rather than busy.
+  scrapper: {
+    id: 'scrapper-claw',
+    kind: 'melee',
+    damage: 1,
+    telegraphSeconds: 0.4,
+    cooldownSeconds: 2.4,
+    rangePx: 60,
+    bulletSpeed: 0,
+    bulletCount: 0,
+    spreadDeg: 0,
+    homing: false,
+    gravity: 0,
+    mirrorsPlayer: false,
+  },
+
+  // A ground spike: it only hits a player standing on the floor, so the answer
+  // is to jump rather than to back off, which is the opposite of every other
+  // ranged attack in the game.
+  'crane-hook': {
+    id: 'hook-slam',
+    kind: 'ground-spike',
+    damage: 2,
+    telegraphSeconds: 1.1,
+    cooldownSeconds: 3.4,
+    rangePx: 260,
+    bulletSpeed: 0,
+    bulletCount: 1,
+    spreadDeg: 0,
+    homing: false,
+    gravity: 0,
+    mirrorsPlayer: false,
+  },
+
+  // Shorter reach than the forge's spike and a longer warning, because the vent
+  // asks the player to keep moving through a wave rather than to stop and duel.
+  'steam-vent': {
+    id: 'steam-burst',
+    kind: 'ground-spike',
+    damage: 1,
+    telegraphSeconds: 1,
+    cooldownSeconds: 3,
+    rangePx: 150,
+    bulletSpeed: 0,
+    bulletCount: 1,
+    spreadDeg: 0,
+    homing: false,
+    gravity: 0,
+    mirrorsPlayer: false,
+  },
+
+  // The lock-on is the mechanic: a long telegraph and a fast round, so standing
+  // still after the warning is what gets the player hit. Its rate is slow enough
+  // that a moving player never eats two in a row.
+  'audit-drone': {
+    id: 'audit-lock',
+    kind: 'straight',
+    damage: 1,
+    telegraphSeconds: 1.3,
+    cooldownSeconds: 3.6,
+    rangePx: 700,
+    bulletSpeed: 420,
+    bulletCount: 1,
+    spreadDeg: 0,
+    homing: false,
+    gravity: 0,
+    mirrorsPlayer: false,
+  },
 }
 
 /** The weapon of one archetype, or undefined when the id is not an enemy. */

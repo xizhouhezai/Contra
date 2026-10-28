@@ -22,6 +22,20 @@ export type EnemyBehaviour =
   | 'forge'
   | 'mirror'
   | 'elite-charger'
+  /**
+   * Act I's four expansion behaviours.
+   *
+   * Two are new movement patterns (a fast swarm walker and a hovering sniper),
+   * one is a stationary area denial that is spawned rather than walked into, and
+   * one is a stationary trap. They are separate behaviours rather than re-uses of
+   * the existing ones because each is supposed to read as a specific silhouette:
+   * the swarm is small and quick, the drone hovers out of a level shot, the vent
+   * is a piece of floor, and the hook is overhead.
+   */
+  | 'swarm-walker'
+  | 'hover-sniper'
+  | 'floor-trap'
+  | 'overhead-hook'
 
 export interface EnemyDefinition {
   readonly id: EnemyId
@@ -173,6 +187,93 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDefinition>> = {
     armoredFront: false,
     flying: false,
   },
+
+  /* ------------------------------------------------- act I expansion roster */
+
+  /**
+   * 拾荒者 - the swarm unit.
+   *
+   * Low HP and high speed, authored in groups. The point is not that one of them
+   * is dangerous - it is that a wave of four arriving while the player is dealing
+   * with a turret is.
+   */
+  scrapper: {
+    id: 'scrapper',
+    name: '拾荒者',
+    behaviour: 'swarm-walker',
+    hp: 24,
+    damage: 1,
+    speed: 130,
+    score: 40,
+    width: 26,
+    height: 30,
+    armoredFront: false,
+    flying: false,
+  },
+
+  /**
+   * 吊钩 - overhead area denial.
+   *
+   * Stationary with no projectile at all: its attack is a ground-spike, so the
+   * answer is to be somewhere else when it lands rather than to trade shots. Code
+   * 0 damage on contact reflects that it is not a body the player walks into.
+   */
+  'crane-hook': {
+    id: 'crane-hook',
+    name: '吊钩',
+    behaviour: 'overhead-hook',
+    hp: 45,
+    damage: 1,
+    speed: 0,
+    score: 90,
+    width: 34,
+    height: 48,
+    armoredFront: false,
+    flying: false,
+  },
+
+  /**
+   * 蒸汽口 - the floor trap.
+   *
+   * No movement, no aim: it is a piece of floor that periodically becomes lethal.
+   * Its whole job is to make the player not stand still, which is what the stage
+   * wants them doing while a wave is on.
+   */
+  'steam-vent': {
+    id: 'steam-vent',
+    name: '蒸汽口',
+    behaviour: 'floor-trap',
+    hp: 35,
+    damage: 1,
+    speed: 0,
+    score: 60,
+    width: 32,
+    height: 24,
+    armoredFront: false,
+    flying: false,
+  },
+
+  /**
+   * 审计无人机 - the hovering sniper.
+   *
+   * Hovers above the muzzle line the way a flyer does, but holds its ground and
+   * aims: a flyer chases, this one picks a line and dares the player into it. The
+   * long telegraph is the whole contract - it locks on, then fires, and the lock
+   * is what the player is meant to read.
+   */
+  'audit-drone': {
+    id: 'audit-drone',
+    name: '审计无人机',
+    behaviour: 'hover-sniper',
+    hp: 40,
+    damage: 1,
+    speed: 55,
+    score: 120,
+    width: 30,
+    height: 30,
+    armoredFront: false,
+    flying: true,
+  },
 }
 
 /** Every archetype, in the order the campaign introduces them. */
@@ -187,6 +288,10 @@ export const ENEMY_IDS: readonly EnemyId[] = [
   'forge',
   'mirror',
   'elite-charger',
+  'scrapper',
+  'crane-hook',
+  'steam-vent',
+  'audit-drone',
 ]
 
 export function enemyDefinition(id: EnemyId): EnemyDefinition {
