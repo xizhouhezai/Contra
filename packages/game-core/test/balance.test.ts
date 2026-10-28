@@ -16,43 +16,46 @@ import { WEAPONS } from '../src/data/weapons.js'
 const PACING_TOLERANCE = 0.2
 
 describe('Stage pacing (T-M5-06)', () => {
-  it('keeps every stage within the authored range', () => {
-    const report = CAMPAIGN_STAGES.map((stage) => ({
-      id: stage.id,
-      name: stage.name,
-      seconds: stage.timeTargetSeconds,
-      expanded: (stage.waves?.length ?? 0) > 0,
-    }))
-    for (const row of report) {
-      expect(row.seconds).toBeGreaterThan(0)
-      // The range is now two ranges, because the campaign is mid-migration.
-      //
-      // Sixteen stages were authored as 90-180 second corridors. Stage 1 has been
-      // reworked to the expansion's ten-minute target, and the rest have not, so a
-      // single bound would either force the old stages to lie about their length
-      // or fail the new one. The split is temporary and makes the migration state
-      // visible: every stage still on the old budget is a stage not yet done.
-      if (row.expanded) {
-        expect(row.seconds).toBeGreaterThan(300)
-        expect(row.seconds).toBeLessThan(1300)
-      } else {
-        expect(row.seconds).toBeGreaterThan(60)
-        expect(row.seconds).toBeLessThan(300)
-      }
+  it('keeps every stage on the same ten minute budget', () => {
+    // The migration is over. Every stage in the campaign is a ten minute stage
+    // now, so the split this test used to carry - one range for the reworked
+    // stages, one for the ones still on the old 90-180 second corridor budget -
+    // has nothing left to distinguish. Keeping it would have hidden a stage that
+    // quietly drifted back onto the short budget.
+    for (const stage of CAMPAIGN_STAGES) {
+      expect(stage.timeTargetSeconds, stage.id).toBe(600)
     }
   })
 
-  it('gives boss stages longer than their act average', () => {
-    for (const act of [1, 2] as const) {
+  it('builds every stage out of beats rather than a corridor', () => {
+    // A ten minute budget on a stage with no waves is a lie the data tells: the
+    // player would cross it in a minute and the number would never be earned.
+    for (const stage of CAMPAIGN_STAGES) {
+      expect(stage.waves?.length ?? 0, `${stage.id} 没有波次`).toBeGreaterThanOrEqual(4)
+      expect(stage.targets, `${stage.id} 还有开局直接摆的敌人`).toHaveLength(0)
+    }
+  })
+
+  it('gives every stage a mid-stage fight', () => {
+    // REQ-STG-009. The middle of a ten minute stage has to be held by something;
+    // without a miniboss the only body that can stop the player is the exit guard
+    // and everything between is scenery.
+    for (const stage of CAMPAIGN_STAGES) {
+      expect(stage.minibosses?.length ?? 0, `${stage.id} 缺少中段小 Boss`).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('makes the boss stages longer than their act average', () => {
+    // Boss stages are no longer *longer* than their act-mates in authored time -
+    // every stage is 600s now - so the comparison that matters is the reverse:
+    // the boss stage must not be shorter, or the act would end on its easiest
+    // ten minutes.
+    for (const act of [1, 2, 3] as const) {
       const stages = CAMPAIGN_STAGES.filter((s) => s.act === act)
       const boss = stages.find((s) => s.bossId !== undefined)
-      // Only stages still on the old budget are comparable. Act I's non-boss
-      // stages now include a reworked ten-minute stage, and averaging a 600 second
-      // stage with 100 second ones says nothing about whether the boss is long.
-      const others = stages.filter((s) => s.bossId === undefined && (s.waves?.length ?? 0) === 0)
-      if (boss === undefined || others.length === 0) continue
-      const average = others.reduce((sum, s) => sum + s.timeTargetSeconds, 0) / others.length
-      expect(boss.timeTargetSeconds).toBeGreaterThan(average)
+      if (boss === undefined) continue
+      const average = stages.reduce((sum, s) => sum + s.timeTargetSeconds, 0) / stages.length
+      expect(boss.timeTargetSeconds, `${boss.id}`).toBeGreaterThanOrEqual(average)
     }
   })
 

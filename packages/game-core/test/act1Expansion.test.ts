@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest'
 import { World } from '../src/core.js'
 import { CAMPAIGN_STAGES, STAGE_01, STAGE_02, STAGE_03, STAGE_04 } from '../src/data/campaign.js'
-import { MINIBOSSES, minibossDefinition } from '../src/data/minibosses.js'
+import { MINIBOSS_IDS, MINIBOSSES, minibossDefinition } from '../src/data/minibosses.js'
 import type { StageDefinition } from '../src/data/stageTypes.js'
 
 const IDLE = { moveX: 0, moveY: 0, jump: false, fire: false, bomb: false } as const
@@ -174,7 +174,11 @@ describe('act I mid-stage bosses (REQ-STG-009)', () => {
     for (const id of named) {
       expect(minibossDefinition(id), `未注册的中段小 Boss: ${id}`).toBeDefined()
     }
-    expect(Object.keys(MINIBOSSES)).toHaveLength(4)
+    // The registry holds the whole campaign's roster, not just this act's, so the
+    // count is asserted against MINIBOSS_IDS rather than a literal. Acts II and
+    // III add eight more; this file only cares that act I's four are among them.
+    expect(Object.keys(MINIBOSSES)).toHaveLength(MINIBOSS_IDS.length)
+    for (const id of MINIBOSS_IDS) expect(minibossDefinition(id)).toBeDefined()
   })
 
   it('makes every miniboss gating, because a fight that can be walked around is decoration', () => {

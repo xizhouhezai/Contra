@@ -43,7 +43,7 @@ export type CharacterId = 'deepseek' | 'qwen' | 'doubao' | 'glm' | 'kimi' | 'gem
 export type BossId = 'claude-auditor' | 'claude-rewriter' | 'gpt-corpus' | 'gpt-emergent'
 
 /**
- * The act I mid-stage bosses.
+ * The mid-stage bosses.
  *
  * Source of truth: docs/game/design/stage-expansion-plan.md §4.4 and
  * docs/game/design/stage-art-prompts-batch1.md §6.
@@ -56,13 +56,26 @@ export type BossId = 'claude-auditor' | 'claude-rewriter' | 'gpt-corpus' | 'gpt-
  *
  * The ids match the art filenames one for one (`miniboss-dock-foreman-q-01.webp`
  * and so on), so the presentation layer resolves them with the same lookup the
- * stage bosses use.
+ * stage bosses use. Acts II and III are drawn placeholders for now - see
+ * scripts/generate-acts23-minibosses.py - but the shape and the naming are what
+ * the real art will reuse, so swapping it in is a texture change.
  */
 export type MinibossId =
+  // Act I - the yard, the corridor, the scaffolding, the audit hall.
   | 'miniboss-dock-foreman'
   | 'miniboss-pipe-warden'
   | 'miniboss-scaffold-crane'
   | 'miniboss-audit-clerk'
+  // Act II - the coolant gallery, the server hall, the forge, the rewriting room.
+  | 'miniboss-coolant-overseer'
+  | 'miniboss-array-warden'
+  | 'miniboss-forge-master'
+  | 'miniboss-redline-clerk'
+  // Act III - the collapsing archive, the mirror gallery, the shaft, emergence.
+  | 'miniboss-archive-keeper'
+  | 'miniboss-mirror-lieutenant'
+  | 'miniboss-shaft-gaoler'
+  | 'miniboss-emergence-herald'
 
 /**
  * Anything the boss director can run.

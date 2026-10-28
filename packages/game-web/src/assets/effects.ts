@@ -130,6 +130,34 @@ const BOSS_EFFECT_BY_MOVE: Readonly<Record<string, BossEffectName>> = {
   'jib-swing': 'boss-sweep',
   'clause-stamp': 'boss-lance',
   'ledger-scan': 'boss-beam',
+
+  // Act II's mid-stage fights (REQ-STG-009). Same rule as act I's: a telegraphed
+  // move with no picture is an invisible damage source, and this table is the one
+  // place that can go stale silently - attackEffects.test.ts keeps it honest by
+  // walking every registered move and failing on the ones with no entry.
+  'pressure-release': 'boss-burst',
+  'coolant-sweep': 'boss-sweep',
+  'array-lock': 'boss-beam',
+  'blade-sweep': 'boss-sweep',
+  'forge-cast': 'boss-lance',
+  'anvil-slam': 'boss-burst',
+  'red-pen': 'boss-lance',
+  'margin-note': 'boss-chain',
+
+  // Act III's mid-stage fights. The archive's two are floor-bound like the forge's
+  // spike; the mirror's copy reads as a chain because it comes back at the player;
+  // the shaft's are the only pair aimed along the vertical axis, which is why the
+  // scythe - a vertical arc - is the right shape for the climb.
+  'shelf-collapse': 'boss-burst',
+  'paper-cut': 'boss-chain',
+  'mirror-sweep': 'boss-sweep',
+  'offset-copy': 'boss-chain',
+  'mirror-break': 'boss-burst',
+  'web-drop': 'boss-lance',
+  'claw-climb': 'boss-scythe',
+  'cube-shift': 'boss-swarm',
+  'mesh-surge': 'boss-sweep',
+  instability: 'boss-burst',
 }
 
 export function bossEffectForMove(moveId: string): BossEffectName | null {

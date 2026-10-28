@@ -173,20 +173,339 @@ export const MINIBOSS_AUDIT_CLERK: BossDefinition = {
   ],
 }
 
+/* ------------------------------------------------------------------ act II */
+
+/**
+ * 冷却监工 - stage 5, the coolant gallery.
+ *
+ * The stage teaches chasing enemies, so the fight is built around being closed in
+ * on: both moves reach further than they look, and the second phase is where the
+ * player finds out that backing off is not an answer. The gauge on its chest is
+ * the art's way of saying "this one is pressurised", and the names of its moves
+ * carry that too.
+ */
+export const MINIBOSS_COOLANT_OVERSEER: BossDefinition = {
+  id: 'miniboss-coolant-overseer',
+  name: '冷却监工',
+  maxHp: 320,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'pressure-release', damage: 1, telegraphSeconds: 1.2, cooldownSeconds: 3 },
+        { id: 'coolant-sweep', damage: 1, telegraphSeconds: 1, cooldownSeconds: 2.8 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.45,
+      gravityFlip: null,
+      moves: [
+        { id: 'pressure-release', damage: 2, telegraphSeconds: 0.85, cooldownSeconds: 2.4 },
+        { id: 'coolant-sweep', damage: 1, telegraphSeconds: 0.7, cooldownSeconds: 2.1 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 阵列巡守 - stage 6, the server hall.
+ *
+ * The flying-enemy stage, so this one fights from above: its lock-on is the
+ * longest telegraph in act II and its round is the fastest, which is the same
+ * bargain the audit drone makes at a smaller scale. A player who learned to look
+ * up in act I is being asked to do it while under a second body's fire.
+ */
+export const MINIBOSS_ARRAY_WARDEN: BossDefinition = {
+  id: 'miniboss-array-warden',
+  name: '阵列巡守',
+  maxHp: 340,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'array-lock', damage: 1, telegraphSeconds: 1.3, cooldownSeconds: 3.2 },
+        { id: 'blade-sweep', damage: 1, telegraphSeconds: 0.9, cooldownSeconds: 2.6 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.5,
+      gravityFlip: null,
+      moves: [
+        { id: 'array-lock', damage: 2, telegraphSeconds: 1, cooldownSeconds: 2.6 },
+        { id: 'blade-sweep', damage: 1, telegraphSeconds: 0.75, cooldownSeconds: 2.2 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 熔炉匠长 - stage 7, the forge.
+ *
+ * The armoured-enemy stage, so this one is armoured where it counts: its cast
+ * comes down from above in a fixed place, which is the one attack an armoured
+ * enemy could not simply be walked around. Phase 2 adds damage rather than a new
+ * move, because the stage's lesson is already "you cannot out-armour this, you
+ * have to move".
+ */
+export const MINIBOSS_FORGE_MASTER: BossDefinition = {
+  id: 'miniboss-forge-master',
+  name: '熔炉匠长',
+  maxHp: 380,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'forge-cast', damage: 1, telegraphSeconds: 1.4, cooldownSeconds: 3.4 },
+        { id: 'anvil-slam', damage: 1, telegraphSeconds: 1, cooldownSeconds: 2.8 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.4,
+      gravityFlip: null,
+      moves: [
+        { id: 'forge-cast', damage: 2, telegraphSeconds: 1, cooldownSeconds: 2.6 },
+        { id: 'anvil-slam', damage: 2, telegraphSeconds: 0.8, cooldownSeconds: 2.4 },
+      ],
+    },
+  ],
+  // The piercing round again, and for the same reason the act I warden drops it:
+  // the answer to armour is a shot that ignores it.
+  dropsWeapon: 'pierce',
+}
+
+/**
+ * 红线书记 - stage 8, the rewriting room, immediately before 改写者.
+ *
+ * The last fight before the act boss, and the one that hands the player their
+ * weapon: it drops the laser, which is what the rewriter's gravity-flipping second
+ * phase rewards - a beam does not care which way is down. Its moves are the
+ * rewriter's own at a third of the scale, so the boss reads as the same system at
+ * full size.
+ */
+export const MINIBOSS_REDLINE_CLERK: BossDefinition = {
+  id: 'miniboss-redline-clerk',
+  name: '红线书记',
+  maxHp: 400,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'red-pen', damage: 1, telegraphSeconds: 1, cooldownSeconds: 2.6 },
+        { id: 'margin-note', damage: 1, telegraphSeconds: 1.2, cooldownSeconds: 3 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.5,
+      gravityFlip: null,
+      moves: [
+        { id: 'red-pen', damage: 2, telegraphSeconds: 0.85, cooldownSeconds: 2.2 },
+        { id: 'margin-note', damage: 2, telegraphSeconds: 0.9, cooldownSeconds: 2.5 },
+        { id: 'rule-rewrite', damage: 0, telegraphSeconds: 1.4, cooldownSeconds: 5 },
+      ],
+    },
+  ],
+  dropsWeapon: 'laser',
+}
+
+/* ----------------------------------------------------------------- act III */
+
+/**
+ * 档案看守 - stage 9, the collapsing archive.
+ *
+ * The breakable-terrain stage, so its fight is about the floor: both moves are
+ * ground attacks that arrive where the player is standing, which is what makes
+ * standing still after a bomb the wrong reflex. It is the tar pit of the act III
+ * set - slower than the others, and it hits harder for it.
+ */
+export const MINIBOSS_ARCHIVE_KEEPER: BossDefinition = {
+  id: 'miniboss-archive-keeper',
+  name: '档案看守',
+  maxHp: 380,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'shelf-collapse', damage: 1, telegraphSeconds: 1.3, cooldownSeconds: 3.2 },
+        { id: 'paper-cut', damage: 1, telegraphSeconds: 0.9, cooldownSeconds: 2.6 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.42,
+      gravityFlip: null,
+      moves: [
+        { id: 'shelf-collapse', damage: 2, telegraphSeconds: 0.95, cooldownSeconds: 2.5 },
+        { id: 'paper-cut', damage: 2, telegraphSeconds: 0.7, cooldownSeconds: 2.1 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 镜像副官 - stage 10, the mirror gallery.
+ *
+ * The moving-platform stage, and the fight is a timing problem like the stage:
+ * its sweep covers the width the player has to cross, and the second phase adds
+ * the mirror's own trick - a move that copies the player's weapon. It reads as a
+ * rehearsal for the mirror apostle sharing the stage with it.
+ */
+export const MINIBOSS_MIRROR_LIEUTENANT: BossDefinition = {
+  id: 'miniboss-mirror-lieutenant',
+  name: '镜像副官',
+  maxHp: 400,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'mirror-sweep', damage: 1, telegraphSeconds: 1.1, cooldownSeconds: 2.8 },
+        { id: 'offset-copy', damage: 1, telegraphSeconds: 1, cooldownSeconds: 3 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.55,
+      gravityFlip: null,
+      moves: [
+        { id: 'mirror-sweep', damage: 2, telegraphSeconds: 0.8, cooldownSeconds: 2.2 },
+        { id: 'offset-copy', damage: 2, telegraphSeconds: 0.75, cooldownSeconds: 2.4 },
+        { id: 'mirror-break', damage: 2, telegraphSeconds: 1.2, cooldownSeconds: 3.6 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 井道看守 - stage 11, the vertical shaft.
+ *
+ * The only fight in the campaign that is fought on a vertical axis, so its two
+ * moves are aimed up and down rather than left and right. Its telegraphs are the
+ * longest in the act because the player is falling while they read them, which is
+ * a different amount of attention than standing still.
+ */
+export const MINIBOSS_SHAFT_GAOLER: BossDefinition = {
+  id: 'miniboss-shaft-gaoler',
+  name: '井道看守',
+  maxHp: 420,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'web-drop', damage: 1, telegraphSeconds: 1.5, cooldownSeconds: 3.4 },
+        { id: 'claw-climb', damage: 1, telegraphSeconds: 1.2, cooldownSeconds: 3 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.48,
+      gravityFlip: null,
+      moves: [
+        { id: 'web-drop', damage: 2, telegraphSeconds: 1.05, cooldownSeconds: 2.6 },
+        { id: 'claw-climb', damage: 2, telegraphSeconds: 0.9, cooldownSeconds: 2.5 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 涌现先驱 - stage 12, immediately before the GPT fight.
+ *
+ * The last miniboss in the campaign, and the hardest: three moves in both phases,
+ * the highest HP of the twelve, and the widest set of answers demanded. It is the
+ * exam the final boss then raises. It does not gate the door - the GPT fight does
+ * that - because a stage should not put two locks on one exit.
+ */
+export const MINIBOSS_EMERGENCE_HERALD: BossDefinition = {
+  id: 'miniboss-emergence-herald',
+  name: '涌现先驱',
+  maxHp: 460,
+  phases: [
+    {
+      phase: 1,
+      hpThreshold: 1,
+      speedMultiplier: 1,
+      gravityFlip: null,
+      moves: [
+        { id: 'cube-shift', damage: 1, telegraphSeconds: 1.2, cooldownSeconds: 3 },
+        { id: 'mesh-surge', damage: 1, telegraphSeconds: 1, cooldownSeconds: 2.7 },
+        { id: 'instability', damage: 1, telegraphSeconds: 1.3, cooldownSeconds: 3.6 },
+      ],
+    },
+    {
+      phase: 2,
+      hpThreshold: 0.5,
+      speedMultiplier: 1.6,
+      gravityFlip: null,
+      moves: [
+        { id: 'cube-shift', damage: 2, telegraphSeconds: 0.9, cooldownSeconds: 2.3 },
+        { id: 'mesh-surge', damage: 2, telegraphSeconds: 0.75, cooldownSeconds: 2.1 },
+        { id: 'instability', damage: 2, telegraphSeconds: 0.95, cooldownSeconds: 2.8 },
+      ],
+    },
+  ],
+}
+
 /** Every miniboss the campaign can spawn, by id. */
 export const MINIBOSSES: Readonly<Record<MinibossId, BossDefinition>> = {
   'miniboss-dock-foreman': MINIBOSS_DOCK_FOREMAN,
   'miniboss-pipe-warden': MINIBOSS_PIPE_WARDEN,
   'miniboss-scaffold-crane': MINIBOSS_SCAFFOLD_CRANE,
   'miniboss-audit-clerk': MINIBOSS_AUDIT_CLERK,
+  'miniboss-coolant-overseer': MINIBOSS_COOLANT_OVERSEER,
+  'miniboss-array-warden': MINIBOSS_ARRAY_WARDEN,
+  'miniboss-forge-master': MINIBOSS_FORGE_MASTER,
+  'miniboss-redline-clerk': MINIBOSS_REDLINE_CLERK,
+  'miniboss-archive-keeper': MINIBOSS_ARCHIVE_KEEPER,
+  'miniboss-mirror-lieutenant': MINIBOSS_MIRROR_LIEUTENANT,
+  'miniboss-shaft-gaoler': MINIBOSS_SHAFT_GAOLER,
+  'miniboss-emergence-herald': MINIBOSS_EMERGENCE_HERALD,
 }
 
-/** Every miniboss id, in the order act I introduces them. */
+/** Every miniboss id, in the order the campaign introduces them. */
 export const MINIBOSS_IDS: readonly MinibossId[] = [
   'miniboss-dock-foreman',
   'miniboss-pipe-warden',
   'miniboss-scaffold-crane',
   'miniboss-audit-clerk',
+  'miniboss-coolant-overseer',
+  'miniboss-array-warden',
+  'miniboss-forge-master',
+  'miniboss-redline-clerk',
+  'miniboss-archive-keeper',
+  'miniboss-mirror-lieutenant',
+  'miniboss-shaft-gaoler',
+  'miniboss-emergence-herald',
 ]
 
 /**
