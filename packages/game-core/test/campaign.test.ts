@@ -95,7 +95,13 @@ describe('Campaign stages (T-M2-10 / T-M2-11)', () => {
       expect(runner.progress().stageId).toBe(stage.id)
       expect(runner.progress().steps).toBeGreaterThan(0)
     }
-  })
+    // The budget moved up with the stages. Twelve ten-minute stages are 12000px
+    // each, so this walks about 4000 steps per stage instead of the ~1000 a
+    // 3000px corridor needed - and the default 5s timeout is no longer enough
+    // to simulate the whole campaign. The timeout is raised rather than the walk
+    // shortened: the point of this test is that every stage can actually be
+    // advanced from end to end, and a shorter walk would stop proving that.
+  }, 30_000)
 })
 
 describe('Progress storage (T-M2-12)', () => {

@@ -64,33 +64,39 @@ describe('Campaign flow (T-M3-08)', () => {
       }
       expect(runner.progress().steps).toBeGreaterThan(0)
     }
-  })
+    // The budget moved up with the stages: twelve ten-minute stages are 12000px
+    // each, so this walks about 4000 steps per stage rather than the ~1000 a
+    // 3000px corridor needed, and the default 5s timeout is no longer enough.
+    // Raised rather than shortened - the test's claim is that every stage can be
+    // advanced end to end, and a shorter walk would stop making it.
+  }, 30_000)
 
-  it('sits inside the designed campaign length', () => {
+  it('meets the rewritten campaign length, REQ-VIS-001', () => {
     // REQ-VIS-001 was rewritten on 2026-10-28: the campaign is a long-form one
     // now, 8-10 minutes a stage, not the 25-40 minute arcade run it was specced
-    // as. Act I is the first act rebuilt to that target (4 x 600s); acts II and
-    // III still carry their original 115-180s budgets, so the total sits between
-    // the two designs rather than at either one.
-    //
-    // The lower bound is the old one on purpose: a campaign that shrank would be
-    // a regression whichever requirement it was measured against.
+    // as. All twelve stages have been rebuilt to that target, so the assertion is
+    // finally the requirement's own band rather than a note about a migration in
+    // progress.
     const total = totalCampaignSeconds(CAMPAIGN_STAGES)
-    expect(total).toBeGreaterThanOrEqual(25 * 60)
-    // Act I rebuilt and the rest still short: 58.5 minutes today, 100-120 when
-    // acts II and III get the same treatment. The upper bound is the rewritten
-    // requirement's ceiling, not the old one.
+    expect(total).toBeGreaterThanOrEqual(100 * 60)
     expect(total).toBeLessThanOrEqual(120 * 60)
   })
 
-  it('gives every act I stage the ten minute budget', () => {
-    // The migration has to be visible stage by stage: act I is done, and a
-    // stage that quietly stayed on the old budget would be a corridor nobody
-    // noticed was never rebuilt.
-    const actOne = CAMPAIGN_STAGES.filter((stage) => stage.act === 1)
-    expect(actOne).toHaveLength(4)
-    for (const stage of actOne) {
+  it('gives every stage in the campaign the ten minute budget', () => {
+    // The migration is complete, so this is asserted for all twelve rather than
+    // for act I alone. A stage that quietly stayed on the old 115-180 second
+    // budget is a corridor nobody noticed was never rebuilt.
+    expect(CAMPAIGN_STAGES).toHaveLength(12)
+    for (const stage of CAMPAIGN_STAGES) {
       expect(stage.timeTargetSeconds, `${stage.id} 仍是短关卡`).toBeGreaterThanOrEqual(600)
+    }
+    // Act III's vertical stage is 900 wide on purpose - it runs downward - so the
+    // width assertion is horizontal stages only.
+    for (const stage of CAMPAIGN_STAGES) {
+      if (stage.scrollMode === 'vertical') {
+        expect(stage.heightPx, `${stage.id} 竖向关卡太短`).toBeGreaterThanOrEqual(8000)
+        continue
+      }
       expect(stage.widthPx, `${stage.id} 地图太短，撑不到 10 分钟`).toBeGreaterThanOrEqual(10000)
     }
   })
