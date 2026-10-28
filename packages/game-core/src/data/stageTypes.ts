@@ -1,4 +1,5 @@
 import type { TargetDefinition } from '../entities/Target.js'
+import type { MinibossPlacement } from '../systems/Miniboss.js'
 import type { TerrainPlatform } from '../systems/Terrain.js'
 import type { Wave } from '../systems/Wave.js'
 import type { BossId, MechanicId, Rect, Vec2 } from './types.js'
@@ -43,6 +44,16 @@ export interface StageDefinition {
    * player can outrun before its wave is due.
    */
   readonly waves?: readonly Wave[]
+  /**
+   * Mid-stage bosses that arrive as the player advances (REQ-STG-009).
+   *
+   * Optional and additive, like waves. A miniboss is a director fight placed at
+   * a point along the route instead of at the door, which is what a ten minute
+   * stage needs to hold its middle: without one, the only body that can stop the
+   * player is the one guarding the exit, and everything between the spawn and
+   * that door is a corridor with enemies in it.
+   */
+  readonly minibosses?: readonly MinibossPlacement[]
   /** Mechanics this stage teaches or uses. */
   readonly mechanics: readonly MechanicId[]
   /** Boss guarding the stage, if any. */

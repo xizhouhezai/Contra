@@ -17,14 +17,28 @@ import {
 } from '../src/data/enemies.js'
 
 describe('Enemy catalogue (T-M1-05)', () => {
-  it('defines all ten archetypes', () => {
-    expect(ENEMY_IDS).toHaveLength(10)
-    expect(Object.keys(ENEMIES)).toHaveLength(10)
+  it('defines every archetype in the catalogue', () => {
+    // Ten act I/II/III archetypes plus act I's four expansion enemies, from
+    // docs/game/design/stage-art-prompts-batch1.md §3. The count is asserted
+    // against ENEMY_IDS itself rather than a literal so that adding one is a
+    // deliberate act: the list and the definitions cannot drift apart without
+    // one of these failing.
+    expect(ENEMY_IDS).toHaveLength(14)
+    expect(Object.keys(ENEMIES)).toHaveLength(ENEMY_IDS.length)
   })
 
   it('gives each archetype a distinct behaviour', () => {
+    // Distinct in name at least. Two archetypes sharing a behaviour would mean
+    // one of them is a re-skin, and every one of these is supposed to read as a
+    // different thing to fight.
     const behaviours = ENEMY_IDS.map((id) => enemyDefinition(id).behaviour)
-    expect(new Set(behaviours).size).toBe(10)
+    expect(new Set(behaviours).size).toBe(ENEMY_IDS.length)
+  })
+
+  it('lists every definition in the id array', () => {
+    for (const id of Object.keys(ENEMIES)) {
+      expect(ENEMY_IDS).toContain(id)
+    }
   })
 
   it('keeps every stat positive where it should be', () => {
@@ -42,10 +56,17 @@ describe('Enemy catalogue (T-M1-05)', () => {
   it('keeps stationary archetypes at zero speed', () => {
     expect(enemyDefinition('turret').speed).toBe(0)
     expect(enemyDefinition('forge').speed).toBe(0)
+    // Act I's two stage-pieces: a hook is bolted to the ceiling and a vent is a
+    // hole in the floor, so neither is a body that walks.
+    expect(enemyDefinition('crane-hook').speed).toBe(0)
+    expect(enemyDefinition('steam-vent').speed).toBe(0)
   })
 
-  it('marks only the flyer as flying', () => {
+  it('marks only the two hovering archetypes as flying', () => {
     expect(enemyDefinition('flyer').flying).toBe(true)
+    expect(enemyDefinition('audit-drone').flying).toBe(true)
+    const flying = ENEMY_IDS.filter((id) => enemyDefinition(id).flying)
+    expect(flying).toHaveLength(2)
     expect(enemyDefinition('patrol').flying).toBe(false)
   })
 })

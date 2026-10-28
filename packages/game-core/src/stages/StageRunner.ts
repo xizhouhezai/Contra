@@ -6,6 +6,12 @@
  * The runner is deliberately thin: it turns data into a WorldOptions and reads
  * back the World's own cleared flag. No stage-specific branching belongs here -
  * if a new stage needs new behaviour, it needs a new field in the definition.
+ *
+ * That rule had been quietly broken: the runner passed spawn, platforms, targets
+ * and exit, and dropped every field the expansion added. A stage could author
+ * waves, a boss and a scroll mode - and the unit tests, which build a World
+ * directly, would pass - while the runner turned all of it into a plain corridor.
+ * The fields below are the ones that were being dropped.
  */
 
 import { type CoreEvent, World, type WorldSnapshot } from '../core.js'
@@ -33,11 +39,18 @@ export class StageRunner {
       platforms: [...definition.platforms],
       targets: [...definition.targets],
       exit: definition.exit,
+      act: definition.act,
       stage: {
         id: definition.id,
         exit: definition.exit,
         bounceWalls: [...definition.bounceWalls],
+        ...(definition.scrollMode === undefined ? {} : { scrollMode: definition.scrollMode }),
       },
+      // Spread rather than passed as undefined: exactOptionalPropertyTypes rejects
+      // an explicit undefined, and "this stage has no waves" is a real case.
+      ...(definition.waves === undefined ? {} : { waves: definition.waves }),
+      ...(definition.minibosses === undefined ? {} : { minibosses: definition.minibosses }),
+      ...(definition.bossId === undefined ? {} : { bossId: definition.bossId }),
     })
   }
 

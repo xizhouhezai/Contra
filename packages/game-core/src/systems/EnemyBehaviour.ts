@@ -163,6 +163,21 @@ export const MELEE_RANGE_PX = 16
 /** Distance at which a patrol notices the player and walks at them, px. */
 export const PATROL_SIGHT_PX = 260
 
+/** Distance at which the act I swarm notices the player, px. */
+export const SWARM_SIGHT_PX = 420
+
+/** How far above the player's centre the act I sniper holds its line, px. */
+export const SNIPER_HOVER_PX = 130
+
+/**
+ * Fraction of its speed the sniper closes vertically.
+ *
+ * Slower than its strafe for the same reason a flyer climbs slowly: an enemy that
+ * snaps onto the player's exact height removes the aiming decision it exists to
+ * create.
+ */
+export const SNIPER_CLIMB_RATIO = 0.45
+
 /** The rect enemies may not leave, in world pixels. */
 export interface MotionBounds {
   readonly minX: number
@@ -314,13 +329,48 @@ function stepAirApproach(
 }
 
 /**
+ * A swarm walker's step: close distance faster than a patrol and from further.
+ *
+ * Mechanically a ground approach with different constants. It is a separate
+ * behaviour rather than a patrol with a speed override because the *sight range*
+ * is the thing that defines the archetype: a scrapper notices the player from
+ * 420px, so a group of them converges instead of standing still until they are
+ * walked into - which is exactly the "the enemy never noticed me" problem the
+ * first version of stage 2 had.
+ */
+function stepSwarm(box: MotionBox, context: MotionContext, definition: EnemyDefinition): Vec2 {
+  return stepGroundApproach(box, context, definition.speed, SWARM_SIGHT_PX)
+}
+
+/**
+ * A sniper's step: hold a line above the player and drift toward them.
+ *
+ * Differs from a flyer in what it does when it arrives: a flyer keeps orbiting on
+ * its weave, whereas this settles onto the hover line and stays there, which is
+ * what lets it be a turret with a lock-on rather than an orbiting nuisance.
+ */
+function stepSniper(definition: EnemyDefinition, box: MotionBox, context: MotionContext): Vec2 {
+  const hoverY = context.player.y - SNIPER_HOVER_PX
+  const centreX = box.x + box.width / 2
+  const dx = context.player.x - centreX
+  const dy = hoverY - (box.y + box.height / 2)
+
+  const stepX = Math.sign(dx) * Math.min(Math.abs(dx), definition.speed * context.dt)
+  const stepY =
+    Math.sign(dy) * Math.min(Math.abs(dy), definition.speed * SNIPER_CLIMB_RATIO * context.dt)
+
+  return clampToBounds({ x: box.x + stepX, y: box.y + stepY }, box, context.bounds)
+}
+
+/**
  * Moves one enemy for a single fixed step, or returns null when its archetype
  * does not walk at all.
  *
  * The behaviour decides, not the archetype id: charger and patrol close distance
  * on the ground, flyer closes it through the air. Everything else keeps its
  * authored position, which is what a turret, a forge and the armoured wall are
- * supposed to do.
+ * supposed to do - and what a steam vent and a crane hook are, since those two
+ * are pieces of the stage rather than bodies that walk.
  */
 export function stepMotion(
   definition: EnemyDefinition,
@@ -339,6 +389,15 @@ export function stepMotion(
       return stepGroundApproach(box, context, definition.speed, PATROL_SIGHT_PX)
     case 'flyer':
       return stepAirApproach(definition, box, context)
+    case 'swarm-walker':
+      return stepSwarm(box, context, definition)
+    case 'hover-sniper':
+      return stepSniper(definition, box, context)
+    // Stationary archetypes: a trap is part of the floor and a hook is bolted to
+    // the ceiling, so neither is moved by anything the player does.
+    case 'floor-trap':
+    case 'overhead-hook':
+      return null
     default:
       return null
   }

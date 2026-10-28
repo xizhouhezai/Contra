@@ -49,6 +49,17 @@ export function sfxForEvent(event: CoreEvent): SfxKey | null {
       return 'bossAttack'
     case 'bossPhaseChanged':
       return 'bossPhase'
+    case 'minibossStarted':
+      // The same warning sound a boss telegraph makes: a fight starting is the
+      // one moment the player must not miss, and it is quieter than a stage
+      // boss's entrance only because it is not the stage's climax.
+      return 'bossTelegraph'
+    case 'minibossCleared':
+      return 'bossPhase'
+    case 'waveStarted':
+      // Quiet, and only for a gating wave: a wave the player can run past does not
+      // need to interrupt them, but one that is going to lock the door does.
+      return event.gates ? 'enemyTelegraph' : null
     case 'stageCleared':
       return 'clear'
     default: {
