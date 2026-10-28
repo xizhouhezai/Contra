@@ -18,11 +18,14 @@ import {
   TIME_EPSILON,
 } from './data/constants.js'
 import { enemyWeapon, maxConcurrentShooters } from './data/enemyWeapons.js'
+import { MINIBOSS_HIT_HEIGHT, MINIBOSS_HIT_WIDTH, minibossDefinition } from './data/minibosses.js'
 import type {
   BossId,
   CharacterId,
   EntityId,
+  FightId,
   InputState,
+  MinibossId,
   Rect,
   Vec2,
   WeaponId,
@@ -77,6 +80,13 @@ import {
   reflectBulletsOffWalls,
   solidPlatforms,
 } from './systems/MechanicEffects.js'
+import {
+  createMinibossStaging,
+  type MinibossPlacement,
+  type MinibossStaging,
+  minibossRouteOpen,
+  minibossTriggered,
+} from './systems/Miniboss.js'
 import { updateMovement } from './systems/Movement.js'
 import { createPassiveState, type PassiveState, registerRhythmKill } from './systems/Passives.js'
 import {
@@ -170,7 +180,7 @@ export interface ExplosionEvent {
  */
 export interface BossTelegraphEvent {
   readonly type: 'bossTelegraph'
-  readonly bossId: BossId
+  readonly bossId: FightId
   readonly moveId: string
   /** Seconds the warning lasts, so the UI can animate to that length. */
   readonly seconds: number
@@ -184,16 +194,64 @@ export interface BossTelegraphEvent {
  */
 export interface BossAttackEvent {
   readonly type: 'bossAttack'
-  readonly bossId: BossId
+  readonly bossId: FightId
   readonly moveId: string
   readonly position: Vec2
   readonly hit: boolean
 }
 
+/**
+ * A mid-stage fight started.
+ *
+ * Emitted once, when the player first touches the placement's trigger. The
+ * presentation layer needs it to put the fight's body on screen: a miniboss has
+ * no entry in the stage's target list - it is not an enemy - so nothing else
+ * tells the renderer that a body just appeared at that place.
+ */
+export interface MinibossStartedEvent {
+  readonly type: 'minibossStarted'
+  readonly minibossId: MinibossId
+  /** Where the body stands: the placement's own anchor, in world pixels. */
+  readonly position: Vec2
+}
+
+/** A mid-stage fight was finished, which is what opens a gating route. */
+export interface MinibossClearedEvent {
+  readonly type: 'minibossCleared'
+  readonly minibossId: MinibossId
+  readonly position: Vec2
+}
+
+/**
+ * A wave fired: the player walked into its trigger and its enemies are coming.
+ *
+ * Emitted once per wave on the step it fires. Without it the first the player
+ * knows about a gating wave is an enemy appearing beside them, which is exactly
+ * the "unavoidable damage source" the design principles forbid - the wave
+ * warning art exists to give them the half second to react.
+ */
+export interface WaveStartedEvent {
+  readonly type: 'waveStarted'
+  readonly waveId: string
+  /** Where the trigger is, so the warning can be drawn where the fight will be. */
+  readonly position: Vec2
+  /** Whether clearing this wave is required to leave the stage. */
+  readonly gates: boolean
+  /** How many enemies it will place. */
+  readonly count: number
+}
+
 /** A boss crossed an HP threshold and entered the next phase. */
 export interface BossPhaseChangedEvent {
   readonly type: 'bossPhaseChanged'
-  readonly bossId: BossId
+  /**
+   * Which fight changed phase.
+   *
+   * FightId rather than BossId because act I's mid-stage bosses run the same
+   * director: the presentation layer needs to know which portrait to redraw, and
+   * a stage can now hold two fights that both phase up.
+   */
+  readonly bossId: FightId
   readonly phase: number
   /** HP fraction at the moment of the change; drives the segmented bar (T3). */
   readonly healthFraction: number
@@ -239,6 +297,9 @@ export type CoreEvent =
   | EnemyTelegraphEvent
   | EnemyShotEvent
   | BossPhaseChangedEvent
+  | MinibossStartedEvent
+  | MinibossClearedEvent
+  | WaveStartedEvent
   | StageClearedEvent
 
 /** Discriminant values of {@link CoreEvent}. */
@@ -277,6 +338,15 @@ export interface WorldOptions {
    * and one that lasts.
    */
   readonly waves?: readonly Wave[]
+  /**
+   * Mid-stage bosses that arrive as the player advances (REQ-STG-009).
+   *
+   * Optional and additive, exactly like waves: a world built without them behaves
+   * as it always did, which is what keeps every existing test and caller working.
+   * A stage that authors one gets a second fight along its route instead of only
+   * at the door.
+   */
+  readonly minibosses?: readonly MinibossPlacement[]
   /** Stage exit box; reaching it emits one stageCleared event. */
   readonly exit?: Rect | null
   /** Source stage, when the world was built from a StageDefinition (T-M2-01). */
@@ -439,6 +509,24 @@ export class World {
   private readonly waves: readonly Wave[]
   /** Per-wave runtime state, keyed by wave id. */
   private readonly waveStates = new Map<string, WaveState>()
+  /** Authored mid-stage fights, or empty when the stage has none. */
+  private readonly minibosses: readonly MinibossPlacement[]
+  /** Per-placement staging, keyed by placement id. */
+  private readonly minibossStates = new Map<string, MinibossStaging>()
+  /**
+   * The mid-stage fight currently running, if any.
+   *
+   * Separate from `boss` rather than sharing the field, because the two are asked
+   * different questions: `boss` is "is the door open yet", which is about the
+   * stage's guard, and this is "what is the player fighting right now", which is
+   * about a body standing somewhere along the route. Merging them would make a
+   * mid-stage fight stop the exit from opening on a stage that has no boss, or
+   * make a boss stage's door open before its guard is down.
+   */
+  private activeMinibossState: {
+    readonly placement: MinibossPlacement
+    readonly state: BossRuntimeState
+  } | null = null
 
   constructor(options: WorldOptions) {
     this.player = createPlayer(
@@ -456,6 +544,10 @@ export class World {
     this.act = options.act ?? 1
     this.waves = options.waves ?? []
     for (const wave of this.waves) this.waveStates.set(wave.id, createWaveState())
+    this.minibosses = options.minibosses ?? []
+    for (const placement of this.minibosses) {
+      this.minibossStates.set(placement.id, createMinibossStaging())
+    }
     {
       let minX = 0
       let maxX = 0
@@ -733,6 +825,16 @@ export class World {
         // step the wave fires, and starting the clock at zero made the first spawn
         // wait a frame while every later one counted from the wrong origin.
         state.elapsed = this.fixedStepSeconds
+        // Announced on the same step it fires. The presentation layer draws the
+        // warning from this and the first spawn lands 0.2-0.4s later, which is the
+        // window REQ-CMB-002 asks for.
+        this.eventQueue.push({
+          type: 'waveStarted',
+          waveId: wave.id,
+          position: { x: wave.trigger.x + wave.trigger.width / 2, y: wave.trigger.y },
+          gates: wave.gates,
+          count: wave.spawns.length,
+        })
       } else {
         state.elapsed += this.fixedStepSeconds
       }
@@ -959,7 +1061,7 @@ export class World {
         boss.phase = want
         this.eventQueue.push({
           type: 'bossPhaseChanged',
-          bossId: boss.definition.id as BossId,
+          bossId: boss.definition.id,
           phase: want,
           healthFraction: hpFraction(boss),
         })
@@ -974,20 +1076,21 @@ export class World {
       const move = this.findBossMove(boss, result.telegraphed)
       this.eventQueue.push({
         type: 'bossTelegraph',
-        bossId: boss.definition.id as BossId,
+        bossId: boss.definition.id,
         moveId: result.telegraphed,
         seconds: move?.telegraphSeconds ?? 0,
       })
     }
 
+    // A boss stage's arena is its exit zone, so the fight is anchored there.
     if (result.resolved !== null) {
-      this.applyBossMove(boss, result.resolved)
+      this.applyFightMove(boss, result.resolved, this.stageBossAnchor())
     }
 
     if (result.phaseChanged) {
       this.eventQueue.push({
         type: 'bossPhaseChanged',
-        bossId: boss.definition.id as BossId,
+        bossId: boss.definition.id,
         phase: result.newPhase,
         healthFraction: hpFraction(boss),
       })
@@ -995,6 +1098,131 @@ export class World {
     if (result.gravityFlipped) {
       this.gravityFlipped = boss.gravityFlipped
     }
+  }
+
+  /** Where a stage boss stands: the centre of the exit arena. */
+  private stageBossAnchor(): Vec2 {
+    const arena = this.exit ?? { x: 0, y: 0, width: 0, height: 0 }
+    return { x: arena.x + arena.width / 2, y: arena.y + arena.height / 2 }
+  }
+
+  /**
+   * Starts any mid-stage fight the player has just walked into (REQ-STG-009).
+   *
+   * Nothing happens until the trigger is touched: the fight has no body on the
+   * field before that, so the route is walkable and a player who is not ready
+   * still has the approach. Only one placement can be running at a time - two
+   * bosses winding up at once is not a fight, it is a coin flip - and the
+   * placements are authored far enough apart that the second cannot be reached
+   * before the first is down.
+   */
+  private stepMinibosses(): void {
+    if (this.minibosses.length === 0) return
+    const player = playerRect(this.player)
+
+    for (const placement of this.minibosses) {
+      const staging = this.minibossStates.get(placement.id)
+      if (staging === undefined || staging.fired) continue
+
+      if (!minibossTriggered(placement, player)) continue
+      const definition = minibossDefinition(placement.minibossId)
+      if (definition === undefined) continue
+
+      staging.fired = true
+      this.activeMinibossState = {
+        placement,
+        // Its own hit box, so a mid-stage fight is smaller than a stage boss and
+        // the two never read as the same thing on screen.
+        state: createBossState(
+          definition,
+          { x: placement.x, y: placement.y },
+          { width: MINIBOSS_HIT_WIDTH, height: MINIBOSS_HIT_HEIGHT },
+        ),
+      }
+      this.eventQueue.push({
+        type: 'minibossStarted',
+        minibossId: placement.minibossId,
+        position: { x: placement.x, y: placement.y },
+      })
+    }
+  }
+
+  /**
+   * Advances the running mid-stage fight, if there is one.
+   *
+   * Same director, same three event families, different anchor: the body stands
+   * where its placement put it rather than at the door.
+   */
+  private stepMinibossFight(): void {
+    const active = this.activeMinibossState
+    if (active === null) return
+
+    const state = active.state
+    if (state.defeated) {
+      this.finishMiniboss(active)
+      return
+    }
+
+    const result = stepBoss(state, this.fixedStepSeconds)
+    const anchor = { x: active.placement.x, y: active.placement.y }
+
+    if (result.telegraphed !== null) {
+      const move = this.findBossMove(state, result.telegraphed)
+      this.eventQueue.push({
+        type: 'bossTelegraph',
+        bossId: state.definition.id,
+        moveId: result.telegraphed,
+        seconds: move?.telegraphSeconds ?? 0,
+      })
+    }
+
+    if (result.resolved !== null) {
+      this.applyFightMove(state, result.resolved, anchor)
+    }
+
+    if (result.phaseChanged) {
+      this.eventQueue.push({
+        type: 'bossPhaseChanged',
+        bossId: state.definition.id,
+        phase: result.newPhase,
+        healthFraction: hpFraction(state),
+      })
+    }
+  }
+
+  /**
+   * Records a finished mid-stage fight and opens the route if it gated it.
+   *
+   * The drop goes through the same pickUpWeapon path a stage boss uses, so a
+   * miniboss's reward is data - and a miniboss with no drop simply gives none.
+   */
+  private finishMiniboss(active: {
+    readonly placement: MinibossPlacement
+    readonly state: BossRuntimeState
+  }): void {
+    const staging = this.minibossStates.get(active.placement.id)
+    if (staging === undefined || staging.cleared) return
+    staging.cleared = true
+
+    const anchor = { x: active.placement.x, y: active.placement.y }
+    this.eventQueue.push({
+      type: 'minibossCleared',
+      minibossId: active.placement.minibossId,
+      position: anchor,
+    })
+    this.eventQueue.push({
+      type: 'enemyDied',
+      enemyId: active.state.definition.id,
+      position: { x: active.state.box.x, y: active.state.box.y },
+      score: 0,
+    })
+
+    const drop = active.state.definition.dropsWeapon
+    if (drop !== undefined) {
+      const weaponId = drop as WeaponId
+      this.pickUpWeapon(weaponId)
+    }
+    this.activeMinibossState = null
   }
 
   /** The move definition for an id, across every phase. */
@@ -1007,7 +1235,7 @@ export class World {
   }
 
   /**
-   * Applies one resolved boss move.
+   * Applies one resolved fight move.
    *
    * A resolved move is a hit unless the player is somewhere it cannot reach.
    * The move data carries damage and timing but no geometry, so the reach is
@@ -1016,25 +1244,19 @@ export class World {
    * Without that distinction every boss would be an unavoidable timer, which is
    * neither fair nor interesting.
    */
-  private applyBossMove(boss: BossRuntimeState, move: BossMove): void {
+  private applyFightMove(boss: BossRuntimeState, move: BossMove, anchor: Vec2): void {
     if (this.player.hearts <= 0) return
 
-    // The boss has no coordinates of its own - the runtime state is a phase
-    // machine, not an entity. A boss stage's arena is its exit zone, so that is
-    // the anchor: distance is measured from the arena centre, which is where
-    // the boss stands.
-    const arena = this.exit ?? { x: 0, y: 0, width: 0, height: 0 }
-    const fromBoss = { x: arena.x + arena.width / 2, y: arena.y + arena.height / 2 }
-    const distance = Math.abs(this.player.position.x - fromBoss.x)
+    const distance = Math.abs(this.player.position.x - anchor.x)
     const reach = reachFor(move)
     const inReach = distance <= reach.maxDistance
     const grounded = reach.requiresGrounded ? this.player.onGround : true
 
     this.eventQueue.push({
       type: 'bossAttack',
-      bossId: boss.definition.id as BossId,
+      bossId: boss.definition.id,
       moveId: move.id,
-      position: { x: fromBoss.x, y: fromBoss.y },
+      position: { x: anchor.x, y: anchor.y },
       hit: inReach && grounded,
     })
 
@@ -1059,6 +1281,42 @@ export class World {
   /** True when this platform id is still solid; a broken plank is not. */
   get activeBoss(): BossRuntimeState | null {
     return this.boss
+  }
+
+  /**
+   * The mid-stage fight currently running, if any.
+   *
+   * Exposed for the same reason activeBoss is: the presentation layer has to know
+   * which body to draw a bar over, and a test that wants to end the fight early
+   * needs a handle. Null on a stage with no minibosses, and null again once the
+   * fight is over.
+   */
+  get activeMiniboss(): BossRuntimeState | null {
+    return this.activeMinibossState?.state ?? null
+  }
+
+  /** Which fight is running and what phase it is in, or null. */
+  get runningMiniboss(): { readonly bossId: FightId; readonly phase: number } | null {
+    const active = this.activeMinibossState
+    if (active === null) return null
+    return { bossId: active.state.definition.id, phase: active.state.phase }
+  }
+
+  /** True once every gating mid-stage fight in this stage has been finished. */
+  get minibossRouteOpen(): boolean {
+    return minibossRouteOpen(this.minibosses, this.minibossStates)
+  }
+
+  /**
+   * Whether one authored wave has fired.
+   *
+   * A read-only view of the per-wave state. The acceptance probe needs it to tell
+   * "the stage has beats" from "the stage has five waves authored that never
+   * fire", which look identical from outside the rule layer - and the second was
+   * a real bug once, when StageRunner dropped the waves field entirely.
+   */
+  hasWaveFired(waveId: string): boolean {
+    return this.waveStates.get(waveId)?.fired === true
   }
 
   /**
@@ -1103,7 +1361,7 @@ export class World {
     if (boss.phase !== phaseBefore) {
       this.eventQueue.push({
         type: 'bossPhaseChanged',
-        bossId: boss.definition.id as BossId,
+        bossId: boss.definition.id,
         phase: boss.phase,
         healthFraction: hpFraction(boss),
       })
@@ -1172,9 +1430,11 @@ export class World {
     this.resolveBulletHits()
     this.resolveBlasts()
     this.stepWaves()
+    this.stepMinibosses()
     this.stepEnemyMotion()
     this.stepEnemyAttacks()
     this.stepBossOnce()
+    this.stepMinibossFight()
     this.damagePlayer()
     this.checkExit()
 
@@ -1315,7 +1575,7 @@ export class World {
     // while an enemy was the only thing a bullet could hit; a boss stage declares
     // no targets and the boss is hit by the same pass, so returning here skipped
     // the boss as well and the whole fight became one-directional.
-    if (this.targets.length === 0 && this.boss === null) return
+    if (this.targets.length === 0 && this.boss === null && this.activeMinibossState === null) return
 
     const survivors: Bullet[] = []
     for (const bullet of this.bullets) {
@@ -1357,6 +1617,17 @@ export class World {
         }
       }
 
+      // A mid-stage fight is a body like any other: a round that reaches it has
+      // to be able to end it, or the fight is a corridor with a wall at the end.
+      if (!spent && this.bulletHitsMiniboss(box)) {
+        this.damageMinibossBy(bullet.damage, bullet.position)
+        if (bullet.remainingPierces > 0) {
+          bullet.remainingPierces -= 1
+        } else {
+          spent = true
+        }
+      }
+
       if (!spent) survivors.push(bullet)
     }
     this.bullets = survivors
@@ -1367,6 +1638,50 @@ export class World {
     const boss = this.boss
     if (boss === null || boss.defeated) return false
     return overlaps(box, boss.box)
+  }
+
+  /** True when a bullet box overlaps the running mid-stage fight's hit area. */
+  private bulletHitsMiniboss(box: Rect): boolean {
+    const active = this.activeMinibossState
+    if (active === null || active.state.defeated) return false
+    return overlaps(box, active.state.box)
+  }
+
+  /**
+   * Damages the running mid-stage fight.
+   *
+   * Mirrors damageBossBy minus the two things a miniboss has no use for: it never
+   * splits into echoes, and its defeat is handled by stepMinibossFight rather than
+   * here, because the fight has to be retired on the step it dies and this method
+   * runs inside the bullet pass. The HP and phase bookkeeping does have to happen
+   * here, or a hit would not report damage and the body would read as invulnerable.
+   */
+  private damageMinibossBy(amount: number, at: Vec2): void {
+    const active = this.activeMinibossState
+    if (active === null || active.state.defeated) return
+
+    const state = active.state
+    const phaseBefore = state.phase
+    const hpBefore = state.hp
+    damageBoss(state, amount)
+
+    if (state.hp !== hpBefore) {
+      this.eventQueue.push({
+        type: 'hit',
+        targetId: state.definition.id,
+        damage: hpBefore - state.hp,
+        position: at,
+      })
+    }
+
+    if (state.phase !== phaseBefore) {
+      this.eventQueue.push({
+        type: 'bossPhaseChanged',
+        bossId: state.definition.id,
+        phase: state.phase,
+        healthFraction: hpFraction(state),
+      })
+    }
   }
 
   /**
@@ -1497,7 +1812,8 @@ export class World {
           overlaps(box, platform),
         ) ||
         this.targets.some((target) => target.alive && overlaps(box, target.box)) ||
-        this.bulletHitsBoss(box)
+        this.bulletHitsBoss(box) ||
+        this.bulletHitsMiniboss(box)
       if (!contact) {
         survivors.push(bullet)
         continue
@@ -1516,6 +1832,19 @@ export class World {
         const dx = centre.x - bullet.position.x
         const dy = centre.y - bullet.position.y
         if (Math.hypot(dx, dy) <= radius) this.damageBossBy(bullet.damage, bullet.position)
+      }
+      // A mid-stage fight has to take blasts too, or a player who brought a
+      // grenade to the only fight in the stage finds it does nothing.
+      if (this.activeMinibossState !== null && !this.activeMinibossState.state.defeated) {
+        const centre = {
+          x: this.activeMinibossState.state.box.x + this.activeMinibossState.state.box.width / 2,
+          y: this.activeMinibossState.state.box.y + this.activeMinibossState.state.box.height / 2,
+        }
+        const dx = centre.x - bullet.position.x
+        const dy = centre.y - bullet.position.y
+        if (Math.hypot(dx, dy) <= radius) {
+          this.damageMinibossBy(bullet.damage, bullet.position)
+        }
       }
       // A blast is what breaks terrain: chips of a platform take the damage the
       // bomb was already spending, so the player's own gun is the key.
@@ -1627,6 +1956,12 @@ export class World {
     // system would add enemies and change nothing: the player walks past them, the
     // stage clears, and the waves exist for decoration.
     if (!this.routeOpen) return
+
+    // A gating mid-stage fight holds it too (REQ-STG-009). A miniboss the player
+    // can walk around is a set piece the stage did not need to author: the whole
+    // reason one stands in the middle of a ten minute stage is that the stage does
+    // not continue until the player has beaten it.
+    if (!this.minibossRouteOpen) return
 
     // A vertical stage's exit sits at the bottom and is cleared on the way down;
     // a horizontal one is a door the player has to walk into.

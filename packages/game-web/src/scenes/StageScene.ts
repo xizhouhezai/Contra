@@ -1,11 +1,13 @@
 import type { TargetDefinition, TargetState } from '@contra/game-core'
 import {
-  type BossId,
   BULLET_HEIGHT,
   BULLET_WIDTH,
   type CharacterId,
+  type FightId,
   type InputState,
   loadProgress,
+  MINIBOSS_IDS,
+  MINIBOSSES,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
   recordClear,
@@ -33,13 +35,22 @@ import {
   sheetKey,
   stateFor,
 } from '../assets/animated'
-import { bossArtKey, bossArtPreference } from '../assets/bosses'
+import {
+  bossArtKey,
+  bossArtPreference,
+  minibossFrameCount,
+  minibossFrameKey,
+  preloadMiniboss,
+} from '../assets/bosses'
 import {
   bossEffectForMove,
   bossEffectKey,
   effectKey,
   hasEffect,
+  hasWaveWarning,
   muzzleForWeapon,
+  preloadUi,
+  waveWarningKey,
 } from '../assets/effects'
 import { ENEMY_ART_DRAWN_PX, ENEMY_FRAME_SIZE, enemyFrameKey } from '../assets/enemies'
 import { hasEnemyProp, mountProp, PROP_OFFSET } from '../assets/enemyProps'
@@ -50,7 +61,7 @@ import { WEAPON_ICON_SIZE, weaponIconKey } from '../assets/weapons'
 import { AudioManager } from '../audio/AudioManager'
 import { sfxForEvent } from '../audio/eventSfx'
 import { bgmForStage, preloadBgm } from '../audio/manifest'
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
+import { GAME_HEIGHT, GAME_WIDTH, PALETTE, UI } from '../config'
 import { CoreEventBridge } from '../events/CoreEventBridge'
 import { applyFit } from '../fit'
 import { ProjectileView } from '../render/ProjectileView'
@@ -59,7 +70,14 @@ import { ActorView, characterSprite, enemySprite } from '../sprites/ActorView'
 import { HURT_SECONDS, motionFor, RECOIL_SECONDS } from '../sprites/motion'
 import { createParallax, updateParallax } from '../stage/createParallax'
 import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../stage/resolveStage'
-import { drawPlatform, groundVariantFor, preloadTerrain } from '../stage/terrain'
+import {
+  drawAct1Platform,
+  drawPlatform,
+  groundVariantFor,
+  preloadAct1Tiles,
+  preloadTerrain,
+  usesAct1Kit,
+} from '../stage/terrain'
 
 /**
  * Plays one stage from the campaign (T1).
@@ -93,6 +111,17 @@ const DISPLAY_HEIGHT = 90
  * is the alert red the rest of the game already uses for danger.
  */
 const BOSS_PHASE_TINT = 0xd6452c
+
+/**
+ * Display names for the act I mid-stage fights.
+ *
+ * Read from the rules layer's own definitions rather than retyped here: the name
+ * a banner shows and the name the definition carries have to be the same string,
+ * and a second copy is how they stop being.
+ */
+const MINIBOSS_TITLE: Readonly<Record<string, string>> = Object.fromEntries(
+  MINIBOSS_IDS.map((id) => [id, MINIBOSSES[id].name]),
+)
 
 export class StageScene extends Phaser.Scene {
   private world!: World
@@ -150,7 +179,34 @@ export class StageScene extends Phaser.Scene {
     bossPhaseChanged: (event) => {
       this.showBanner(`形态 ${event.phase}`)
       this.playEventSound(event)
-      this.applyBossPhase(event.phase)
+      this.applyBossPhase(event.phase, event.bossId)
+    },
+    minibossStarted: (event) => {
+      // A mid-stage fight has no entry in the stage's target list - it is not an
+      // enemy - so this event is the only thing that puts its body on screen.
+      this.createMinibossView(event.minibossId, event.position.x, event.position.y)
+      this.showBanner(`中断 · ${MINIBOSS_TITLE[event.minibossId] ?? event.minibossId}`)
+      this.playEventSound({
+        type: 'bossTelegraph',
+        bossId: event.minibossId,
+        moveId: 'start',
+        seconds: 0,
+      })
+    },
+    minibossCleared: (event) => {
+      this.toppleMinibossView()
+      this.showBanner('通道解锁')
+      this.playEventSound({
+        type: 'bossAttack',
+        bossId: event.minibossId,
+        moveId: 'cleared',
+        position: event.position,
+        hit: false,
+      })
+    },
+    waveStarted: (event) => {
+      this.showWaveWarning(event.position.x, event.gates)
+      this.playEventSound(event)
     },
     stageCleared: (event) => {
       this.showCleared(event.score)
@@ -222,6 +278,21 @@ export class StageScene extends Phaser.Scene {
   private bossPortraitHeight = 0
   /** Set once the death topple has started, so it cannot replay. */
   private bossToppled = false
+  /**
+   * The mid-stage fight's body on screen, or null when none is running.
+   *
+   * Separate from bossPortrait because the two behave differently: a stage boss
+   * is painted at the arena from the first frame and never moves, while this one
+   * does not exist until the player walks into its trigger and is placed where its
+   * placement stands.
+   */
+  private minibossView: Phaser.GameObjects.Image | null = null
+  /** Which frame of the mid-stage art is showing. */
+  private minibossFrame = 1
+  /** Set once this fight's topple has started, so it cannot replay. */
+  private minibossToppled = false
+  /** Its drawn height, kept so the phase swap rescales to the same size. */
+  private minibossHeight = 0
   private prevX = 0
   private prevY = 0
   /** Set once the retry prompt is up, so a second death cannot stack a second prompt. */
@@ -254,6 +325,23 @@ export class StageScene extends Phaser.Scene {
     // this is cheap and never varies by stage.
     preloadTerrain(this.load)
 
+    // Act I draws its floors from the expansion's room kit instead of the shared
+    // ground strip. Both are queued rather than one or the other, because
+    // `drawAct1Platform` falls back to the strip when a tile is missing and a
+    // fallback path that was never loaded is a rectangle.
+    if (usesAct1Kit(stage.index)) preloadAct1Tiles(this.load)
+
+    // The gameplay UI: a wave warning band the act I beats draw when they fire.
+    // Three files under 40KB, so it rides with the stage rather than the boot.
+    if (usesAct1Kit(stage.index)) preloadUi(this.load)
+
+    // A mid-stage fight's frames, per stage. Sixteen of them across act I is
+    // about 1MB, which is why they are not in the boot load with the stage
+    // bosses: a player on the title screen has not earned them yet.
+    for (const placement of stage.minibosses ?? []) {
+      preloadMiniboss(this.load, placement.minibossId)
+    }
+
     if (stageSceneLoaded(this, stageId)) return
 
     // The scene urls are lazy imports, so the queue is built asynchronously and
@@ -279,6 +367,13 @@ export class StageScene extends Phaser.Scene {
     this.bossPortrait = null
     this.bossPhase = 1
     this.bossToppled = false
+    // A mid-stage fight belongs to the stage that authored it. Phaser reuses this
+    // scene, so a stale reference would make the next stage's first update write
+    // to a destroyed object.
+    this.minibossView?.destroy()
+    this.minibossView = null
+    this.minibossFrame = 1
+    this.minibossToppled = false
     this.clearEvents()
 
     this.world = new World({
@@ -306,6 +401,9 @@ export class StageScene extends Phaser.Scene {
       // which exactOptionalPropertyTypes rejects; a stage without waves keeps its
       // enemies on frame one exactly as before.
       ...(this.stage.waves === undefined ? {} : { waves: this.stage.waves }),
+      // Mid-stage fights (REQ-STG-009). Same reasoning: a stage without them keeps
+      // exactly the behaviour it had.
+      ...(this.stage.minibosses === undefined ? {} : { minibosses: this.stage.minibosses }),
       // Boss stages name their boss in the stage data (T3). Only boss stages
       // have one, so the key is spread in rather than passed as undefined.
       ...(this.stage.bossId === undefined ? {} : { bossId: this.stage.bossId }),
@@ -461,6 +559,17 @@ export class StageScene extends Phaser.Scene {
       playerX: this.world.player.position.x,
       stageClearedEvents: this.clearedEvents,
       fps: this.game.loop.actualFps,
+      // Act I expansion state. Read straight off the World's own getters, so the
+      // probe cannot report something the simulation disagrees with.
+      wavesFired: (this.stage.waves ?? []).filter((wave) => this.world.hasWaveFired(wave.id))
+        .length,
+      wavesCleared: this.world.wavesCleared,
+      routeOpen: this.world.routeOpen,
+      minibossRouteOpen: this.world.minibossRouteOpen,
+      minibossId: this.world.runningMiniboss?.bossId ?? null,
+      minibossPhase: this.world.runningMiniboss?.phase ?? 0,
+      minibossHp: this.world.activeMiniboss?.hp ?? 0,
+      liveTargets: this.world.targets.filter((target) => target.alive).length,
     }))
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -662,7 +771,15 @@ export class StageScene extends Phaser.Scene {
   /** Platforms and the exit marker, drawn once from the stage definition. */
   private drawStage(): void {
     const groundVariant = groundVariantFor(this.stage.index ?? 1)
+    const act1Kit = usesAct1Kit(this.stage.index ?? 1)
     for (const platform of this.stage.platforms) {
+      // Act I uses the expansion's room kit; everything else keeps the shared
+      // strip. Null means the kit piece did not load, so fall through rather than
+      // drawing nothing.
+      if (act1Kit) {
+        const drawn = drawAct1Platform(this, platform)
+        if (drawn !== null) continue
+      }
       drawPlatform(this, platform, groundVariant, PALETTE.platform)
     }
 
@@ -1125,6 +1242,51 @@ export class StageScene extends Phaser.Scene {
     this.cameras.main.shake(160, 0.012)
   }
 
+  /**
+   * Warns the player that a wave just fired.
+   *
+   * Drawn at the trigger's centre rather than over the HUD, because the warning
+   * has to say *where* the fight is coming from: a wave can arrive to the left or
+   * the right depending on how the player entered, and a screen-wide banner would
+   * say "something" without saying which way to turn.
+   *
+   * A gating wave is drawn in the alert colour and a passing one in paper. That is
+   * the whole difference the player needs: one of these locks the door and the
+   * other is pressure they may run through.
+   */
+  private showWaveWarning(x: number, gates: boolean): void {
+    const key = waveWarningKey()
+    const y = GAME_HEIGHT * 0.32
+    // Paper for a passing wave, alert vermillion for one that locks the door.
+    const tint = gates ? UI.vermillion : UI.paper
+
+    if (hasWaveWarning()) {
+      // The art is a 384x64 band. Drawn at the trigger's x so it reads as an event
+      // at a place; the band itself says 波次 without a word of text.
+      const band = this.add.image(x, y, key).setDepth(19).setTint(tint).setAlpha(0.9).setScale(0.5)
+      this.tweens.add({
+        targets: band,
+        alpha: 0,
+        scaleX: 1.1,
+        duration: 700,
+        ease: 'Quad.easeOut',
+        onComplete: () => band.destroy(),
+      })
+      return
+    }
+
+    // No art: a bar that grows and fades, in the same place. An unreadable wave is
+    // a fight the player did not see coming, so the fallback is not optional.
+    const bar = this.add.rectangle(x, y, 120, 6, tint, 0.85).setDepth(19)
+    this.tweens.add({
+      targets: bar,
+      alpha: 0,
+      scaleX: 1.6,
+      duration: 600,
+      onComplete: () => bar.destroy(),
+    })
+  }
+
   private showBanner(text: string): void {
     if (this.banner === null) return
     this.banner.setText(text)
@@ -1344,6 +1506,85 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * Puts a mid-stage fight's body on screen.
+   *
+   * Built from the event rather than from a pre-built cast, unlike the wave
+   * enemies: a fight's frames are four 360x360 images that a stage may never
+   * reach, and unlike an enemy they are already loaded per stage (see preload), so
+   * creating the sprite at the moment it starts is both cheap and correct. It also
+   * cannot have the one-frame-late ordering problem the wave views had, because
+   * this runs inside the event pass and is drawn on the same frame.
+   *
+   * The height is a third of a stage boss's, from the art spec: a mid-stage fight
+   * that read as tall as the act boss would steal the climax from the stage it is
+   * standing in.
+   */
+  private createMinibossView(bossId: FightId, x: number, y: number): void {
+    const key = minibossFrameKey(bossId, 1)
+    if (!this.textures.exists(key)) return
+
+    this.minibossView?.destroy()
+    this.minibossToppled = false
+    this.minibossFrame = 1
+
+    this.minibossHeight = GAME_HEIGHT * 0.34
+    const view = this.add
+      .image(x, y, key)
+      .setOrigin(0.5, 1)
+      // Behind the player and the enemies, in front of the parallax: the body has
+      // to be visible but must not cover the thing the player is aiming with.
+      .setDepth(-40)
+      .setScale(this.minibossHeight / this.textures.get(key).getSourceImage().height)
+
+    this.minibossView = view
+    // A short drop in, so the body arriving is a beat rather than a pop.
+    view.setAlpha(0)
+    this.tweens.add({ targets: view, alpha: 1, duration: 220 })
+  }
+
+  /**
+   * Swaps the mid-stage art when the fight changes phase.
+   *
+   * Frame 2 is the second phase's pose where the art has one. The art provides
+   * four frames per fight, and only the first two are used: frame 1 is the idle
+   * pose and frame 2 the wound-up one, which is what a phase change reads as.
+   */
+  private syncMinibossFrame(phase: number): void {
+    const view = this.minibossView
+    const bossId = this.world?.runningMiniboss?.bossId
+    if (view === null || bossId === undefined) return
+
+    const wanted = Math.max(1, Math.min(phase, minibossFrameCount(bossId)))
+    if (wanted === this.minibossFrame) return
+    this.minibossFrame = wanted
+
+    const key = minibossFrameKey(bossId, wanted)
+    if (!this.textures.exists(key)) return
+    view.setTexture(key)
+    view.setScale(this.minibossHeight / this.textures.get(key).getSourceImage().height)
+  }
+
+  /** The defeat pose for a mid-stage fight: it falls, then clears. */
+  private toppleMinibossView(): void {
+    const view = this.minibossView
+    if (view === null || this.minibossToppled) return
+    this.minibossToppled = true
+
+    view.setTint(PALETTE.targetDead)
+    this.tweens.add({ targets: view, angle: -78, duration: 520, ease: 'Quad.easeIn' })
+    this.tweens.add({
+      targets: view,
+      alpha: 0,
+      delay: 420,
+      duration: 520,
+      onComplete: () => {
+        view.destroy()
+        if (this.minibossView === view) this.minibossView = null
+      },
+    })
+  }
+
+  /**
    * The portrait texture to draw for one fight state, or null when none of the
    * candidate forms is loaded.
    *
@@ -1352,7 +1593,7 @@ export class StageScene extends Phaser.Scene {
    * a fight that switches to a form the art does not cover still shows the boss
    * instead of blinking to an empty stage.
    */
-  private bossArtKeyFor(bossId: BossId, phase: number): string | null {
+  private bossArtKeyFor(bossId: FightId, phase: number): string | null {
     for (const id of bossArtPreference(bossId, phase)) {
       const key = bossArtKey(id)
       if (this.textures.exists(key)) return key
@@ -1367,14 +1608,25 @@ export class StageScene extends Phaser.Scene {
    * fight is built around, and reading it a frame late is exactly the lag that
    * makes a phase switch feel like a bug. The fade covers the texture swap, so
    * the two forms are not one hard cut.
+   *
+   * `bossId` is taken from the event rather than read off the stage, because a
+   * stage can now hold two fights: the event is the only thing that says which of
+   * them just changed. A mid-stage fight only needs its frame swapped, since it
+   * draws from its own four-frame sheet rather than from a portrait.
    */
-  private applyBossPhase(phase: number): void {
+  private applyBossPhase(phase: number, bossId: FightId): void {
+    // A mid-stage fight's phase change is its own path: it is not the stage's
+    // portrait and must not move it.
+    if (this.world !== undefined && this.world.runningMiniboss?.bossId === bossId) {
+      this.syncMinibossFrame(phase)
+      return
+    }
+
     this.bossPhase = phase
     const portrait = this.bossPortrait
-    const bossId = this.stage.bossId
     // A defeated boss stays down; reviving its portrait on a late phase event
     // would undo the one thing the death pose is telling the player.
-    if (portrait === null || bossId === undefined || this.bossToppled) return
+    if (portrait === null || this.bossToppled) return
 
     const key = this.bossArtKeyFor(bossId, phase)
     if (key === null) return

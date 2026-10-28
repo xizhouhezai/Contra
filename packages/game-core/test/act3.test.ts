@@ -66,10 +66,33 @@ describe('Campaign flow (T-M3-08)', () => {
     }
   })
 
-  it('sits inside the designed 25-40 minute campaign length', () => {
+  it('sits inside the designed campaign length', () => {
+    // REQ-VIS-001 was rewritten on 2026-10-28: the campaign is a long-form one
+    // now, 8-10 minutes a stage, not the 25-40 minute arcade run it was specced
+    // as. Act I is the first act rebuilt to that target (4 x 600s); acts II and
+    // III still carry their original 115-180s budgets, so the total sits between
+    // the two designs rather than at either one.
+    //
+    // The lower bound is the old one on purpose: a campaign that shrank would be
+    // a regression whichever requirement it was measured against.
     const total = totalCampaignSeconds(CAMPAIGN_STAGES)
     expect(total).toBeGreaterThanOrEqual(25 * 60)
-    expect(total).toBeLessThanOrEqual(40 * 60)
+    // Act I rebuilt and the rest still short: 58.5 minutes today, 100-120 when
+    // acts II and III get the same treatment. The upper bound is the rewritten
+    // requirement's ceiling, not the old one.
+    expect(total).toBeLessThanOrEqual(120 * 60)
+  })
+
+  it('gives every act I stage the ten minute budget', () => {
+    // The migration has to be visible stage by stage: act I is done, and a
+    // stage that quietly stayed on the old budget would be a corridor nobody
+    // noticed was never rebuilt.
+    const actOne = CAMPAIGN_STAGES.filter((stage) => stage.act === 1)
+    expect(actOne).toHaveLength(4)
+    for (const stage of actOne) {
+      expect(stage.timeTargetSeconds, `${stage.id} 仍是短关卡`).toBeGreaterThanOrEqual(600)
+      expect(stage.widthPx, `${stage.id} 地图太短，撑不到 10 分钟`).toBeGreaterThanOrEqual(10000)
+    }
   })
 
   it('gives every stage a positive designed time', () => {

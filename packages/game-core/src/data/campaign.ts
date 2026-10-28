@@ -16,12 +16,25 @@ const FLOOR_TOP = 400
  *
  * The archetype defaults to the patrolling drone, which is what act 1 uses
  * everywhere; a stage that wants something else passes it explicitly.
+ *
+ * Only stages 5-8 still place their enemies this way: act I moved to waves, so
+ * its enemies arrive as the player advances rather than standing in the open on
+ * frame one.
  */
 function groundTarget(id: string, x: number, hp = 30, score = 50, archetype = 'patrol') {
   return { id, x, y: FLOOR_TOP - 40, width: 32, height: 40, hp, score, archetype }
 }
 
+import type { MinibossPlacement } from '../systems/Miniboss.js'
 import type { Wave } from '../systems/Wave.js'
+import {
+  STAGE_02_MINIBOSSES,
+  STAGE_02_WAVES,
+  STAGE_03_MINIBOSSES,
+  STAGE_03_WAVES,
+  STAGE_04_MINIBOSSES,
+  STAGE_04_WAVES,
+} from './act1Waves.js'
 
 /**
  * Stage 1's waves, one per beat.
@@ -108,6 +121,25 @@ export const STAGE_01_WAVES: readonly Wave[] = [
 ]
 
 /**
+ * 码头工头 holds the crane yard, two thirds of the way along.
+ *
+ * Stage 1 is the campaign's first stage and the vertical slice, so its miniboss is
+ * the gentlest of the four: this is the first time the player meets a fight that
+ * does not end when they stop shooting. It gates, because a mid-stage fight the
+ * player can walk around is a set piece the stage did not need to author.
+ */
+export const STAGE_01_MINIBOSSES: readonly MinibossPlacement[] = [
+  {
+    id: 's1-mini',
+    minibossId: 'miniboss-dock-foreman',
+    trigger: { x: 8600, y: 0, width: 300, height: 540 },
+    x: 9000,
+    y: FLOOR_TOP,
+    gates: true,
+  },
+]
+
+/**
  * Stage 1 - 码头晨雾. Teaches move, jump, aim, shoot.
  *
  * Rewritten for the expansion as five beats instead of one corridor. The old
@@ -151,6 +183,7 @@ export const STAGE_01: StageDefinition = {
   // makes the stage take its time instead of emptying in one screen.
   targets: [],
   waves: STAGE_01_WAVES,
+  minibosses: STAGE_01_MINIBOSSES,
   mechanics: [],
   timeTargetSeconds: 600,
   exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
@@ -162,19 +195,41 @@ export const STAGE_02: StageDefinition = {
   name: '锈铁回廊',
   act: 1,
   index: 2,
-  widthPx: 2600,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
-  platforms: [{ x: 0, y: FLOOR_TOP, width: 2600, height: GROUND_H }],
-  // Corridor walls at head height: shots fired into them come back.
-  bounceWalls: [
-    { x: 800, y: FLOOR_TOP - 200, width: 24, height: 200 },
-    { x: 1600, y: FLOOR_TOP - 200, width: 24, height: 200 },
+  platforms: [
+    { x: 0, y: FLOOR_TOP, width: 12000, height: GROUND_H },
+    // Reflector walls at head height: shots fired into them come back. Placed
+    // where the beats are rather than evenly, so each one is a piece of the fight
+    // in front of it instead of decoration along a corridor.
+    { x: 1200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 2400, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 4200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 6200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 8200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    // Ledges over the long middle stretch, so the corridor is not a flat run for
+    // two thousand pixels at a time.
+    { x: 3000, y: FLOOR_TOP - 110, width: 180, height: 18 },
+    { x: 5100, y: FLOOR_TOP - 130, width: 200, height: 18 },
+    { x: 7200, y: FLOOR_TOP - 100, width: 180, height: 18 },
+    { x: 9800, y: FLOOR_TOP - 120, width: 200, height: 18 },
   ],
-  targets: [groundTarget('t1', 1000), groundTarget('t2', 1300), groundTarget('t3', 2100)],
+  bounceWalls: [
+    { x: 1200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 2400, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 4200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 6200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+    { x: 8200, y: FLOOR_TOP - 200, width: 24, height: 200 },
+  ],
+  // Everything arrives by wave, like stage 1: an enemy placed on frame one is one
+  // the player can outrun before its beat is due.
+  targets: [],
+  waves: STAGE_02_WAVES,
+  minibosses: STAGE_02_MINIBOSSES,
   mechanics: ['bounce-wall'],
-  timeTargetSeconds: 100,
-  exit: { x: 2520, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
 /** Stage 3 - 悬空栈道. Introduces platforming with three heights. */
@@ -183,49 +238,94 @@ export const STAGE_03: StageDefinition = {
   name: '悬空栈道',
   act: 1,
   index: 3,
-  widthPx: 2800,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 40, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 2800, height: GROUND_H },
-    // Thin one-way planks at three heights, so the jump apex is exercised.
+    // Not one slab. The stage is about crossing gaps, so the floor breaks four
+    // times and the planks are the only way over. Every gap is inside the jump
+    // arc: 180px of gap against a 70px apex and a 180px/s run is a jump the
+    // player makes on purpose, which is what "platforming" has to mean.
+    { x: 0, y: FLOOR_TOP, width: 3000, height: GROUND_H },
     { x: 600, y: 340, width: 140, height: 16 },
     { x: 900, y: 280, width: 140, height: 16 },
     { x: 1200, y: 220, width: 140, height: 16 },
     { x: 1700, y: 300, width: 160, height: 16 },
+    { x: 2000, y: 240, width: 160, height: 16 },
+    // Gap 1: 180px.
+    { x: 3180, y: FLOOR_TOP, width: 2400, height: GROUND_H },
+    { x: 3400, y: 300, width: 150, height: 16 },
+    { x: 3700, y: 230, width: 150, height: 16 },
+    { x: 4000, y: 300, width: 150, height: 16 },
+    // Gap 2, crossed on the higher line.
+    { x: 5580, y: FLOOR_TOP - 90, width: 200, height: 18 },
+    { x: 5940, y: FLOOR_TOP - 90, width: 200, height: 18 },
+    { x: 6300, y: FLOOR_TOP, width: 2600, height: GROUND_H },
+    { x: 6600, y: 290, width: 160, height: 16 },
+    { x: 7000, y: 220, width: 160, height: 16 },
+    { x: 7400, y: 300, width: 160, height: 16 },
+    // Gap 3.
+    { x: 8900, y: FLOOR_TOP - 80, width: 220, height: 18 },
+    { x: 9300, y: FLOOR_TOP - 80, width: 220, height: 18 },
+    { x: 9700, y: FLOOR_TOP, width: 2300, height: GROUND_H },
+    { x: 10000, y: FLOOR_TOP - 120, width: 180, height: 18 },
+    { x: 10600, y: FLOOR_TOP - 80, width: 180, height: 18 },
+    { x: 11200, y: FLOOR_TOP - 140, width: 200, height: 18 },
   ],
   bounceWalls: [],
-  targets: [groundTarget('t1', 1000), groundTarget('t2', 1500), groundTarget('t3', 2300)],
+  targets: [],
+  waves: STAGE_03_WAVES,
+  minibosses: STAGE_03_MINIBOSSES,
   mechanics: ['platforming'],
-  timeTargetSeconds: 110,
+  timeTargetSeconds: 600,
   // FLOOR_TOP - 120, not 220. The doors on every other stage reach the floor, so
   // walking into the x coordinate is enough; this one floated 60px above head
   // height and could only be entered from the highest plank. found while
   // recording: a bot walked the full width of stage 3, stood under the door at
   // the right x with three hearts, and never triggered the clear.
-  exit: { x: 2720, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
-/** Stage 4 - 审计者. Boss stage. */
+/**
+ * Stage 4 - 审计者. Boss stage.
+ *
+ * A boss stage used to be an empty 1600px corridor with the auditor at the far
+ * end: `targets` was empty, nothing arrived, and the fight began on the second
+ * screen. The stage is now the act's approach - four beats and the 审计书记 -
+ * so the auditor is what the act has been building to.
+ *
+ * The arena itself stays the same length it always was. Everything the player
+ * fights through comes before it, which is the point of a boss stage: the corridor
+ * is the exam and the arena is the result.
+ */
 export const STAGE_04: StageDefinition = {
   id: 'stage-04',
   name: '审计者',
   act: 1,
   index: 4,
-  widthPx: 1600,
+  widthPx: 12000,
   heightPx: 540,
   spawn: { x: 60, y: FLOOR_TOP - 60 },
   platforms: [
-    { x: 0, y: FLOOR_TOP, width: 1600, height: GROUND_H },
+    { x: 0, y: FLOOR_TOP, width: 10800, height: GROUND_H },
     { x: 400, y: 320, width: 120, height: 16 },
-    { x: 1100, y: 320, width: 120, height: 16 },
+    { x: 1600, y: 300, width: 140, height: 16 },
+    { x: 3000, y: 320, width: 140, height: 16 },
+    { x: 4600, y: 300, width: 160, height: 16 },
+    { x: 6000, y: 320, width: 140, height: 16 },
+    { x: 7400, y: 300, width: 160, height: 16 },
+    // The arena: a clean floor with no ledges, so the fight is about reading the
+    // beam and the chains rather than about platforming under them.
+    { x: 10800, y: FLOOR_TOP, width: 1200, height: GROUND_H },
   ],
   bounceWalls: [],
   targets: [],
+  waves: STAGE_04_WAVES,
+  minibosses: STAGE_04_MINIBOSSES,
   mechanics: ['platforming'],
   bossId: 'claude-auditor',
-  timeTargetSeconds: 120,
-  exit: { x: 1520, y: FLOOR_TOP - 120, width: 40, height: 120 },
+  timeTargetSeconds: 600,
+  exit: { x: 11880, y: FLOOR_TOP - 120, width: 40, height: 120 },
 }
 
 /** Stage 5 - 冷却管廊. Introduces chasing enemies. */
