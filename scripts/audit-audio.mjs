@@ -96,3 +96,133 @@ for (const entry of dirs) {
 
 console.log('')
 console.log(problems.length === 0 ? '✓ 所有音频都有实际内容' : `✗ ${problems.length} 个文件有问题`)
+
+/**
+ * Loop-seam and weapon-distinctness checks (M4 exit standards).
+ *
+ * These answer the two standards a file-presence check cannot: "每关有对应 BGM
+ * 且循环无明显断点" and "8 种武器射击音效可辨".
+ *
+ * Two numeric approaches were tried first and both failed calibration - a
+ * deliberately truncated track scored *better* than the shipped one, so the
+ * numbers were measuring noise. What is used here instead is the weaker but
+ * honest pair:
+ *
+ *   - Render the seam. The last 2s and first 2s of every track are drawn as one
+ *     continuous waveform with the wrap marked, so a click would be a visible
+ *     wall and a level jump a visible step. Written to .tmp/bgm-seams.png for a
+ *     human to look at; the script only reports where it is.
+ *   - Compare envelopes with a known-good control. A file must score 1.0 against
+ *     itself; a real pair scoring that high would mean a duplicated file. The
+ *     envelope is what separates gunshots by ear (crack vs sizzle), and unlike
+ *     spectrum it is not shared across a sample pack.
+ */
+function decodeMono(file, rate) {
+  const result = spawnSync(
+    FFMPEG,
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      file,
+      '-ac',
+      '1',
+      '-ar',
+      String(rate),
+      '-f',
+      's16le',
+      '-',
+    ],
+    { maxBuffer: 512 * 1024 * 1024 },
+  )
+  if (result.status !== 0 || !result.stdout) return null
+  const buf = result.stdout
+  const n = Math.floor(buf.length / 2)
+  const out = new Float64Array(n)
+  for (let i = 0; i < n; i += 1) out[i] = buf.readInt16LE(i * 2)
+  return out
+}
+
+function envelopeOf(file, points = 24) {
+  const samples = decodeMono(file, 22050)
+  if (samples === null || samples.length < points * 8) return null
+  const size = Math.floor(samples.length / points)
+  const env = new Array(points).fill(0)
+  for (let i = 0; i < points; i += 1) {
+    let total = 0
+    for (let k = i * size; k < (i + 1) * size; k += 1) total += Math.abs(samples[k])
+    env[i] = total / size
+  }
+  const peak = Math.max(...env)
+  return peak > 0 ? env.map((v) => v / peak) : env
+}
+
+function cosine(a, b) {
+  let dot = 0
+  let na = 0
+  let nb = 0
+  for (let i = 0; i < a.length; i += 1) {
+    dot += a[i] * b[i]
+    na += a[i] * a[i]
+    nb += b[i] * b[i]
+  }
+  return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb)
+}
+
+const WEAPON_SFX = ['pulse', 'scatter', 'rifle', 'homing', 'pierce', 'cluster', 'laser', 'grenade']
+
+if (process.argv.includes('--with-audio-quality')) {
+  console.log('')
+  console.log('== 武器音效可辨性（包络形状）==')
+  const sfxDir = join(root, 'docs/game/requirements/assets/audio/sfx')
+  const envs = new Map()
+  for (const w of WEAPON_SFX) {
+    const env = envelopeOf(join(sfxDir, `${w}.ogg`))
+    if (env === null) {
+      problems.push({ label: 'SFX', name: w, flags: ['无法解码包络'] })
+      continue
+    }
+    envs.set(w, env)
+  }
+
+  // Control: a file against itself must be 1.0. Anything close to that between
+  // two different weapons means one of them is a copy.
+  const names = [...envs.keys()]
+  if (names.length > 0) {
+    const self = cosine(envs.get(names[0]), envs.get(names[0]))
+    console.log(`  对照（自比，应 = 1.0000）：${self.toFixed(4)}`)
+  }
+
+  let closest = { score: -1, a: '', b: '' }
+  for (let i = 0; i < names.length; i += 1) {
+    for (let j = i + 1; j < names.length; j += 1) {
+      const score = cosine(envs.get(names[i]), envs.get(names[j]))
+      if (score > closest.score) closest = { score, a: names[i], b: names[j] }
+    }
+  }
+  if (names.length > 1) {
+    console.log(`  最相似一对：${closest.a} / ${closest.b} = ${closest.score.toFixed(4)}`)
+    if (closest.score >= 0.999) {
+      problems.push({
+        label: 'SFX',
+        name: `${closest.a}/${closest.b}`,
+        flags: ['包络几乎相同，疑似复制'],
+      })
+    } else {
+      console.log('  ✓ 八种武器音效时域形状两两不同，无复制品')
+    }
+  }
+
+  console.log('')
+  console.log('== BGM 循环接缝 ==')
+  console.log('  波形图需人工查看（数值指标经校准不可信，见本文件注释）：')
+  console.log('    node scripts/render-bgm-seams.mjs  ->  .tmp/bgm-seams.svg')
+  console.log('  判定：红线（循环接缝）两侧波形应连续、幅度相近；出现垂直墙或电平突变才是断点。')
+}
+
+if (problems.length > 0) {
+  console.log('')
+  console.log(`✗ ${problems.length} 项不通过`)
+  process.exitCode = 1
+}

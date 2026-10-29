@@ -1,6 +1,6 @@
 {
   "name": "@contra/game-web",
-  "version": "0.23.4",
+  "version": "0.23.5",
   "private": true,
   "type": "module",
   "description": "Presentation layer: Phaser scenes, gray-box sprites and the event bridge over the rule layer.",
