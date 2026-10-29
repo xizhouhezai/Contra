@@ -471,12 +471,42 @@ M6 补这一块，不改玩法规则。
   - **实现**：`StageScene` 读 `target.archetype`
   - **验收**：浏览器实测 act I 三个目标均为 enemyArt-patrol-idle
 
-### M6.6 待完成（M6.1 后续）
+### M6.6 原「待接入」项 —— 已于 2026-10-29 核对，实际全部已接入
 
-- `[ ]` **T-M6-19** 接入 HUD 头像（6 个素材已生成）
-- `[ ]` **T-M6-20** 接入通关印章（4 个素材已生成）
-- `[ ]` **T-M6-21** 接入武器图标（10 个素材已生成）
-- `[ ]` **T-M6-22** 接入 Boss 立绘（4 个已生成，需先处理白底透明）
+> 这四项在 M6 交付时确实只是「素材已生成」，但**代码早已接入，
+> 文档没回头改**。2026-10-29 逐项核实后更正状态，实现在下表。
+
+- `[x]` **T-M6-19** HUD 头像（6 个）
+  - **实现**：`BootScene` 按 `portraitUrl` 入队；`StageScene.ts:816` 与
+    `CharacterSelectScene` 经 `resolveLook` 使用
+  - **验收**：代码引用点存在，素材 `assets/portraits/*.webp` 齐备
+
+- `[x]` **T-M6-20** 通关印章（4 个）
+  - **实现**：`assets/stamps.ts`（`stampKey` / `stampFor` / `stampUrl`）；
+    `BootScene` 入队，`ResultScene.ts:43` 按评级绘制
+
+- `[x]` **T-M6-21** 武器图标（10 个）
+  - **实现**：`assets/weapons.ts`（`weaponIconKey` / `weaponsWithIcons`）；
+    `StageScene.ts:506`（HUD 当前武器）与 `:1741`（拾取提示）
+
+- `[x]` **T-M6-22** Boss 立绘（4 个，含白底处理）
+  - **实现**：`scripts/cutout-bosses.py` 抠白底产出 `bosses/cutout/*.webp`；
+    `assets/bosses.ts`（`bossArtPreference` 按阶段选形态）；`StageScene.ts:1602`
+
+### M6.7 真正的残留缺口：幕 II/III 中段小 Boss 正式美术
+
+- `[ ]` **T-M6-23** 8 只中段小 Boss 替换掉程序化占位图
+  - **追溯**：REQ-STG-009
+  - **现状**：行为/血量/招式/掉落全部已就位，**替换是换纹理，不改代码**——
+    把新图按同名放到 `assets/minibosses/` 即生效
+  - **为什么算缺口**：幕 I 四只是真实美术（31~41KB/帧、9k~28k 色），
+    幕 II/III 八只仍是纯色块占位（2~5KB/帧、600~2.4k 色），
+    这是 M4「无灰盒残留」出口标准里唯一实质未达成的一项
+  - **提示词已就绪**：[批次 2/3 §11](/game/design/stage-art-prompts-batch23)
+    （8 条，含招式对应表与四帧锚点要求）
+  - **可复现判据**：`python scripts/report-miniboss-art.py`
+    （`--strict` 在有占位时返回 1，可用于将来把缺口焊死）
+  - **验收**：该脚本输出 `0 of 12 ... placeholder`，且 `--strict` 通过
 
 
 ## 任务统计
@@ -489,10 +519,11 @@ M6 补这一块，不改玩法规则。
 | M3 | 8 |
 | M4 | 10 |
 | M5 | 8 |
-| M6 | 22 |
-| **合计** | **80** |
+| M6 | 23 |
+| **合计** | **81** |
 
-其中 M6 的 18 项已完成、4 项待接入（T-M6-19 ~ 22）。
+其中 M6 的 22 项已完成、1 项待做（T-M6-23：幕 II/III 八只小 Boss 的正式美术，
+提示词已就绪，替换不改代码）。
 
 ## 追溯
 
