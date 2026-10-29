@@ -65,26 +65,32 @@ export function preloadTerrain(load: Phaser.Loader.LoaderPlugin): void {
 }
 
 /**
- * Act I room-kit tiles.
+ * Room-kit tiles, one kit per act.
  *
- * Source of truth: docs/game/design/stage-art-prompts-batch1.md §5.
+ * Source of truth: docs/game/design/stage-art-prompts-batch23.md §7.1/§7.2, which
+ * supersedes batch1.md §5 now that acts II and III shipped their own sets.
  *
- * These are the six pieces the expansion's act I rooms are built from: a floor
- * plate, a wall plate, a platform strip, a props atlas, a hazard strip and a door
- * sheet. They are a different language from the `terrain/` set above - that one is
- * a single tiled ground strip in three tints, this one is a kit with corners and
- * edges - so they are addressed separately rather than folded into
- * GroundVariant.
+ * These are the six pieces the expansion's rooms are built from: a floor plate, a
+ * wall plate, a platform strip, a props atlas, a hazard strip and a door sheet.
+ * They are a different language from the `terrain/` set above - that one is a
+ * single tiled ground strip in three tints, this one is a kit with corners and
+ * edges - so they are addressed separately rather than folded into GroundVariant.
  *
- * Sizes come from the packer, not from a guess: floor and wall are 256x256, the
- * platform is 384x64, the hazard strip is 384x128, the props atlas is 256x192 and
- * the door sheet is 288x160.
+ * The six names and their sizes are common to all three acts; only the artwork
+ * differs. Sizes come from the packer, not from a guess: floor and wall are
+ * 256x256, the platform is 384x64, the hazard strip is 384x128, the props atlas is
+ * 256x192 and the door sheet is 288x160.
  */
-export const ACT1_TILE_NAMES = ['floor', 'wall', 'platform', 'props', 'hazard', 'door'] as const
-export type Act1TileName = (typeof ACT1_TILE_NAMES)[number]
+export const ROOM_KIT_ACTS = [1, 2, 3] as const
+export type RoomKitAct = (typeof ROOM_KIT_ACTS)[number]
 
-/** Source size of each act I tile, so a caller can slice without loading it. */
-export const ACT1_TILE_SIZE: Readonly<Record<Act1TileName, { width: number; height: number }>> = {
+export const ROOM_KIT_TILE_NAMES = ['floor', 'wall', 'platform', 'props', 'hazard', 'door'] as const
+export type RoomKitTileName = (typeof ROOM_KIT_TILE_NAMES)[number]
+
+/** Source size of each tile, so a caller can slice without loading it. */
+export const ROOM_KIT_TILE_SIZE: Readonly<
+  Record<RoomKitTileName, { width: number; height: number }>
+> = {
   floor: { width: 256, height: 256 },
   wall: { width: 256, height: 256 },
   platform: { width: 384, height: 64 },
@@ -93,55 +99,94 @@ export const ACT1_TILE_SIZE: Readonly<Record<Act1TileName, { width: number; heig
   door: { width: 288, height: 160 },
 }
 
-const act1Modules = import.meta.glob(
-  '../../../../docs/game/requirements/assets/tiles/tiles-act1-*.webp',
+/**
+ * A floor plate only reads as ground at 40px and up; everything shorter is a ledge
+ * drawn from the platform strip. Carried over from the act I pass unchanged so the
+ * three acts keep one drawing rule.
+ */
+const GROUND_PLATE_MIN_HEIGHT = 40
+
+/**
+ * One glob for all three acts rather than one per act.
+ *
+ * Three literals would have to be kept in step with ROOM_KIT_ACTS by hand, and the
+ * failure mode of forgetting one is silent: a stage quietly falls back to the
+ * shared ground strip. Parsing the act out of the path instead cannot miss a pack.
+ */
+const roomKitModules = import.meta.glob(
+  '../../../../docs/game/requirements/assets/tiles/tiles-act*.webp',
   { eager: true, query: '?url', import: 'default' },
 ) as Record<string, string>
 
-const ACT1_NAME = /tiles-act1-([a-z]+)\.webp$/
+const ROOM_KIT_PATH = /tiles-act([123])-([a-z]+)\.webp$/
 
-const act1Urls = new Map<Act1TileName, string>()
-for (const [path, url] of Object.entries(act1Modules)) {
-  const match = ACT1_NAME.exec(path)
-  const name = match?.[1]
-  if (name === undefined) continue
-  if (!(ACT1_TILE_NAMES as readonly string[]).includes(name)) continue
-  act1Urls.set(name as Act1TileName, url)
+function isRoomKitAct(value: number): value is RoomKitAct {
+  return (ROOM_KIT_ACTS as readonly number[]).includes(value)
 }
 
-/** Texture key for one act I tile. */
-export function act1TileKey(name: Act1TileName): string {
-  return `act1-tile-${name}`
-}
-
-/** True when that piece of the kit shipped. */
-export function hasAct1Tile(name: Act1TileName): boolean {
-  return act1Urls.has(name)
+const roomKitUrls = new Map<RoomKitAct, Map<RoomKitTileName, string>>()
+for (const [path, url] of Object.entries(roomKitModules)) {
+  const match = ROOM_KIT_PATH.exec(path)
+  const act = Number(match?.[1])
+  const name = match?.[2]
+  if (!isRoomKitAct(act) || name === undefined) continue
+  if (!(ROOM_KIT_TILE_NAMES as readonly string[]).includes(name)) continue
+  const forAct = roomKitUrls.get(act) ?? new Map<RoomKitTileName, string>()
+  forAct.set(name as RoomKitTileName, url)
+  roomKitUrls.set(act, forAct)
 }
 
 /**
- * Queues the act I kit.
+ * Texture key for one tile of one act.
+ *
+ * The act is part of the key because Phaser's texture cache is global to the game,
+ * not per scene: a shared `act1-tile-floor`-style key would let whichever act
+ * loaded first paint the other two, and the two kits are different art.
+ */
+export function roomKitTileKey(act: RoomKitAct, name: RoomKitTileName): string {
+  return `act${act}-tile-${name}`
+}
+
+/** Which act a stage belongs to: 1-4 act I, 5-8 act II, 9-12 act III. */
+export function roomKitActFor(stageIndex: number): RoomKitAct {
+  if (stageIndex <= 4) return 1
+  if (stageIndex <= 8) return 2
+  return 3
+}
+
+/** True when that piece of that act's kit shipped. */
+export function hasRoomKitTile(act: RoomKitAct, name: RoomKitTileName): boolean {
+  return roomKitUrls.get(act)?.has(name) ?? false
+}
+
+/**
+ * Whether a stage draws its floors from the room kit instead of the shared strip.
+ *
+ * Acts II and III are packed separately from this file, so a stage can reach the
+ * scene before its art exists. The gate is on the two pieces the platform path
+ * actually reads, not on the act number: a kit that is half-packed would draw its
+ * ground from the new language and its ledges from the old one, and one stage
+ * mixing two languages is worse than a stage that is simply still on the old one.
+ */
+export function usesRoomKit(stageIndex: number): boolean {
+  const act = roomKitActFor(stageIndex)
+  return hasRoomKitTile(act, 'floor') && hasRoomKitTile(act, 'platform')
+}
+
+/**
+ * Queues the kit of one act.
  *
  * Six files, about 300KB together - cheap enough to load per stage rather than at
- * boot, and loaded per stage anyway because a stage that does not use the kit
- * should not pay for it.
+ * boot, and loaded per stage anyway because a stage only needs its own act's art.
  */
-export function preloadAct1Tiles(load: Phaser.Loader.LoaderPlugin): void {
-  for (const [name, url] of act1Urls) load.image(act1TileKey(name), url)
+export function preloadRoomKit(load: Phaser.Loader.LoaderPlugin, act: RoomKitAct): void {
+  for (const [name, url] of roomKitUrls.get(act) ?? []) {
+    load.image(roomKitTileKey(act, name), url)
+  }
 }
 
 /**
- * Whether a stage belongs to the act that has the kit.
- *
- * Act I only: stages 5-12 are still on the shared ground strip, and drawing them
- * from this kit would mix two visual languages in one campaign.
- */
-export function usesAct1Kit(stageIndex: number): boolean {
-  return stageIndex >= 1 && stageIndex <= 4
-}
-
-/**
- * Draws one platform from the act I kit, falling back to the shared strip.
+ * Draws one platform from a stage's room kit, falling back to the shared strip.
  *
  * Ground slabs are the floor plate tiled; ledges are the platform strip, which is
  * authored as three segments (end cap, repeatable middle, end cap) and is therefore
@@ -149,13 +194,14 @@ export function usesAct1Kit(stageIndex: number): boolean {
  * the caller's existing path, because an invisible floor is a far worse failure
  * than an old-looking one.
  */
-export function drawAct1Platform(
+export function drawRoomKitPlatform(
   scene: Phaser.Scene,
   platform: { x: number; y: number; width: number; height: number },
+  act: RoomKitAct,
 ): Phaser.GameObjects.GameObject | null {
-  const isGround = platform.height >= 40
-  const name: Act1TileName = isGround ? 'floor' : 'platform'
-  const key = act1TileKey(name)
+  const isGround = platform.height >= GROUND_PLATE_MIN_HEIGHT
+  const name: RoomKitTileName = isGround ? 'floor' : 'platform'
+  const key = roomKitTileKey(act, name)
   if (!scene.textures.exists(key)) return null
 
   const tile = scene.add
@@ -167,11 +213,11 @@ export function drawAct1Platform(
   // 16px-thick strip being drawn into a 16-20px slot, so it is scaled to fit the
   // height and left to tile horizontally.
   if (isGround) {
-    const source = ACT1_TILE_SIZE[name]
+    const source = ROOM_KIT_TILE_SIZE[name]
     tile.tileScaleX = 1
     tile.tileScaleY = platform.height / source.height
   } else {
-    tile.tileScaleY = platform.height / ACT1_TILE_SIZE.platform.height
+    tile.tileScaleY = platform.height / ROOM_KIT_TILE_SIZE.platform.height
   }
   return tile
 }

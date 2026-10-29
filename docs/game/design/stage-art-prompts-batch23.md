@@ -5,13 +5,52 @@ description: 幕 II、幕 III 的房间背景、房间地形套件、玩法 UI �
 
 # 美术生成提示词 · 批次 2/3（幕 II / 幕 III 装饰性美术）
 
-> 状态：**提示词就绪，待生成**（2026-10-28）
+> 状态：**§三 / §四 原始图已生成、已验收、已打包并接线**（2026-10-29）；
+> §五 / §六 未生成（§六 评估后不做，见 §6）；房间背景按 §7.3 打包不接线
 > 配套文档：[批次 1 提示词（幕 I）](/game/design/stage-art-prompts-batch1) ·
 > [美术风格指南](/game/design/art-style) ·
 > [关卡扩容方案](/game/design/stage-expansion-plan) ·
 > [美术资源总索引](/game/design/asset-index)
 > 前置：批次 1 的 36 个文件已落盘并接入第 1~4 关；中段小 Boss 12 只已接入全部 12 关
 > （幕 II/III 的 8 只是程序化占位图，替换它们的正式美术提示词见 §九）
+
+## 交付记录（2026-10-29）
+
+§三、§四 共 18 张原始图落盘，已于当日**验收、打包、接线**（详见 §7 与 §8）：
+
+| 类别 | 数量 | 原始图位置 | 产物 |
+| --- | --- | --- | --- |
+| 房间背景 | 6 | `vibe_images/archive/act2/`、`vibe_images/archive/act3/` | `backgrounds-rooms-act{2,3}/`（按 §7.3 不接线） |
+| 地形套件（floor/wall/platform 贴图 + props/hazard/door 网格） | 12 | 同上 | `tiles/tiles-act{2,3}-*.webp`，已接入第 5~12 关 |
+
+QA 拼图：`vibe_images/archive/_qa/act2-qa-tiles.png`、`act3-qa-tiles.png`、
+`act2-tiles-tiling-preview.png`、`act3-tiles-tiling-preview.png`、
+`act2-rooms-preview.png`、`act3-rooms-preview.png`。
+
+验收结论（逐张实测，口径见 §8）：
+
+| 检查项 | 结果 |
+| --- | --- |
+| 张数与命名 | 18 张齐备，全部匹配 §1.6 的 glob；返工版本各留一份 |
+| 源图尺寸 | 背景 2560×1080（≥1920 且 ≥带高 720）；三张贴图 1024×1024；三张网格与 §4.1 一致 |
+| 网格对齐 | props 1024×768=4×3、hazard 1024×768=3×1、door 1536×1024=3×1 |
+| 白底可抠 | 用真实打包函数（`erase_watermark → cut_cell → prep`）跑通，逐格覆盖率与幕 I 基线同区间，无「整格保留」 |
+| 打包后尺寸 | floor/wall 256×256、platform 384×64、props 256×192、hazard 384×128、door 288×160，两幕全一致 |
+| 3×3 平铺 | 无可见接缝 |
+| 房间背景打包 | 1920×540，不透明 |
+
+**实际生成规格与 §4.1 表格的出入**（以脚本与批次 1 原始图为准）：
+
+- hazard 实际 **1024×768，3×1**（表里写 1024×256、4×1）
+- door 实际 **1536×1024，3×1**（表里写 1024×256、4×1）
+- props 实际 1024×768，4×3；floor/wall/platform 实际 1024×1024 单张可平铺贴图
+- 平台有自己的源文件 `act*-tiles-platform-texture_*.png`，打包脚本相应改为独立的
+  `platform()` 源（幕 I 是从地板贴图裁的）
+
+**已知可接受项**：卷宗/卡牌/纸页上有极小的伪文字笔画，缩到 64×64 后不可读；
+幕 III 门的全开帧用「纸色透光」表示开启，与幕 II 的黑色门洞不同，但仍靠指示灯区分。
+**返工过两次**：幕 II 门第一版三帧缩放/基线不一致，幕 III 道具第一版重复了两个书堆，
+两版原始图都保留在归档目录，打包取「时间戳最新」的一版。
 
 ## 0. 这份文档是什么
 
@@ -535,18 +574,53 @@ as a dark silhouette；paper #f4f1ea only as thin edge highlights
 
 | # | 改哪里 | 改什么 |
 | --- | --- | --- |
-| 1 | `scripts/pack-act1-rooms.py` | glob 改成 `act2-` / `act3-`，输出目录改成 `backgrounds-rooms-act2` / `-act3` |
-| 2 | `scripts/pack-act1-tiles.py` | 同上，输出 `tiles-act2-*` / `tiles-act3-*` |
-| 3 | `scripts/pack-act1-ui.py` | 同上，输出 `ui-act2-*` / `ui-act3-*` |
-| 4 | `packages/game-web/src/stage/terrain.ts` | `usesAct1Kit` 扩成按幕选套件；`ACT1_TILE_NAMES` 拆成三套 |
-| 5 | `packages/game-web/src/assets/effects.ts` | UI 的 glob 扩到新目录 |
+| 1 | `scripts/pack-act1-rooms.py` | 加 `--act`，输出 `backgrounds-rooms-act2` / `-act3` |
+| 2 | `scripts/pack-act1-tiles.py` | 加 `--act`，输出 `tiles-act2-*` / `tiles-act3-*` |
+| 3 | `scripts/pack-act1-ui.py` | 无需改：本批 §六 未生成原始图，无 UI 产物 |
+| 4 | `packages/game-web/src/stage/terrain.ts` | 按幕选套件：`usesRoomKit` / `ROOM_KIT_ACTS`，纹理键带幕 |
+| 5 | `packages/game-web/src/assets/effects.ts` | 无需改：UI 仍是幕 I 那三张（§六 未生成） |
 | 6 | `scripts/build-scenes.py` | 无需改：它已按「时间戳最新」取文件（§5.1） |
-| 7 | `packages/game-web/src/stage/terrain.ts` | **房间背景层还没接进游戏**——需要一个从 `backgrounds-rooms*/` 读层的路径 |
+| 7 | `packages/game-web/src/stage/terrain.ts` | **房间背景层仍不接线**（决定见下） |
 
-第 7 条是真正的缺口：批次 1 的 3 张房间背景生成了、打包了，但**游戏加载的是
-`scenes/<stage>/` 的四层视差**，`backgrounds-rooms/` 目录没有任何代码引用。
-要么接线，要么承认它是为 roguelite 房间准备的、而房间图还没实现（`RoomGraph` /
-`RoomLayout` 至今零调用方）。**两件事要一起决定**，否则会做出第二套没人用的美术。
+### 7.1 打包产物约定（实现按此对齐，勿各自发明）
+
+原始图 → 产物是一对一映射，输出名**不以原始文件名为准**，以本表为准：
+
+| 原始 glob | 条数 | 输出 |
+| --- | --- | --- |
+| `act2-tiles-{floor,wall,platform}-texture_*.png` | 3 | `tiles/tiles-act2-{floor,wall,platform}.webp` |
+| `act2-tiles-{props,hazard,door}-sheet_*.png` | 3 | `tiles/tiles-act2-{props,hazard,door}.webp` |
+| `act3-` 同上 6 类 | 6 | `tiles/tiles-act3-*.webp` |
+| `act2-bg-*-v2_*.png` / `act2-bg-*-mid_*.png` / `act2-bg-*-far_*.png` | 3 | `backgrounds-rooms-act2/bg-act2-{server-hall-far,coolant-corridor-mid,forge-hall-far}.webp` |
+| `act3-bg-*.png` | 3 | `backgrounds-rooms-act3/bg-act3-{collapsing-archive-far,mirror-gallery-mid,shaft-void-sky}.webp` |
+
+- 每个 glob 取**字典序最新**的那个文件（`sorted(...)[-1]`），返工版本自动覆盖。
+- **命名坑**：幕 II 的机房那张原始文件名是 `act2-bg-server-hall-v2`，而关内语义是
+  `far` 层。必须像幕 I 的 `SHEETS` 字典那样**显式映射**，不能拿原始名直接当输出名，
+  否则将来按 `-far` 找会找不到。
+- 输出尺寸沿用幕 I：tiles 见 §4.1 表，房间背景 1920×540。
+
+### 7.2 游戏侧按幕选套件（第 4 条）
+
+- `terrain.ts` 的六个瓦片名不变，纹理键按幕区分：`act1-tile-floor` →
+  `act{act}-tile-floor`，三幕各一套，互不覆盖。
+- `usesRoomKit(stageIndex)` 取代表：第 1~4 关 → 幕 I，5~8 → 幕 II，9~12 → 幕 III。
+  无该幕产物时退回共享地面条（现有回退路径不变，不能出现隐形地板）。
+- 地面高度判据、平台三段的画法与幕 I 完全一致，不新增第二种画法。
+
+### 7.3 房间背景：本批决定「打包但不接线」
+
+`backgrounds-rooms*/` 是 roguelite 房间的背景带（1920×540），而游戏加载的是
+`scenes/<stage>/` 的四层 16:9 视差（1920×1080）。两者是**不同系统，不能互相替代**：
+把 540 高的房间带塞进 1080 的视差层只会被放大糊掉。
+
+因此本批的决定是：**打包产物备好，接线等房间层**。依据是房间层至今不存在
+（`RoomGraph` / `RoomLayout` 在 `game-core` 里齐全且测试完好，但**零调用方**），
+现在接线只能接出一个没人走的分支——那正是「第二套没人用的美术」。
+幕 II/III 的 `scenes/stage-05..12/` 已有专属四层，关卡视觉不受影响。
+
+> 这条是**可回退的产品决定**，不是技术债：房间层一旦落地（房间图 + 房间地形拼接），
+> `backgrounds-rooms*/` 直接就是那一层的现成素材，无需重新生成。
 
 ## 8. 交付验收
 
