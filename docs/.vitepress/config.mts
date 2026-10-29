@@ -115,6 +115,10 @@ export default defineConfig({
               text: '批次 2/3 提示词（幕 II/III）',
               link: '/game/design/stage-art-prompts-batch23',
             },
+            {
+              text: '待生成交付单 · 小 Boss（8 只）',
+              link: '/game/design/art-prompts-minibosses-pending',
+            },
             { text: '场景与音效规划', link: '/game/design/scene-plan' },
             { text: '场景生成提示词', link: '/game/design/scene-prompts' },
             { text: '敌人攻击设计', link: '/game/design/enemy-attack' },
