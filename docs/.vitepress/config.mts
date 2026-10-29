@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+﻿import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Contra',
@@ -116,8 +116,8 @@ export default defineConfig({
               link: '/game/design/stage-art-prompts-batch23',
             },
             {
-              text: '待生成交付单 · 小 Boss（8 只）',
-              link: '/game/design/art-prompts-minibosses-pending',
+              text: '小 Boss 美术（幕 II/III，已交付）',
+              link: '/game/design/art-prompts-minibosses',
             },
             { text: '场景与音效规划', link: '/game/design/scene-plan' },
             { text: '场景生成提示词', link: '/game/design/scene-prompts' },
