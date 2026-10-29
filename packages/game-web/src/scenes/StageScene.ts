@@ -71,12 +71,13 @@ import { HURT_SECONDS, motionFor, RECOIL_SECONDS } from '../sprites/motion'
 import { createParallax, updateParallax } from '../stage/createParallax'
 import { isVerticalStage, nextStage, resolveStage, type StageRequest } from '../stage/resolveStage'
 import {
-  drawAct1Platform,
   drawPlatform,
+  drawRoomKitPlatform,
   groundVariantFor,
-  preloadAct1Tiles,
+  preloadRoomKit,
   preloadTerrain,
-  usesAct1Kit,
+  roomKitActFor,
+  usesRoomKit,
 } from '../stage/terrain'
 
 /**
@@ -325,15 +326,17 @@ export class StageScene extends Phaser.Scene {
     // this is cheap and never varies by stage.
     preloadTerrain(this.load)
 
-    // Act I draws its floors from the expansion's room kit instead of the shared
+    // The stage's act draws its floors from its own room kit instead of the shared
     // ground strip. Both are queued rather than one or the other, because
-    // `drawAct1Platform` falls back to the strip when a tile is missing and a
+    // `drawRoomKitPlatform` falls back to the strip when a tile is missing and a
     // fallback path that was never loaded is a rectangle.
-    if (usesAct1Kit(stage.index)) preloadAct1Tiles(this.load)
+    if (usesRoomKit(stage.index)) preloadRoomKit(this.load, roomKitActFor(stage.index))
 
     // The gameplay UI: a wave warning band the act I beats draw when they fire.
-    // Three files under 40KB, so it rides with the stage rather than the boot.
-    if (usesAct1Kit(stage.index)) preloadUi(this.load)
+    // Three files under 40KB, so it rides with the stage rather than the boot. It
+    // stays on act I: batch 2/3 shipped no new UI art, so acts II and III have no
+    // second set to load.
+    if (roomKitActFor(stage.index) === 1) preloadUi(this.load)
 
     // A mid-stage fight's frames, per stage. Sixteen of them across act I is
     // about 1MB, which is why they are not in the boot load with the stage
@@ -770,14 +773,16 @@ export class StageScene extends Phaser.Scene {
 
   /** Platforms and the exit marker, drawn once from the stage definition. */
   private drawStage(): void {
-    const groundVariant = groundVariantFor(this.stage.index ?? 1)
-    const act1Kit = usesAct1Kit(this.stage.index ?? 1)
+    const stageIndex = this.stage.index ?? 1
+    const groundVariant = groundVariantFor(stageIndex)
+    const roomKitAct = roomKitActFor(stageIndex)
+    const roomKit = usesRoomKit(stageIndex)
     for (const platform of this.stage.platforms) {
-      // Act I uses the expansion's room kit; everything else keeps the shared
-      // strip. Null means the kit piece did not load, so fall through rather than
-      // drawing nothing.
-      if (act1Kit) {
-        const drawn = drawAct1Platform(this, platform)
+      // A stage with a packed room kit draws from it; everything else keeps the
+      // shared strip. Null means the kit piece did not load, so fall through rather
+      // than drawing nothing.
+      if (roomKit) {
+        const drawn = drawRoomKitPlatform(this, platform, roomKitAct)
         if (drawn !== null) continue
       }
       drawPlatform(this, platform, groundVariant, PALETTE.platform)

@@ -2,6 +2,10 @@
 node_modules/
 .pnpm-store/
 
+# python bytecode from the packing scripts
+__pycache__/
+*.pyc
+
 # build output
 dist/
 build/
