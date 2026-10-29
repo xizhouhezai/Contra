@@ -1,7 +1,19 @@
+import type Phaser from 'phaser'
 import { describe, expect, it } from 'vitest'
-import { STAMP_GRADES, stampFor, stampKey } from '../src/assets/stamps'
+import { preloadStamp, STAMP_GRADES, stampFor, stampKey, stampUrl } from '../src/assets/stamps'
 
 /** Clear stamps (T-M6-20). */
+
+/** Records the keys a loader was asked for, without a real Phaser loader. */
+function queueingLoader(): { load: Phaser.Loader.LoaderPlugin; queued: string[] } {
+  const queued: string[] = []
+  const load = {
+    image: (key: string) => {
+      queued.push(key)
+    },
+  } as unknown as Phaser.Loader.LoaderPlugin
+  return { load, queued }
+}
 
 describe('Grade to stamp mapping', () => {
   it('maps each letter grade to its own stamp', () => {
@@ -39,5 +51,30 @@ describe('Stamp keys', () => {
   it('gives each grade a distinct key', () => {
     const keys = STAMP_GRADES.map((g) => stampKey(g))
     expect(new Set(keys).size).toBe(4)
+  })
+
+  /**
+   * Stamps moved out of the boot load (0.94MB off the critical path of
+   * REQ-NFR-002), so ResultScene now queues exactly the grade it earned.
+   */
+  it('queues the stamp for one grade and only that one', () => {
+    const { load, queued } = queueingLoader()
+
+    preloadStamp(load, 'A')
+
+    expect(queued).toEqual([stampKey('A')])
+  })
+
+  it('never queues a key for a grade that has no file', () => {
+    // Every grade ships art today, so this documents the guard: the loader must
+    // not be handed `stamp-X` with an undefined url if a file is ever removed.
+    for (const grade of STAMP_GRADES) {
+      const { load, queued } = queueingLoader()
+      preloadStamp(load, grade)
+
+      const hasFile = stampUrl(grade) !== undefined
+      expect(queued).toHaveLength(hasFile ? 1 : 0)
+      if (hasFile) expect(queued[0]).toBe(stampKey(grade))
+    }
   })
 })

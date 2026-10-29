@@ -57,6 +57,18 @@ const DEFERRED_GLOBS = [
     prefix: 'terrain/',
     why: 'preloadTerrain() 同样只在 StageScene.preload 入队',
   },
+  {
+    prefix: 'stamps/',
+    why: 'preloadStamp() 在 ResultScene.preload 入队，通关结算才用得上',
+  },
+  {
+    prefix: 'bosses/',
+    why: 'preloadBossArt() 在 StageScene.preload 入队，走到 Boss 门才用得上',
+  },
+  {
+    prefix: 'avatars/',
+    why: '全项目没有任何场景绘制头像，BootScene 已于 2026-10-29 停止加载',
+  },
 ]
 
 const INDEX = join(DIST, 'index.html')

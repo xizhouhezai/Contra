@@ -177,3 +177,30 @@ export function bossArtPreference(bossId: FightId, phase: number): FightId[] {
   for (const id of bossFormsWithArt()) add(id)
   return order
 }
+
+/**
+ * Queues the portraits one fight can show across all of its phases.
+ *
+ * Loaded on stage entry rather than at boot: the four stage portraits are 0.81MB
+ * and nothing draws one before the player reaches a boss door, so at boot they
+ * are bytes on the critical path of REQ-NFR-002 for art that cannot appear yet.
+ *
+ * Every form the fight can reach is queued, not just the opening one: a phase
+ * change has to swap the texture instantly, and a portrait that only starts
+ * loading at the moment of the change would pop in a second later. The phase
+ * count is taken from PHASE_FORMS rather than assumed to be 1, because the GPT
+ * fight swaps form at its third and fourth phase - queueing phase 1 alone left
+ * the final form to load mid-fight.
+ */
+export function preloadBossArt(load: Phaser.Loader.LoaderPlugin, bossId: FightId): void {
+  const phases = PHASE_FORMS[bossId]?.length ?? 1
+  const queued = new Set<FightId>()
+  for (let phase = 1; phase <= phases; phase += 1) {
+    for (const id of bossArtPreference(bossId, phase)) {
+      if (queued.has(id)) continue
+      queued.add(id)
+      const url = bossArtUrl(id)
+      if (url !== undefined) load.image(bossArtKey(id), url)
+    }
+  }
+}
