@@ -40,6 +40,7 @@ import {
   bossArtPreference,
   minibossFrameCount,
   minibossFrameKey,
+  preloadBossArt,
   preloadMiniboss,
 } from '../assets/bosses'
 import {
@@ -343,6 +344,14 @@ export class StageScene extends Phaser.Scene {
     // bosses: a player on the title screen has not earned them yet.
     for (const placement of stage.minibosses ?? []) {
       preloadMiniboss(this.load, placement.minibossId)
+    }
+
+    // The stage boss's portraits, all phases. Deferred from boot for the same
+    // reason as the mid-stage frames, and at 0.81MB it is the larger of the two:
+    // nothing draws a boss portrait before the door opens, so loading it at boot
+    // only delayed the player's first move (REQ-NFR-002).
+    if (stage.bossId !== undefined && stage.bossId !== null) {
+      preloadBossArt(this.load, stage.bossId)
     }
 
     if (stageSceneLoaded(this, stageId)) return

@@ -2,8 +2,6 @@ import { CHARACTER_IDS } from '@contra/game-core'
 import Phaser from 'phaser'
 import { ANIMATION_CLIPS, FRAME_SIZE, sheetKey } from '../assets/animated'
 import { sheetUrl } from '../assets/animatedSheets'
-import { avatarKey, avatarUrl } from '../assets/avatars'
-import { bossArtKey, bossArtUrl, bossFormsWithArt } from '../assets/bosses'
 import { preloadEffects } from '../assets/effects'
 import { preloadEnemies } from '../assets/enemies'
 import { preloadEnemyProps } from '../assets/enemyProps'
@@ -16,14 +14,13 @@ import {
   portraitUrl,
 } from '../assets/manifest'
 import { preloadProjectiles } from '../assets/projectiles'
-import { STAMP_GRADES, stampKey, stampUrl } from '../assets/stamps'
 import { weaponIconKey, weaponIconUrl, weaponsWithIcons } from '../assets/weapons'
 import { preloadAudio } from '../audio/manifest'
 import { PALETTE } from '../config'
 import { applyFit } from '../fit'
 
 /**
- * Loads every texture, then hands off to the title.
+ * Loads the textures needed to reach the title and start playing.
  *
  * The loader is driven by the manifest rather than a hand-written list: a sheet
  * that exists on disk is loaded, one that does not is simply absent, and the
@@ -112,26 +109,27 @@ export class BootScene extends Phaser.Scene {
     // load eleven stage's worth of art the player will not see for minutes.
     // Each stage loads its own four layers on entry instead.
 
-    // Character avatars: square portraits used by the select screen and HUD.
-    for (const character of CHARACTER_IDS) {
-      const url = avatarUrl(character)
-      if (url !== undefined) this.load.image(avatarKey(character), url)
-    }
+    // Character avatars are deliberately NOT loaded here, and not anywhere else
+    // either: nothing in the game draws one. The select screen uses the painted
+    // portrait, the HUD uses the weapon icon. They were being queued on every
+    // boot at 0.62MB for a texture no scene asks for - the loader is driven by
+    // the manifest, so "the file exists" was enough to put it on the wire.
+    // `assets/avatars.ts` is kept for when a screen actually wants the square
+    // crop; until then it costs nothing.
 
-    for (const grade of STAMP_GRADES) {
-      const url = stampUrl(grade)
-      if (url !== undefined) this.load.image(stampKey(grade), url)
-    }
-
+    // Weapon icons ARE loaded here: the HUD shows the current weapon from the
+    // first frame of a stage, and a missing icon there reads as a bug. Ten files,
+    // 0.16MB - small enough that deferring them would only move the problem.
     for (const weaponId of weaponsWithIcons()) {
       const url = weaponIconUrl(weaponId)
       if (url !== undefined) this.load.image(weaponIconKey(weaponId), url)
     }
 
-    for (const bossId of bossFormsWithArt()) {
-      const url = bossArtUrl(bossId)
-      if (url !== undefined) this.load.image(bossArtKey(bossId), url)
-    }
+    // Stamps and boss portraits are also deferred - they are a further 1.75MB
+    // and neither can appear before the player clears a stage or reaches a boss
+    // door. ResultScene draws the letter when a stamp is absent and
+    // bossArtKeyFor returns null when a portrait is absent, so both paths already
+    // degrade rather than break. See preloadStamp / preloadBossArt.
 
     preloadAudio(this.load)
   }
