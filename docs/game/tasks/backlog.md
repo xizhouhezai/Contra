@@ -502,8 +502,10 @@ M6 补这一块，不改玩法规则。
   - **为什么算缺口**：幕 I 四只是真实美术（31~41KB/帧、9k~28k 色），
     幕 II/III 八只仍是纯色块占位（2~5KB/帧、600~2.4k 色），
     这是 M4「无灰盒残留」出口标准里唯一实质未达成的一项
-  - **提示词已就绪**：[批次 2/3 §11](/game/design/stage-art-prompts-batch23)
-    （8 条，含招式对应表与四帧锚点要求）
+  - **提示词已就绪**：[待生成交付单 · 小 Boss（8 只）](/game/design/art-prompts-minibosses-pending)
+    —— **自包含作业单**，每只含完整负向词、外形否定项与四帧动作语义，
+    可直接整份交给生图 agent；规格细节另见
+    [批次 2/3 §11](/game/design/stage-art-prompts-batch23)
   - **可复现判据**：`python scripts/report-miniboss-art.py`
     （`--strict` 在有占位时返回 1，可用于将来把缺口焊死）
   - **验收**：该脚本输出 `0 of 12 ... placeholder`，且 `--strict` 通过
