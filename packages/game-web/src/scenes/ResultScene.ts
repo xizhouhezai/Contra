@@ -1,6 +1,6 @@
 import { gradeRun, type RunResult } from '@contra/game-core'
 import Phaser from 'phaser'
-import { stampFor, stampKey } from '../assets/stamps'
+import { preloadStamp, stampFor, stampKey } from '../assets/stamps'
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config'
 import { applyFit } from '../fit'
 
@@ -19,6 +19,21 @@ export class ResultScene extends Phaser.Scene {
 
   init(data: RunResult): void {
     this.result = data
+  }
+
+  /**
+   * Queues the one stamp this run's grade needs.
+   *
+   * Stamps moved out of the boot load (REQ-NFR-002): four of them are 0.94MB and
+   * the first one cannot be seen until a stage has been cleared. Only the grade
+   * this run earned is fetched, not all four - a player who never scores S never
+   * downloads the S badge.
+   *
+   * Phaser runs preload to completion before create, so the letter fallback in
+   * create is for the missing-file case, not for an in-flight download.
+   */
+  preload(): void {
+    preloadStamp(this.load, stampFor(gradeRun(this.result)))
   }
 
   create(): void {

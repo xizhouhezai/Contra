@@ -7,6 +7,8 @@
  * should not be dressed up as an achievement.
  */
 
+import type Phaser from 'phaser'
+
 /** Grades the rule layer can produce. */
 export type StampGrade = 'S' | 'A' | 'B' | 'C'
 
@@ -56,3 +58,20 @@ export function stampFor(grade: string): StampGrade {
 
 /** Every grade, for preloading. */
 export const STAMP_GRADES: readonly StampGrade[] = ['S', 'A', 'B', 'C']
+
+/**
+ * Queues one grade's stamp.
+ *
+ * Not loaded at boot: four stamps are 0.94MB of the first download, and the only
+ * screen that draws one is the result card after a stage ends. REQ-NFR-002 is
+ * measured to the moment the player can act, so art that cannot appear until
+ * after their first clear is bytes on the critical path for no reason.
+ *
+ * `ResultScene` already falls back to drawing the letter when the texture is
+ * absent, so a frame that arrives after the card is drawn degrades to text
+ * rather than to an empty panel.
+ */
+export function preloadStamp(load: Phaser.Loader.LoaderPlugin, grade: StampGrade): void {
+  const url = stampUrl(grade)
+  if (url !== undefined) load.image(stampKey(grade), url)
+}
