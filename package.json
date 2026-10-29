@@ -1,6 +1,6 @@
 {
   "name": "contra-workspace",
-  "version": "0.23.3",
+  "version": "0.23.4",
   "private": true,
   "type": "module",
   "description": "Contra - a pnpm monorepo workspace pairing a typed core library, a CLI, and a VitePress documentation system.",
