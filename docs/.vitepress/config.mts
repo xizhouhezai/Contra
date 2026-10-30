@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Contra',
@@ -124,6 +124,7 @@ export default defineConfig({
             { text: '敌人攻击设计', link: '/game/design/enemy-attack' },
             { text: '战斗素材提示词', link: '/game/design/combat-prompts' },
             { text: 'Midscene 自动游玩录像', link: '/game/design/midscene-demo' },
+            { text: '十二关全流程录像', link: '/game/design/all-stages-demo' },
             { text: '架构决策记录', link: '/game/design/adr' },
           ],
         },
