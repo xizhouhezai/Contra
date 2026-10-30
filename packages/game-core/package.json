@@ -1,6 +1,6 @@
 {
   "name": "@contra/game-core",
-  "version": "0.23.5",
+  "version": "0.23.7",
   "private": true,
   "type": "module",
   "description": "Pure TypeScript gameplay rules: entity data types and the core event model.",
