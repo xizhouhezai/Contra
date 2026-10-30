@@ -1,6 +1,6 @@
 {
   "name": "@contra/cli",
-  "version": "0.24.1",
+  "version": "0.25.0",
   "private": true,
   "type": "module",
   "description": "Command line interface for the Contra workspace.",
