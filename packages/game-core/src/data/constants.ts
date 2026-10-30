@@ -34,6 +34,25 @@ export const PLAYER_WIDTH = 24
 /** Player collision box height, px. */
 export const PLAYER_HEIGHT = 40
 
+/**
+ * How far below the lowest surface of a stage still counts as being in it, px.
+ *
+ * Past this the player has left the level and is killed rather than falling
+ * forever. The margin only has to be wider than the deepest legitimate drop in
+ * the game - a jump reaches roughly 90px - so 260 leaves plenty of room without
+ * being so deep that the fall is still visible for seconds after the mistake.
+ */
+export const FALL_MARGIN = 260
+
+/**
+ * How many consecutive grounded steps make a surface a safe respawn point.
+ *
+ * Eight steps is about 0.13s at the fixed 60Hz tick: long enough that brushing
+ * the lip of a pit does not count as standing on it, short enough that a real
+ * landing registers before the player can walk off again.
+ */
+export const SAFE_STAND_STEPS = 8
+
 /** Bullet collision box width, px. Gray-box value until the real sprites land (M4). */
 export const BULLET_WIDTH = 8
 

@@ -255,9 +255,17 @@ describe('Breakable terrain (breakable-terrain)', () => {
     world.player.activeSlot = 0
 
     // The throw has to arc up and come back down before it can land on the floor.
+    //
+    // The floor is the only surface in this world, so once it breaks the player
+    // has nothing left to land on and keeps going until the fall plane catches
+    // them, at which point they lose a heart and are put back on the ledge they
+    // came from. That is the fix rather than a regression: what this test is
+    // about is that the floor really did stop holding them, and the lost heart
+    // is what records it. Asserting `y > 400` instead would now pass only in the
+    // broken build where the fall had no end.
     run(world, 80, { fire: true, moveY: 1 })
 
-    expect(world.player.position.y).toBeGreaterThan(400)
+    expect(world.player.hearts).toBeLessThan(3)
   })
 
   it('keeps holding the player up when nothing is fired', () => {
