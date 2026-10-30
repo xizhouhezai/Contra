@@ -31,12 +31,27 @@ pnpm --filter @contra/game-web build
 
 ## 体积现状
 
+**产物总体积**（`packages/game-web/dist/`，2026-10-30 实测）：
+
+| 类型 | 大小 | 文件数 | 何时下载 |
+| --- | --- | --- | --- |
+| 全部产物 | **47.47 MB** | 406 | — |
+| ├ 美术 `.webp` | 24.19 MB | 263 | 按需（进关卡才取对应关卡的四层视差） |
+| ├ 音频 `.ogg` | 21.72 MB | 35 | 按需（音乐在进关卡时才入队） |
+| └ JS | 1.56 MB | 106 | 按需（动态 import 的场景代码） |
+
+**首包**（启动必需，进标题页前强制下载的部分）：
+
 | 项 | 大小 | 预算 |
 | --- | --- | --- |
-| 游戏首包 | **7.14 MB** | ≤ 8 MB ✅ |
-| ├ 音频 | 5.62 MB | |
-| ├ JS | 1.26 MB | |
-| └ 美术 | 0.26 MB | |
+| 首包合计 | **3.86 MB** | ≤ 8 MB ✅ |
+| ├ 美术 | 3.05 MB | |
+| ├ JS | 0.56 MB | |
+| └ 音频 | 0.25 MB | |
+
+> 两个数字都要看：**首包 3.86MB 是玩家等���的量**，47.47MB 是玩家最终可能下载的总量
+> （12 关全部玩过 + 每关的音乐 + 梗图）。口径由 `scripts/check-first-load.mjs` 给出，
+> 它数的是 index.html 的 ESM 静态导入图，不是目录大小。
 
 **sourcemap 默认不生成**。需要调试时：
 
@@ -105,6 +120,31 @@ node scripts/check-selfhosted.mjs
 
 该脚本扫描 `packages/*/src` 下全部源码，列出所有非本地的 http(s) 链接。
 输出 `OK: 无第三方 CDN 依赖` 才算通过。
+
+## 跨浏览器核验
+
+发布到静态托管前，各浏览器引擎都要跑一遍关键路径：
+
+```bash
+node scripts/check-browsers.mjs
+```
+
+它用同一段脚本（进关卡 → 触发波次 → 战斗）在每个引擎上跑，收集
+console 错误、pageerror、未处理的 Promise 拒绝与失败请求。
+
+| 引擎 | 来源 | 覆盖 |
+| --- | --- | --- |
+| Chromium（Chrome） | 本机 | ✅ |
+| Chromium（Edge） | 本机 | ✅ |
+| WebKit（Safari 内核） | `npx playwright install webkit` | ✅ |
+| Gecko（Firefox） | `npx playwright install firefox` | 视机器 |
+
+> **跳过的引擎不算通过。** 脚本会明确列出跳过了哪些、以及缺什么条件，
+> 避免「本机只有 Chromium」被当成「四浏览器已验证」。
+>
+> Firefox / WebKit 的浏览器本体不在 Playwright 的 npm 包里，要单独下载；
+> 仓库依赖里不包含 Playwright，脚本直接去 pnpm 的虚拟存储里找它，
+> 以免为了一个检查工具给项目加一条依赖。
 
 ## MIME 类型
 
