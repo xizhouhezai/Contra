@@ -1,6 +1,6 @@
 {
   "name": "contra-workspace",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "private": true,
   "type": "module",
   "description": "Contra - a pnpm monorepo workspace pairing a typed core library, a CLI, and a VitePress documentation system.",
@@ -31,6 +31,7 @@
     "check:browsers": "node scripts/check-browsers.mjs",
     "check:codebuddy": "node scripts/check-codebuddy.mjs",
     "measure:memory": "node scripts/measure-memory.mjs",
+    "measure:cold-start": "node scripts/measure-cold-start-breakdown.mjs",
     "gate": "pnpm run check"
   },
   "devDependencies": {

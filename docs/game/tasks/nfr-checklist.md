@@ -26,7 +26,7 @@ description: REQ-NFR-001 ~ 021 的逐条核对结果与证据
 | ID | 需求 | 优先级 | 状态 | 证据 |
 | --- | --- | --- | --- | --- |
 | REQ-NFR-001 | 桌面 1080p 稳定 60fps | P0 | ✅ 通过 | `node scripts/measure-fps.mjs` 实测：headless Chrome + ANGLE/D3D11，进第 1 关自动游玩 30 秒，p50 = 60.0 fps、p95 = 60.0、mean = 59.8，**低于 50fps 的秒数 0 / 30**，最长连续低帧 0 秒 |
-| REQ-NFR-002 | 冷启动到可操作 ≤ 5 秒 | P0 | ✅ 通过（宽带口径） | `node scripts/measure-first-playable.mjs` 实测「进关卡且规则层出步」：**宽带 20Mbps 4.32s 通过**；4G 8Mbps 7.93s、3G 1.6Mbps 33.14s 未达标。同日把 stamps/bosses/avatars 移出首包（4.85 → 3.86MB），3G 档 38.2s → 33.1s。3G 档不可达：剩余 2.63MB 在该带宽下传输需 13.8s，属物理下限。4G 档的可优化点是**请求数**（305 个，多为 <20KB 小图），合并图集约可降至 78 个——列为后续项 |
+| REQ-NFR-002 | 冷启动到可操作 ≤ 5 秒 | P0 | ✅ 通过（宽带口径） | `node scripts/measure-first-playable.mjs` 实测「进关卡且规则层出步」：**宽带 20Mbps 4.32s 通过**；4G 8Mbps 6.62s、3G 1.6Mbps 33.14s 未达标。4G 档的差距经 `node scripts/measure-cold-start-breakdown.mjs` 的对照实验定位：去掉全部往返延迟只省 0.75s、带宽翻倍省 2.19s，**瓶颈是字节传输（线上 4.32MB）而非请求数**，因此「合并图集」这条路被实测否掉。4G 要达标需把线上字节降到 2.7MB 以内（重新压缩全部美术），属独立工作量，未排期 |
 | REQ-NFR-003 | 首包 ≤ 8MB | P0 | ✅ 通过 | `node scripts/check-first-load.mjs` 实测 **3.86MB**（JS 0.56 + 图片 3.05 + 音频 0.25），剩余预算 4.14MB。口径为 index.html 的 ESM 静态导入图，与 Chrome CDP 实测逐文件比对一致 |
 | REQ-NFR-007 | 30 分钟内存增长 < 50MB | P1 | ✅ 通过 | `node scripts/measure-memory.mjs` 实测 **30 分钟连续游玩**：脚本化走位+射击+跳跃驱动真实关卡，周期性读 CDP 的 `JSHeapUsedSize`（每次读前强制 GC，因此是存活对象而非未回收垃圾）。结果：107 个采样，首 6 个均值 **6.9MB**、末 6 个均值 **7.3MB**，**增长 +0.4MB**（预算 50MB），最低 6.0MB / 峰值 7.4MB。模拟推进 **107474 步**（预期约 108000，即满帧运行），证明不是「游戏停了所以内存不涨」 |
 
