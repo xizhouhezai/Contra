@@ -78,21 +78,45 @@ console.log(`帧 ${frames.length}，时长 ${videoSeconds.toFixed(1)}s`)
 const firstNumber = Number(frames[0].file.replace(/\D/g, ''))
 const pattern = join(dir, frames[0].file.replace(/\d+(?=\.[^.]+$)/, '%05d')).replace(/\\/g, '/')
 
-const args = ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', '30', '-i', pattern]
+/**
+ * The real frame rate, measured from the timestamps.
+ *
+ * The screencast hands over frames at the compositor's rate - 60fps here - and
+ * the first version told ffmpeg to play them at 30. That silently doubled the
+ * speed of the whole recording: a character standing still appeared to jump,
+ * and the timeline raced ahead of the audio. Nothing in the file looked broken,
+ * which is exactly why it is worth measuring instead of assuming.
+ *
+ * The rate comes from the frames' own timestamps, so a capture at 30fps or 24fps
+ * is handled without anyone editing a constant.
+ */
+const measuredFps = frames.length / (totalMs / 1000)
+const fps = Math.max(1, Math.min(120, Math.round(measuredFps)))
+console.log(
+  `实测帧率 ${measuredFps.toFixed(1)}fps → 按 ${fps}fps 封装` +
+    `（按 ${measuredFps.toFixed(1)}fps 封装时长 ${(frames.length / measuredFps).toFixed(1)}s）`,
+)
+
+const args = ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', String(fps), '-i', pattern]
 if (audioPath !== undefined && existsSync(resolve(audioPath))) {
   args.push('-i', resolve(audioPath))
   args.push('-map', '0:v:0', '-map', '1:a:0')
   args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p')
-  // The audio capture starts a moment after the frames and ends a moment
-  // before them, so the shorter of the two decides the length rather than
-  // either being cut off mid-sentence.
   args.push('-c:a', 'aac', '-b:a', '160k')
-  args.push('-shortest')
+  // The audio capture starts a moment after the frames and ends a moment
+  // before them, so the two tracks are never exactly the same length.
+  //
+  // `-shortest` truncates to the shorter of them, which silently threw away
+  // the tail of the video: a 50s recording came out as 31s, and the picture
+  // stopped while the timeline kept going. Padding the audio with silence to
+  // the video's length keeps the whole recording and costs nothing.
+  args.push('-af', `apad`)
+  args.push('-t', videoSeconds.toFixed(3))
 } else {
   console.log('没有音频文件，只合成视频')
   args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p')
 }
-args.push('-r', '30', resolve(outPath))
+args.push('-r', String(fps), resolve(outPath))
 
 try {
   execFileSync(FFMPEG, args, { stdio: 'pipe' })
