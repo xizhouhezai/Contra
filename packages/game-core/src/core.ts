@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Rule-layer event model.
  *
  * The rule layer never calls the presentation layer: it emits these events and the
@@ -11,10 +11,12 @@ import { INITIAL_WEAPON } from './data/characters.js'
 import {
   BULLET_HEIGHT,
   BULLET_WIDTH,
+  FALL_MARGIN,
   FIXED_STEP_SECONDS,
   MAX_STEPS_PER_FRAME,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
+  SAFE_STAND_STEPS,
   TIME_EPSILON,
 } from './data/constants.js'
 import { enemyWeapon, maxConcurrentShooters } from './data/enemyWeapons.js'
@@ -616,6 +618,43 @@ export class World {
    * seconds) both hang off it.
    */
   private failed = false
+
+  /**
+   * Where the player last stood on something solid.
+   *
+   * Used as the place to put them back after a fall. It is only updated while
+   * grounded, so it never records a position in mid-air over a pit - which is
+   * exactly the position a respawn must not use.
+   */
+  private lastSafe: { x: number; y: number } | null = null
+
+  /**
+   * Consecutive steps the player has been grounded.
+   *
+   * The respawn point is only taken after standing for a moment. Recording the
+   * last grounded frame instead put the player back on the very lip of the pit
+   * they had just walked off, so holding the same direction dropped them in
+   * again immediately and the same heart was spent over and over. Standing for a
+   * tenth of a second is enough to tell a ledge from an edge.
+   */
+  private groundedSteps = 0
+
+  /**
+   * The height below which the level no longer exists.
+   *
+   * Derived from the terrain instead of configured: the lowest surface in the
+   * stage plus a margin wide enough that a normal jump never reaches it. This
+   * needs no new field in the stage data and works for the vertical shaft as
+   * well, where the platforms run thousands of pixels down.
+   */
+  private fallPlaneY(): number {
+    let lowest = Number.NEGATIVE_INFINITY
+    for (const platform of this.platforms) {
+      lowest = Math.max(lowest, platform.y + platform.height)
+    }
+    if (!Number.isFinite(lowest)) return Number.POSITIVE_INFINITY
+    return lowest + FALL_MARGIN
+  }
 
   /** True once the player has run out of hearts. */
   get failedStage(): boolean {
@@ -1409,6 +1448,27 @@ export class World {
     const solid = solidPlatforms(this.platforms, this.terrain, this.elapsedSeconds)
     updateMovement(this.player, input, this.fixedStepSeconds, solid, this.movementBounds)
 
+    // Falling out of the level has to cost something. Without this the player
+    // who walks off a ledge keeps accelerating downward forever: measured at
+    // y=64227 and still falling at 12320 px/s ten seconds later, with all three
+    // hearts intact and the stage neither failed nor cleared. On screen that
+    // reads as the game freezing, because the camera has nothing to follow.
+    //
+    // The step continues after the respawn rather than returning early: the
+    // player is already back on the ledge, so the rest of this step is the same
+    // work it would have done anyway.
+    if (this.player.onGround) {
+      this.groundedSteps += 1
+      // A short stand, not a graze: see groundedSteps.
+      if (this.groundedSteps >= SAFE_STAND_STEPS) {
+        this.lastSafe = { x: this.player.position.x, y: this.player.position.y }
+      }
+    } else if (this.player.position.y > this.fallPlaneY()) {
+      this.handleFall()
+    } else {
+      this.groundedSteps = 0
+    }
+
     releaseExpiredLocks(this.weapon, this.liveTargetIds())
     const fired = updateWeapons(
       this.player,
@@ -1895,10 +1955,56 @@ export class World {
     })
   }
 
+  /**
+   * Handles the player having left the level downward.
+   *
+   * A fall costs exactly one heart and puts the player back where they last
+   * stood, which is the classic reading of a pit: the mistake is punished but
+   * the run continues. It deliberately does not go through `applyHit` - that
+   * path is gated on the invulnerability window, and a player who falls while
+   * still flashing from a hit would be silently teleported back with no cost at
+   * all, which is worse than either outcome.
+   *
+   * The respawn zeroes velocity as well. Releasing the player at the ledge with
+   * the speed they had reached would throw them straight back off it.
+   */
+  private handleFall(): void {
+    const before = this.player.hearts
+    this.player.hearts = Math.max(0, this.player.hearts - 1)
+
+    this.eventQueue.push({
+      type: 'playerHurt',
+      heartsLeft: this.player.hearts,
+      position: { x: this.player.position.x, y: this.player.position.y },
+    })
+
+    if (this.player.hearts <= 0 || before <= 0) {
+      this.failed = true
+      this.player.velocity.x = 0
+      this.player.velocity.y = 0
+      this.eventQueue.push({
+        type: 'playerDied',
+        position: { x: this.player.position.x, y: this.player.position.y },
+      })
+      return
+    }
+
+    // Back to the last ground, or the stage entrance if the player somehow never
+    // touched any - a fall that respawns nowhere would loop forever.
+    const safe = this.lastSafe ?? { x: this.player.position.x, y: this.player.position.y }
+    this.player.position.x = safe.x
+    this.player.position.y = safe.y
+    this.player.velocity.x = 0
+    this.player.velocity.y = 0
+    this.player.onGround = true
+    // A grace window, so landing back on the ledge does not immediately cost a
+    // second heart to whatever is standing there.
+    this.player.invulnerableUntil = this.elapsedSeconds + 1
+  }
+
   private damagePlayer(): void {
     if (this.player.hearts <= 0) return
     if (!canDamage('enemy', 'player')) return
-
     const box = playerRect(this.player)
     // Echoes are obstacles, not bodies. They are solid so a bullet can hit them,
     // and that same solidity made walking into one cost a heart - three echoes in
