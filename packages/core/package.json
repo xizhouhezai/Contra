@@ -1,6 +1,6 @@
 {
   "name": "@contra/core",
-  "version": "0.23.7",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "description": "Core primitives: typed result helpers, version utilities, and a small event bus.",
